@@ -52,6 +52,152 @@ export default function ExamPage() {
   const [lockdownMessage, setLockdownMessage] = useState('');
   const startTimeRef = useRef<number>(Date.now());
 
+  // ========================================
+  // EVENT TRACKING SYSTEM
+  // ========================================
+  const eventQueueRef = useRef<Array<{ type: string; data?: Record<string, unknown>; timestamp: string }>>([]);
+  const keystrokeBufferRef = useRef<{ count: number; lastKey: string; questionId: string }>({ count: 0, lastKey: '', questionId: '' });
+
+  const trackEvent = useCallback((type: string, data?: Record<string, unknown>) => {
+    eventQueueRef.current.push({
+      type,
+      data: { ...data, ts: Date.now() - startTimeRef.current },
+      timestamp: new Date().toISOString(),
+    });
+  }, []);
+
+  const flushEvents = useCallback(async () => {
+    if (!attempt?.id || eventQueueRef.current.length === 0) return;
+    const events = [...eventQueueRef.current];
+    eventQueueRef.current = [];
+    try {
+      await fetch(`/api/otisak/exams/${examId}/events`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attempt_id: attempt.id, events }),
+        keepalive: true,
+      });
+    } catch { /* silent */ }
+  }, [attempt?.id, examId]);
+
+  // Flush events every 5 seconds
+  useEffect(() => {
+    if (phase !== 'exam') return;
+    const interval = setInterval(flushEvents, 5000);
+    return () => { clearInterval(interval); flushEvents(); };
+  }, [phase, flushEvents]);
+
+  // Track global events during exam
+  useEffect(() => {
+    if (phase !== 'exam') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Buffer keystrokes - flush as batch every 2 seconds
+      const buf = keystrokeBufferRef.current;
+      buf.count++;
+      buf.lastKey = e.key;
+
+      // Track special keys immediately
+      if (e.ctrlKey || e.metaKey) {
+        trackEvent('key_combo', { key: e.key, ctrl: e.ctrlKey, meta: e.metaKey, alt: e.altKey, shift: e.shiftKey });
+      }
+      if (e.key === 'Tab' || e.key === 'Escape') {
+        trackEvent('special_key', { key: e.key });
+      }
+    };
+
+    const handleKeyUp = () => {
+      const buf = keystrokeBufferRef.current;
+      if (buf.count > 0) {
+        // Flush keystroke buffer periodically (handled by interval below)
+      }
+    };
+
+    const handleCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      trackEvent('copy_attempt', { selection: window.getSelection()?.toString()?.substring(0, 100) });
+    };
+    const handleCut = (e: ClipboardEvent) => {
+      e.preventDefault();
+      trackEvent('cut_attempt');
+    };
+    const handlePaste = (e: ClipboardEvent) => {
+      trackEvent('paste_attempt', { length: e.clipboardData?.getData('text')?.length || 0 });
+    };
+    const handleContextMenu = (e: MouseEvent) => {
+      trackEvent('right_click', { x: e.clientX, y: e.clientY });
+    };
+    const handleBlur = () => {
+      trackEvent('page_blur');
+    };
+    const handleFocus = () => {
+      trackEvent('page_focus');
+    };
+    const handleVisibilityChange = () => {
+      trackEvent('visibility_change', { state: document.visibilityState });
+    };
+    const handleResize = () => {
+      trackEvent('window_resize', { width: window.innerWidth, height: window.innerHeight });
+    };
+    const handleMouseLeave = (e: MouseEvent) => {
+      if (e.clientY <= 0 || e.clientX <= 0 || e.clientX >= window.innerWidth || e.clientY >= window.innerHeight) {
+        trackEvent('mouse_leave_window', { x: e.clientX, y: e.clientY });
+      }
+    };
+    const handlePrint = () => {
+      trackEvent('print_attempt');
+    };
+    const handleDevTools = (e: KeyboardEvent) => {
+      if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C'))) {
+        trackEvent('devtools_attempt', { key: e.key });
+      }
+    };
+
+    // Keystroke buffer flusher
+    const keystrokeInterval = setInterval(() => {
+      const buf = keystrokeBufferRef.current;
+      if (buf.count > 0) {
+        trackEvent('keystroke_batch', { count: buf.count, lastKey: buf.lastKey });
+        buf.count = 0;
+      }
+    }, 3000);
+
+    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleDevTools);
+    document.addEventListener('keyup', handleKeyUp);
+    document.addEventListener('copy', handleCopy);
+    document.addEventListener('cut', handleCut);
+    document.addEventListener('paste', handlePaste);
+    document.addEventListener('contextmenu', handleContextMenu);
+    window.addEventListener('blur', handleBlur);
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('resize', handleResize);
+    document.addEventListener('mouseleave', handleMouseLeave);
+    window.addEventListener('beforeprint', handlePrint);
+
+    // Track exam started
+    trackEvent('exam_view_started', { questions: questions.length });
+
+    return () => {
+      clearInterval(keystrokeInterval);
+      document.removeEventListener('keydown', handleKeyDown);
+      document.removeEventListener('keydown', handleDevTools);
+      document.removeEventListener('keyup', handleKeyUp);
+      document.removeEventListener('copy', handleCopy);
+      document.removeEventListener('cut', handleCut);
+      document.removeEventListener('paste', handlePaste);
+      document.removeEventListener('contextmenu', handleContextMenu);
+      window.removeEventListener('blur', handleBlur);
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('resize', handleResize);
+      document.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('beforeprint', handlePrint);
+    };
+  }, [phase, trackEvent, questions.length]);
+
   // 1. Auth + load exam data
   useEffect(() => {
     let mounted = true;
@@ -253,22 +399,38 @@ export default function ExamPage() {
     if (q.multi_answer) {
       setAnswers((prev) => {
         const current = prev[q.id] || [];
-        return { ...prev, [q.id]: current.includes(answerId) ? current.filter((id) => id !== answerId) : [...current, answerId] };
+        const deselecting = current.includes(answerId);
+        trackEvent(deselecting ? 'answer_deselected' : 'answer_selected', { question_id: q.id, question_index: currentQIndex, answer_id: answerId });
+        return { ...prev, [q.id]: deselecting ? current.filter((id) => id !== answerId) : [...current, answerId] };
       });
     } else {
       setAnswers((prev) => {
         const current = prev[q.id] || [];
-        return { ...prev, [q.id]: current.includes(answerId) ? [] : [answerId] };
+        const deselecting = current.includes(answerId);
+        trackEvent(deselecting ? 'answer_deselected' : 'answer_selected', { question_id: q.id, question_index: currentQIndex, answer_id: answerId });
+        return { ...prev, [q.id]: deselecting ? [] : [answerId] };
       });
     }
   };
 
-  const handleNext = () => { if (currentQIndex < questions.length - 1) { setCurrentQIndex((p) => p + 1); setMatchingSelectedLeft(null); } };
-  const handlePrev = () => { if (currentQIndex > 0) { setCurrentQIndex((p) => p - 1); setMatchingSelectedLeft(null); } };
+  const handleNext = () => {
+    if (currentQIndex < questions.length - 1) {
+      trackEvent('question_next', { from: currentQIndex, to: currentQIndex + 1 });
+      setCurrentQIndex((p) => p + 1); setMatchingSelectedLeft(null);
+    }
+  };
+  const handlePrev = () => {
+    if (currentQIndex > 0) {
+      trackEvent('question_prev', { from: currentQIndex, to: currentQIndex - 1 });
+      setCurrentQIndex((p) => p - 1); setMatchingSelectedLeft(null);
+    }
+  };
 
   // Submit exam
   const handleFinish = useCallback(async (method: 'manual' | 'timeout' = 'manual') => {
     if (phase === 'submitting') return;
+    trackEvent('exam_submit', { method, answered: Object.keys(answers).length + Object.keys(textAnswers).length });
+    flushEvents();
     setPhase('submitting');
 
     const timeSpent = Math.floor((Date.now() - startTimeRef.current) / 1000);
