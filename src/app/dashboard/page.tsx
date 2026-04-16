@@ -18,6 +18,7 @@ import {
   BookOpen,
   AlertTriangle,
   FileText,
+  User,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '@/components/Sidebar';
 import { Badge } from '@/components/ui/Badge';
@@ -31,7 +32,6 @@ import type { OtisakExamWithSubject, OtisakAttemptWithExam } from '@/lib/db/otis
 type UserInfo = {
   name?: string;
   email?: string;
-  avatar_url?: string;
   index_number?: string;
   role?: string;
 };
@@ -66,26 +66,21 @@ function formatDate(d: string | Date | null) {
 function formatDuration(seconds: number) {
   const m = Math.floor(seconds / 60);
   const s = seconds % 60;
-  return m > 0 ? `${m}min ${s}s` : `${s}s`;
+  return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
 function getExamStatusInfo(exam: OtisakExamWithSubject) {
   const now = new Date();
   const scheduled = exam.scheduled_at ? new Date(exam.scheduled_at) : null;
-
   if (exam.status === 'active') {
     return { label: 'Active', variant: 'success' as const, dot: true, canStart: true };
   }
   if (exam.status === 'scheduled' && scheduled) {
     const diff = scheduled.getTime() - now.getTime();
-    if (diff <= 3600000 && diff > 0) {
-      return { label: 'Starting Soon', variant: 'warning' as const, dot: true, canStart: false, countdown: diff };
-    }
+    if (diff <= 3600000 && diff > 0) return { label: 'Starting Soon', variant: 'warning' as const, dot: true, canStart: false, countdown: diff };
     return { label: 'Enrolled', variant: 'accent' as const, dot: false, canStart: false, countdown: diff > 0 ? diff : undefined };
   }
-  if (exam.status === 'completed') {
-    return { label: 'Completed', variant: 'neutral' as const, dot: false, canStart: false };
-  }
+  if (exam.status === 'completed') return { label: 'Completed', variant: 'neutral' as const, dot: false, canStart: false };
   return { label: exam.status, variant: 'neutral' as const, dot: false, canStart: false };
 }
 
@@ -122,7 +117,6 @@ export default function DashboardPage() {
           setUser({
             name: data.user?.name,
             email: data.user?.email,
-            avatar_url: data.user?.avatar_url,
             index_number: data.user?.index_number,
             role: data.user?.role,
           });
@@ -207,36 +201,55 @@ export default function DashboardPage() {
     );
   }
 
+  const isStaff = user.role === 'admin' || user.role === 'assistant';
+  const greeting = (() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  })();
+
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
-      <Sidebar userName={user?.name} userRole={user?.role} userAvatar={user?.avatar_url} />
+      <Sidebar userName={user?.name} userRole={user?.role} />
       <MobileNav userName={user?.name} userRole={user?.role} />
 
       <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
         <main className="flex-1 pb-20 lg:pb-8">
           <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
-            {/* Header */}
-            <div className="mb-6">
-              <div className="flex items-center gap-4 mb-2">
-                <div className="w-11 h-11 sm:w-14 sm:h-14 rounded-xl bg-accent-light flex items-center justify-center shrink-0">
-                  <Fingerprint className="w-6 h-6 sm:w-8 sm:h-8 text-accent" strokeWidth={1.5} />
+            {/* Header with greeting */}
+            <div className="mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-accent-light flex items-center justify-center shrink-0">
+                    <Fingerprint className="w-7 h-7 sm:w-8 sm:h-8 text-accent" strokeWidth={1.5} />
+                  </div>
+                  <div>
+                    <h1 className="text-xl sm:text-2xl font-display font-bold text-[var(--text-primary)] leading-tight">
+                      {greeting}, {user.name?.split(' ')[0] || 'Student'}
+                    </h1>
+                    <div className="flex items-center gap-2 mt-1">
+                      {user.index_number && (
+                        <span className="text-sm font-mono text-accent">{user.index_number}</span>
+                      )}
+                      {user.index_number && <span className="text-[var(--text-muted)]">&middot;</span>}
+                      <span className="text-sm text-[var(--text-secondary)] capitalize">{user.role}</span>
+                    </div>
+                  </div>
                 </div>
-                <div>
-                  <h1 className="text-[28px] sm:text-[30px] font-display font-bold text-[var(--text-primary)] tracking-tight leading-none">
-                    OTISAK
-                  </h1>
-                  <p className="text-[14px] text-[var(--text-secondary)] mt-1">
-                    Automated Test & Assessment System
-                  </p>
-                </div>
+                {isStaff && (
+                  <Button variant="secondary" size="sm" onClick={() => router.push('/manage')}>
+                    Manage Exams
+                  </Button>
+                )}
               </div>
             </div>
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-              <StatCard icon={<BarChart3 size={20} strokeWidth={1.75} />} iconBg="var(--accent-light)" iconColor="var(--accent)" value={completedAttempts.length} label="Exams" />
+              <StatCard icon={<BarChart3 size={20} strokeWidth={1.75} />} iconBg="var(--accent-light)" iconColor="var(--accent)" value={completedAttempts.length} label="Exams Taken" />
               <StatCard icon={<Trophy size={20} strokeWidth={1.75} />} iconBg="var(--success-light)" iconColor="var(--success)" value={passedCount} label="Passed" />
-              <StatCard icon={<TargetIcon size={20} strokeWidth={1.75} />} iconBg={avgPercent >= 50 ? 'var(--success-light)' : 'var(--danger-light)'} iconColor={avgPercent >= 50 ? 'var(--success)' : 'var(--danger)'} value={`${avgPercent}%`} label="Average" />
+              <StatCard icon={<TargetIcon size={20} strokeWidth={1.75} />} iconBg={avgPercent >= 50 ? 'var(--success-light)' : 'var(--danger-light)'} iconColor={avgPercent >= 50 ? 'var(--success)' : 'var(--danger)'} value={`${avgPercent}%`} label="Avg. Score" />
               <StatCard icon={<Clock size={20} strokeWidth={1.75} />} iconBg="var(--warning-light)" iconColor="var(--warning)" value={formatDuration(totalTimeSpent)} label="Total Time" />
             </div>
 
@@ -246,7 +259,7 @@ export default function DashboardPage() {
                 tabs={[
                   { id: 'upcoming', label: <span className="flex items-center gap-2">Exams {exams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'upcoming' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{exams.length}</span>}</span> },
                   { id: 'practice', label: <span className="flex items-center gap-2">Practice {practiceExams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'practice' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{practiceExams.length}</span>}</span> },
-                  { id: 'history', label: 'Exam History' },
+                  { id: 'history', label: 'History' },
                 ]}
                 activeTab={activeTab}
                 onChange={setActiveTab}
@@ -290,7 +303,7 @@ export default function DashboardPage() {
                               </div>
                               <div className="flex-shrink-0 flex flex-col items-end justify-center sm:w-48 pl-2 sm:pl-5 sm:border-l border-[var(--border-subtle)] mt-4 sm:mt-0">
                                 {status.canStart ? (
-                                  <Button variant="primary" size="md" className="w-full justify-center" onClick={() => handleJoinExam(exam.id)}>Enter</Button>
+                                  <Button variant="primary" size="md" className="w-full justify-center" onClick={() => handleJoinExam(exam.id)}>Enter Exam</Button>
                                 ) : status.countdown && status.countdown > 0 ? (
                                   <div className="text-right">
                                     <div className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Starts in</div>
@@ -305,7 +318,7 @@ export default function DashboardPage() {
                         })}
                       </div>
                     ) : (
-                      <EmptyState icon={<CalendarX size={32} strokeWidth={1.5} />} title="No exams available" description="Exams will appear here when you are enrolled." actionLabel="Practice" onAction={() => setActiveTab('practice')} />
+                      <EmptyState icon={<CalendarX size={32} strokeWidth={1.5} />} title="No exams scheduled" description="You will see your upcoming exams here once you are enrolled." actionLabel="Try Practice" onAction={() => setActiveTab('practice')} />
                     )}
                   </motion.div>
                 )}
@@ -344,7 +357,7 @@ export default function DashboardPage() {
                         })}
                       </div>
                     ) : (
-                      <EmptyState icon={<BookOpen size={32} strokeWidth={1.5} />} title="No practice exams" description="Practice exams will appear when they are available." />
+                      <EmptyState icon={<BookOpen size={32} strokeWidth={1.5} />} title="No practice exams" description="Practice exams will appear here when they are available." />
                     )}
                   </motion.div>
                 )}
@@ -355,10 +368,10 @@ export default function DashboardPage() {
                     <div className="flex flex-wrap items-center gap-3 mb-6">
                       <div className="w-[180px]"><Dropdown options={subjectOptions} value={historySubject} onChange={setHistorySubject} /></div>
                       <div className="flex items-center bg-[var(--bg-tertiary)] rounded-full p-1">
-                        {(['all', 'passed', 'failed'] as const).map((status) => (
-                          <button key={status} onClick={() => setHistoryStatus(status)}
-                            className={`px-4 h-8 rounded-full text-sm font-medium transition-colors ${historyStatus === status ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
-                            {status === 'all' ? 'All' : status === 'passed' ? 'Passed' : 'Failed'}
+                        {(['all', 'passed', 'failed'] as const).map((s) => (
+                          <button key={s} onClick={() => setHistoryStatus(s)}
+                            className={`px-4 h-8 rounded-full text-sm font-medium transition-colors ${historyStatus === s ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
+                            {s === 'all' ? 'All' : s === 'passed' ? 'Passed' : 'Failed'}
                           </button>
                         ))}
                       </div>
@@ -372,10 +385,10 @@ export default function DashboardPage() {
                           <div className="w-24 text-center">Score</div>
                           <div className="w-20 text-center hidden md:block">Time</div>
                           <div className="w-24 text-center">Status</div>
-                          <div className="w-24 text-right"></div>
+                          <div className="w-20"></div>
                         </div>
                         <div className="flex flex-col">
-                          {filteredHistory.map((attempt, idx) => {
+                          {filteredHistory.map((attempt) => {
                             const pct = Number(attempt.max_points) > 0 ? Math.round((Number(attempt.total_points) / Number(attempt.max_points)) * 100) : 0;
                             const passed = pct >= 50;
                             const subjectColor = getSubjectColor(attempt.subject_name);
@@ -397,8 +410,8 @@ export default function DashboardPage() {
                                 <div className="w-24 text-center"><span className={`text-base font-mono font-bold ${passed ? 'text-success' : 'text-danger'}`}>{pct}%</span></div>
                                 <div className="w-20 text-center hidden md:block text-[13px] font-mono text-[var(--text-muted)]">{formatDuration(Number(attempt.time_spent_seconds || 0))}</div>
                                 <div className="w-24 text-center"><Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? 'Passed' : 'Failed'}</Badge></div>
-                                <div className="w-24 flex justify-end">
-                                  <Button variant="ghost" size="sm" className="text-accent hover:text-accent-hover px-2" rightIcon={<ExternalLink size={14} />}>Review</Button>
+                                <div className="w-20 flex justify-end">
+                                  <Button variant="ghost" size="sm" className="text-accent hover:text-accent-hover px-2" rightIcon={<ExternalLink size={14} />}>View</Button>
                                 </div>
                               </div>
                             );
@@ -409,7 +422,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                     ) : (
-                      <EmptyState icon={<Trophy size={32} strokeWidth={1.5} />} title="No attempts yet" description="Take an exam to see your history here." actionLabel="Practice" onAction={() => setActiveTab('practice')} />
+                      <EmptyState icon={<Trophy size={32} strokeWidth={1.5} />} title="No exam history" description="Your completed exams will appear here." actionLabel="Try Practice" onAction={() => setActiveTab('practice')} />
                     )}
                   </motion.div>
                 )}
