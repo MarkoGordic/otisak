@@ -69,15 +69,16 @@ router.get('/session', async (req: Request, res: Response) => {
   try {
     const cookieValue = req.cookies?.[SESSION_COOKIE];
     if (!cookieValue) {
-      return res.status(401).json({ error: 'Not authenticated' });
+      return res.json({ authenticated: false });
     }
 
     const session = parseSessionCookie(cookieValue);
     if (!session) {
-      return res.status(401).json({ error: 'Invalid or expired session' });
+      return res.json({ authenticated: false });
     }
 
     return res.json({
+      authenticated: true,
       user: session.user,
     });
   } catch (error) {
