@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, ArrowLeft, Check, X, ChevronDown, ChevronUp, Clock, Award, Target } from 'lucide-react';
 import { OtisakHeader, OtisakFooter, CodeBlock } from '@/components/otisak';
+import { useLang } from '@/components/LangProvider';
 import type { OtisakExamResults } from '@/lib/db/otisak-types';
 
 type UserInfo = {
@@ -19,6 +20,7 @@ const ANSWER_LABELS = 'ABCDEFGHIJ';
 export default function ResultsPage() {
   const router = useRouter();
   const { examId } = useParams<{ examId: string }>()!;
+  const { t } = useLang();
 
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -132,7 +134,7 @@ export default function ResultsPage() {
               className={`text-2xl sm:text-3xl font-light tracking-[0.2em] uppercase drop-shadow-lg ${
                 passed ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]'
               }`}>
-              {passed ? 'Passed' : 'Results'}
+              {passed ? t('results.passed') : t('results.title')}
             </motion.span>
           ) : null
         }
@@ -142,10 +144,10 @@ export default function ResultsPage() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-10 z-10 flex flex-col items-center">
         {!results ? (
           <div className="text-center py-20">
-            <p className="text-gray-400 text-lg mb-2">Results not available</p>
-            <p className="text-gray-500 text-sm mb-6">Results are being processed...</p>
+            <p className="text-gray-400 text-lg mb-2">{t('results.notAvailable')}</p>
+            <p className="text-gray-500 text-sm mb-6">{t('results.processing')}</p>
             <button onClick={() => router.push('/dashboard')} className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2 mx-auto">
-              <ArrowLeft className="w-4 h-4" />Back to Dashboard
+              <ArrowLeft className="w-4 h-4" />{t('results.backToDashboard')}
             </button>
           </div>
         ) : (
@@ -157,7 +159,7 @@ export default function ResultsPage() {
                 <div className="flex flex-col gap-1 min-w-0">
                   <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium truncate">{results.exam.title}</span>
                   <span className="text-gray-500 text-[10px] sm:text-xs">
-                    {percentage}% &#8226; {passed ? 'Passed' : 'Not Passed'}
+                    {percentage}% &#8226; {passed ? t('results.passedLabel') : t('results.notPassed')}
                     {Number(results.exam.pass_threshold) > 0 && <span className="text-gray-600"> (Threshold {results.exam.pass_threshold}%)</span>}
                   </span>
                 </div>
@@ -170,7 +172,7 @@ export default function ResultsPage() {
               <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-3 border-t border-gray-800/50">
                 <div className="flex items-center gap-1.5 text-xs text-gray-500">
                   <Target className="w-3.5 h-3.5 text-blue-400" />
-                  <span>{correctCount}/{totalQuestions} correct</span>
+                  <span>{correctCount}/{totalQuestions} {t('results.correct')}</span>
                 </div>
                 {timeSpent > 0 && (
                   <div className="flex items-center gap-1.5 text-xs text-gray-500">
@@ -189,7 +191,7 @@ export default function ResultsPage() {
                   <>
                     <Loader2 className="w-5 h-5 animate-spin text-purple-400 flex-shrink-0" />
                     <div>
-                      <p className="text-sm text-purple-300 font-medium">AI grading in progress</p>
+                      <p className="text-sm text-purple-300 font-medium">{t('results.aiGradingInProgress')}</p>
                       <p className="text-xs text-purple-400/60">Open-text answers are being graded. Score will update automatically.</p>
                     </div>
                   </>
@@ -205,7 +207,7 @@ export default function ResultsPage() {
             {/* Expand/Collapse */}
             <div className="w-full flex justify-end mb-3">
               <button onClick={expandAll} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                {expandedQ.size === totalQuestions ? 'Collapse All' : 'Expand All'}
+                {expandedQ.size === totalQuestions ? t('results.collapseAll') : t('results.expandAll')}
               </button>
             </div>
 
@@ -254,28 +256,28 @@ export default function ResultsPage() {
                         {q.question.type === 'open_text' ? (
                           <div className="space-y-3">
                             <div>
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">Your answer</p>
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.yourAnswer')}</p>
                               <div className="bg-[#181a25]/50 border border-gray-700 rounded-lg px-3 py-2">
-                                <p className="text-sm text-gray-300 whitespace-pre-wrap">{q.text_answer || <span className="italic text-gray-500">No answer provided</span>}</p>
+                                <p className="text-sm text-gray-300 whitespace-pre-wrap">{q.text_answer || <span className="italic text-gray-500">{t('results.noAnswer')}</span>}</p>
                               </div>
                             </div>
                             {q.ai_grading_status === 'graded' && q.ai_feedback && (
                               <div className="bg-purple-500/[0.06] border border-purple-500/20 rounded-lg px-3 py-2">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-[10px] text-purple-400 uppercase font-medium">AI Feedback</span>
+                                  <span className="text-[10px] text-purple-400 uppercase font-medium">{t('results.aiFeedback')}</span>
                                 </div>
                                 <p className="text-xs text-purple-300/80">{q.ai_feedback}</p>
                               </div>
                             )}
                             {q.ai_grading_status === 'pending' && (
-                              <div className="flex items-center gap-2 text-xs text-purple-400/60"><Loader2 className="w-3 h-3 animate-spin" /><span>Waiting for AI grading...</span></div>
+                              <div className="flex items-center gap-2 text-xs text-purple-400/60"><Loader2 className="w-3 h-3 animate-spin" /><span>{t('results.aiPending')}</span></div>
                             )}
                             {q.ai_grading_status === 'grading' && (
-                              <div className="flex items-center gap-2 text-xs text-purple-400"><Loader2 className="w-3 h-3 animate-spin" /><span>AI is grading now...</span></div>
+                              <div className="flex items-center gap-2 text-xs text-purple-400"><Loader2 className="w-3 h-3 animate-spin" /><span>{t('results.aiGrading')}</span></div>
                             )}
                             {q.ai_grading_status === 'error' && (
                               <div className="bg-red-500/[0.06] border border-red-500/20 rounded-lg px-3 py-2">
-                                <p className="text-xs text-red-400">AI grading failed</p>
+                                <p className="text-xs text-red-400">{t('results.aiFailed')}</p>
                                 {q.ai_feedback && <p className="text-[10px] text-red-400/60 mt-1">{q.ai_feedback}</p>}
                               </div>
                             )}
@@ -286,10 +288,10 @@ export default function ResultsPage() {
                           const studentOrder: string[] = (() => { try { const p = JSON.parse(q.text_answer || '[]'); return Array.isArray(p) ? p : []; } catch { return []; } })();
                           return (
                             <div className="space-y-3">
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">Ordering</p>
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.ordering')}</p>
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
-                                  <p className="text-[10px] text-blue-400/60 uppercase mb-1">Your order</p>
+                                  <p className="text-[10px] text-blue-400/60 uppercase mb-1">{t('results.yourOrder')}</p>
                                   {studentOrder.map((item, i) => {
                                     const isCorrectPos = allowReview && correctOrder[i] === item;
                                     return (<div key={`s-${i}`} className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs ${isCorrectPos ? 'border-green-500/30 bg-green-500/[0.06] text-green-300' : allowReview ? 'border-red-500/30 bg-red-500/[0.06] text-red-300' : 'border-gray-700 bg-[#181a25]/50 text-gray-300'}`}><span className="font-mono text-[10px] w-4">{i + 1}.</span>{item}</div>);
@@ -297,7 +299,7 @@ export default function ResultsPage() {
                                 </div>
                                 {allowReview && (
                                   <div>
-                                    <p className="text-[10px] text-green-400/60 uppercase mb-1">Correct order</p>
+                                    <p className="text-[10px] text-green-400/60 uppercase mb-1">{t('results.correctOrder')}</p>
                                     {correctOrder.map((item, i) => (<div key={`c-${i}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-green-500/20 bg-green-500/[0.04] text-xs text-green-300"><span className="font-mono text-[10px] w-4">{i + 1}.</span>{item}</div>))}
                                   </div>
                                 )}
@@ -311,7 +313,7 @@ export default function ResultsPage() {
                           const studentMatches: Record<string, string> = (() => { try { return JSON.parse(q.text_answer || '{}'); } catch { return {}; } })();
                           return (
                             <div className="space-y-3">
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">Matching</p>
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.matching')}</p>
                               <div className="space-y-1.5">
                                 {leftArr.map((left, i) => {
                                   const studentRight = studentMatches[left] || '';
@@ -335,7 +337,7 @@ export default function ResultsPage() {
                           const studentFills: Record<string, string> = (() => { try { return JSON.parse(q.text_answer || '{}'); } catch { return {}; } })();
                           return (
                             <div className="space-y-3">
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">Fill in the blanks</p>
+                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.fillBlanks')}</p>
                               <div className="space-y-1.5">
                                 {blanks.map((blank) => {
                                   const sv = (studentFills[blank.id] || '').trim();
@@ -383,7 +385,7 @@ export default function ResultsPage() {
                                       : ANSWER_LABELS[ai] || String(ai + 1)}
                                   </div>
                                   <span className={`text-sm ${wasSelected ? 'text-white' : 'text-gray-400'}`}>{a.text}</span>
-                                  {wasSelected && !allowReview && <span className="text-[10px] text-blue-400 ml-auto">Your answer</span>}
+                                  {wasSelected && !allowReview && <span className="text-[10px] text-blue-400 ml-auto">{t('results.yourAnswer')}</span>}
                                 </div>
                               );
                             })}
@@ -397,7 +399,7 @@ export default function ResultsPage() {
                         )}
 
                         {!allowReview && q.question.type !== 'open_text' && (
-                          <p className="text-[11px] text-gray-500 mt-2 italic">Review is not available for this exam.</p>
+                          <p className="text-[11px] text-gray-500 mt-2 italic">{t('results.reviewNotAvailable')}</p>
                         )}
                       </div>
                     )}
@@ -409,7 +411,7 @@ export default function ResultsPage() {
             <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 }}
               onClick={() => router.push('/dashboard')}
               className="w-full max-w-xs flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-all uppercase tracking-[0.15em] text-sm shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] hover:-translate-y-0.5 mb-10">
-              <ArrowLeft className="w-4 h-4" />Back to Dashboard
+              <ArrowLeft className="w-4 h-4" />{t('results.backToDashboard')}
             </motion.button>
           </>
         )}

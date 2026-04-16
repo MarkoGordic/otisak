@@ -4,10 +4,12 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
+import { useLang } from '@/components/LangProvider';
 
 export default function LoginPage() {
   const router = useRouter();
   const { theme, toggle } = useTheme();
+  const { t, locale, setLocale } = useLang();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -35,7 +37,7 @@ export default function LoginPage() {
 
       router.push('/dashboard');
     } catch {
-      setError('Network error. Please try again.');
+      setError(t('login.error.network'));
     } finally {
       setLoading(false);
     }
@@ -43,14 +45,23 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center p-4">
-      {/* Theme toggle */}
-      <button
-        onClick={toggle}
-        className="fixed top-4 right-4 z-10 p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors shadow-sm"
-        title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-      >
-        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-      </button>
+      {/* Theme & Language toggles */}
+      <div className="fixed top-4 right-4 z-10 flex items-center gap-2">
+        <button
+          onClick={toggle}
+          className="p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors shadow-sm"
+          title={theme === 'dark' ? t('login.switchLight') : t('login.switchDark')}
+        >
+          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+        </button>
+        <button
+          onClick={() => setLocale(locale === 'sr' ? 'en' : 'sr')}
+          className="p-2.5 rounded-xl bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-[var(--text-muted)] transition-colors shadow-sm"
+          title={locale === 'sr' ? 'English' : 'Srpski'}
+        >
+          {locale === 'sr' ? '🇬🇧' : '🇷🇸'}
+        </button>
+      </div>
 
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -68,14 +79,14 @@ export default function LoginPage() {
             OTISAK
           </h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Automated Test & Assessment System
+            {t('app.subtitle')}
           </p>
         </div>
 
         {/* Login Card */}
         <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-md p-6 sm:p-8">
           <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-6">
-            Sign in to your account
+            {t('login.title')}
           </h2>
 
           {error && (
@@ -88,7 +99,7 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Email address
+                {t('login.email')}
               </label>
               <input
                 id="email"
@@ -98,13 +109,13 @@ export default function LoginPage() {
                 required
                 autoComplete="email"
                 className="w-full h-11 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:border-accent focus:ring-0 transition-colors"
-                placeholder="you@example.com"
+                placeholder={t('login.emailPlaceholder')}
               />
             </div>
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">
-                Password
+                {t('login.password')}
               </label>
               <div className="relative">
                 <input
@@ -115,7 +126,7 @@ export default function LoginPage() {
                   required
                   autoComplete="current-password"
                   className="w-full h-11 px-3 pr-10 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm placeholder:text-[var(--text-muted)] focus:border-accent focus:ring-0 transition-colors"
-                  placeholder="Enter your password"
+                  placeholder={t('login.passwordPlaceholder')}
                 />
                 <button
                   type="button"
@@ -135,10 +146,10 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 size={16} className="animate-spin" />
-                  Signing in...
+                  {t('login.submitting')}
                 </>
               ) : (
-                'Sign in'
+                t('login.submit')
               )}
             </button>
           </form>

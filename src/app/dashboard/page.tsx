@@ -21,6 +21,7 @@ import {
   User,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '@/components/Sidebar';
+import { useLang } from '@/components/LangProvider';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Dropdown } from '@/components/ui/Dropdown';
@@ -73,15 +74,15 @@ function getExamStatusInfo(exam: OtisakExamWithSubject) {
   const now = new Date();
   const scheduled = exam.scheduled_at ? new Date(exam.scheduled_at) : null;
   if (exam.status === 'active') {
-    return { label: 'Active', variant: 'success' as const, dot: true, canStart: true };
+    return { labelKey: 'dashboard.active', variant: 'success' as const, dot: true, canStart: true };
   }
   if (exam.status === 'scheduled' && scheduled) {
     const diff = scheduled.getTime() - now.getTime();
-    if (diff <= 3600000 && diff > 0) return { label: 'Starting Soon', variant: 'warning' as const, dot: true, canStart: false, countdown: diff };
-    return { label: 'Enrolled', variant: 'accent' as const, dot: false, canStart: false, countdown: diff > 0 ? diff : undefined };
+    if (diff <= 3600000 && diff > 0) return { labelKey: 'dashboard.startingSoon', variant: 'warning' as const, dot: true, canStart: false, countdown: diff };
+    return { labelKey: 'dashboard.enrolled', variant: 'accent' as const, dot: false, canStart: false, countdown: diff > 0 ? diff : undefined };
   }
-  if (exam.status === 'completed') return { label: 'Completed', variant: 'neutral' as const, dot: false, canStart: false };
-  return { label: exam.status, variant: 'neutral' as const, dot: false, canStart: false };
+  if (exam.status === 'completed') return { labelKey: 'dashboard.completed', variant: 'neutral' as const, dot: false, canStart: false };
+  return { labelKey: exam.status, variant: 'neutral' as const, dot: false, canStart: false };
 }
 
 function formatCountdown(ms: number) {
@@ -96,6 +97,7 @@ function formatCountdown(ms: number) {
 
 export default function DashboardPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [exams, setExams] = useState<OtisakExamWithSubject[]>([]);
@@ -178,7 +180,7 @@ export default function DashboardPage() {
     const subjects = new Set<string>();
     attempts.forEach(a => { if (a.subject_name) subjects.add(a.subject_name); });
     return [
-      { value: 'all', label: 'All Subjects' },
+      { value: 'all', label: t('dashboard.allSubjects') },
       ...Array.from(subjects).map(s => ({ value: s, label: s })),
     ];
   })();
@@ -204,9 +206,9 @@ export default function DashboardPage() {
   const isStaff = user.role === 'admin' || user.role === 'assistant';
   const greeting = (() => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good morning';
-    if (h < 18) return 'Good afternoon';
-    return 'Good evening';
+    if (h < 12) return t('dashboard.greeting.morning');
+    if (h < 18) return t('dashboard.greeting.afternoon');
+    return t('dashboard.greeting.evening');
   })();
 
   return (
@@ -239,7 +241,7 @@ export default function DashboardPage() {
                 </div>
                 {isStaff && (
                   <Button variant="secondary" size="sm" onClick={() => router.push('/manage')}>
-                    Manage Exams
+                    {t('dashboard.manageExams')}
                   </Button>
                 )}
               </div>
@@ -247,19 +249,19 @@ export default function DashboardPage() {
 
             {/* Stats */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-              <StatCard icon={<BarChart3 size={20} strokeWidth={1.75} />} iconBg="var(--accent-light)" iconColor="var(--accent)" value={completedAttempts.length} label="Exams Taken" />
-              <StatCard icon={<Trophy size={20} strokeWidth={1.75} />} iconBg="var(--success-light)" iconColor="var(--success)" value={passedCount} label="Passed" />
-              <StatCard icon={<TargetIcon size={20} strokeWidth={1.75} />} iconBg={avgPercent >= 50 ? 'var(--success-light)' : 'var(--danger-light)'} iconColor={avgPercent >= 50 ? 'var(--success)' : 'var(--danger)'} value={`${avgPercent}%`} label="Avg. Score" />
-              <StatCard icon={<Clock size={20} strokeWidth={1.75} />} iconBg="var(--warning-light)" iconColor="var(--warning)" value={formatDuration(totalTimeSpent)} label="Total Time" />
+              <StatCard icon={<BarChart3 size={20} strokeWidth={1.75} />} iconBg="var(--accent-light)" iconColor="var(--accent)" value={completedAttempts.length} label={t('dashboard.stat.examsTaken')} />
+              <StatCard icon={<Trophy size={20} strokeWidth={1.75} />} iconBg="var(--success-light)" iconColor="var(--success)" value={passedCount} label={t('dashboard.stat.passed')} />
+              <StatCard icon={<TargetIcon size={20} strokeWidth={1.75} />} iconBg={avgPercent >= 50 ? 'var(--success-light)' : 'var(--danger-light)'} iconColor={avgPercent >= 50 ? 'var(--success)' : 'var(--danger)'} value={`${avgPercent}%`} label={t('dashboard.stat.avgScore')} />
+              <StatCard icon={<Clock size={20} strokeWidth={1.75} />} iconBg="var(--warning-light)" iconColor="var(--warning)" value={formatDuration(totalTimeSpent)} label={t('dashboard.stat.totalTime')} />
             </div>
 
             {/* Tabs */}
             <div className="mb-8">
               <Tabs
                 tabs={[
-                  { id: 'upcoming', label: <span className="flex items-center gap-2">Exams {exams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'upcoming' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{exams.length}</span>}</span> },
-                  { id: 'practice', label: <span className="flex items-center gap-2">Practice {practiceExams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'practice' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{practiceExams.length}</span>}</span> },
-                  { id: 'history', label: 'History' },
+                  { id: 'upcoming', label: <span className="flex items-center gap-2">{t('dashboard.tab.exams')} {exams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'upcoming' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{exams.length}</span>}</span> },
+                  { id: 'practice', label: <span className="flex items-center gap-2">{t('dashboard.tab.practice')} {practiceExams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'practice' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{practiceExams.length}</span>}</span> },
+                  { id: 'history', label: t('dashboard.tab.history') },
                 ]}
                 activeTab={activeTab}
                 onChange={setActiveTab}
@@ -288,29 +290,29 @@ export default function DashboardPage() {
                               <div className="flex-1 min-w-0 pl-2">
                                 <div className="flex items-center justify-between mb-3">
                                   {exam.subject_name && <Badge variant="custom" customBg={subjectColor.bg} customColor={subjectColor.color} size="sm">{exam.subject_name}</Badge>}
-                                  <Badge variant={status.variant} size="sm" dot={status.dot}>{status.label}</Badge>
+                                  <Badge variant={status.variant} size="sm" dot={status.dot}>{t(status.labelKey)}</Badge>
                                 </div>
                                 <h3 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-3">{exam.title}</h3>
                                 <div className="flex flex-wrap items-center gap-4 text-sm text-[var(--text-secondary)]">
                                   <div className="flex items-center gap-1.5"><CalendarIcon size={14} className="text-[var(--text-muted)]" />{formatDate(exam.scheduled_at)}</div>
-                                  <div className="flex items-center gap-1.5"><Clock size={14} className="text-[var(--text-muted)]" />{exam.duration_minutes} min</div>
-                                  <div className="flex items-center gap-1.5"><HashIcon size={14} className="text-[var(--text-muted)]" />{exam.question_count} questions</div>
-                                  <div className="flex items-center gap-1.5"><TargetIcon size={14} className="text-[var(--text-muted)]" />Pass: {exam.pass_threshold}%</div>
+                                  <div className="flex items-center gap-1.5"><Clock size={14} className="text-[var(--text-muted)]" />{exam.duration_minutes} {t('dashboard.min')}</div>
+                                  <div className="flex items-center gap-1.5"><HashIcon size={14} className="text-[var(--text-muted)]" />{exam.question_count} {t('dashboard.questions')}</div>
+                                  <div className="flex items-center gap-1.5"><TargetIcon size={14} className="text-[var(--text-muted)]" />{t('dashboard.pass')}: {exam.pass_threshold}%</div>
                                   {exam.negative_points_enabled && (
-                                    <div className="flex items-center gap-1.5 text-danger"><AlertTriangle size={14} /><span className="text-xs">-{exam.negative_points_value} after {exam.negative_points_threshold} wrong</span></div>
+                                    <div className="flex items-center gap-1.5 text-danger"><AlertTriangle size={14} /><span className="text-xs">-{exam.negative_points_value} {t('dashboard.afterWrong', { count: exam.negative_points_threshold })}</span></div>
                                   )}
                                 </div>
                               </div>
                               <div className="flex-shrink-0 flex flex-col items-end justify-center sm:w-48 pl-2 sm:pl-5 sm:border-l border-[var(--border-subtle)] mt-4 sm:mt-0">
                                 {status.canStart ? (
-                                  <Button variant="primary" size="md" className="w-full justify-center" onClick={() => handleJoinExam(exam.id)}>Enter Exam</Button>
+                                  <Button variant="primary" size="md" className="w-full justify-center" onClick={() => handleJoinExam(exam.id)}>{t('dashboard.enterExam')}</Button>
                                 ) : status.countdown && status.countdown > 0 ? (
                                   <div className="text-right">
-                                    <div className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">Starts in</div>
+                                    <div className="text-[11px] uppercase tracking-wider font-semibold text-[var(--text-muted)] mb-1">{t('dashboard.startsIn')}</div>
                                     <div className="text-sm font-mono font-medium text-warning">{formatCountdown(status.countdown)}</div>
                                   </div>
                                 ) : (
-                                  <Badge variant={status.variant} size="md">{status.label}</Badge>
+                                  <Badge variant={status.variant} size="md">{t(status.labelKey)}</Badge>
                                 )}
                               </div>
                             </motion.div>
@@ -318,7 +320,7 @@ export default function DashboardPage() {
                         })}
                       </div>
                     ) : (
-                      <EmptyState icon={<CalendarX size={32} strokeWidth={1.5} />} title="No exams scheduled" description="You will see your upcoming exams here once you are enrolled." actionLabel="Try Practice" onAction={() => setActiveTab('practice')} />
+                      <EmptyState icon={<CalendarX size={32} strokeWidth={1.5} />} title={t('dashboard.noExams')} description={t('dashboard.noExamsDesc')} actionLabel={t('dashboard.tryPractice')} onAction={() => setActiveTab('practice')} />
                     )}
                   </motion.div>
                 )}
@@ -345,11 +347,11 @@ export default function DashboardPage() {
                               </div>
                               {exam.description && <p className="text-xs text-[var(--text-muted)] mt-3 line-clamp-2">{exam.description}</p>}
                               <div className="mt-4 flex flex-wrap items-center gap-3 text-sm text-[var(--text-secondary)]">
-                                <div className="flex items-center gap-1.5"><Clock size={14} className="text-[var(--text-muted)]" />{exam.duration_minutes} min</div>
+                                <div className="flex items-center gap-1.5"><Clock size={14} className="text-[var(--text-muted)]" />{exam.duration_minutes} {t('dashboard.min')}</div>
                               </div>
                               <div className="mt-6 pt-5 border-t border-[var(--border-subtle)]">
                                 <Button variant="primary" size="md" className="w-full justify-center" leftIcon={<PlayIcon size={16} className="fill-current" />} loading={startingPractice === exam.id} onClick={() => handleStartPractice(exam.id)}>
-                                  {startingPractice === exam.id ? 'Starting...' : 'Start Practice'}
+                                  {startingPractice === exam.id ? t('dashboard.starting') : t('dashboard.startPractice')}
                                 </Button>
                               </div>
                             </motion.div>
@@ -357,7 +359,7 @@ export default function DashboardPage() {
                         })}
                       </div>
                     ) : (
-                      <EmptyState icon={<BookOpen size={32} strokeWidth={1.5} />} title="No practice exams" description="Practice exams will appear here when they are available." />
+                      <EmptyState icon={<BookOpen size={32} strokeWidth={1.5} />} title={t('dashboard.noPractice')} description={t('dashboard.noPracticeDesc')} />
                     )}
                   </motion.div>
                 )}
@@ -371,7 +373,7 @@ export default function DashboardPage() {
                         {(['all', 'passed', 'failed'] as const).map((s) => (
                           <button key={s} onClick={() => setHistoryStatus(s)}
                             className={`px-4 h-8 rounded-full text-sm font-medium transition-colors ${historyStatus === s ? 'bg-[var(--bg-elevated)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'}`}>
-                            {s === 'all' ? 'All' : s === 'passed' ? 'Passed' : 'Failed'}
+                            {s === 'all' ? t('dashboard.all') : s === 'passed' ? t('dashboard.passed') : t('dashboard.failed')}
                           </button>
                         ))}
                       </div>
@@ -380,11 +382,11 @@ export default function DashboardPage() {
                     {filteredHistory.length > 0 ? (
                       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] overflow-hidden">
                         <div className="hidden sm:flex items-center px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                          <div className="flex-1">Exam</div>
-                          <div className="w-32 hidden md:block">Date</div>
-                          <div className="w-24 text-center">Score</div>
-                          <div className="w-20 text-center hidden md:block">Time</div>
-                          <div className="w-24 text-center">Status</div>
+                          <div className="flex-1">{t('dashboard.exam')}</div>
+                          <div className="w-32 hidden md:block">{t('dashboard.date')}</div>
+                          <div className="w-24 text-center">{t('dashboard.score')}</div>
+                          <div className="w-20 text-center hidden md:block">{t('dashboard.time')}</div>
+                          <div className="w-24 text-center">{t('dashboard.status')}</div>
                           <div className="w-20"></div>
                         </div>
                         <div className="flex flex-col">
@@ -409,20 +411,20 @@ export default function DashboardPage() {
                                 <div className="w-32 hidden md:block text-[13px] text-[var(--text-muted)] truncate pr-4">{formatDate(attempt.started_at)}</div>
                                 <div className="w-24 text-center"><span className={`text-base font-mono font-bold ${passed ? 'text-success' : 'text-danger'}`}>{pct}%</span></div>
                                 <div className="w-20 text-center hidden md:block text-[13px] font-mono text-[var(--text-muted)]">{formatDuration(Number(attempt.time_spent_seconds || 0))}</div>
-                                <div className="w-24 text-center"><Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? 'Passed' : 'Failed'}</Badge></div>
+                                <div className="w-24 text-center"><Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? t('dashboard.passed') : t('dashboard.failed')}</Badge></div>
                                 <div className="w-20 flex justify-end">
-                                  <Button variant="ghost" size="sm" className="text-accent hover:text-accent-hover px-2" rightIcon={<ExternalLink size={14} />}>View</Button>
+                                  <Button variant="ghost" size="sm" className="text-accent hover:text-accent-hover px-2" rightIcon={<ExternalLink size={14} />}>{t('dashboard.view')}</Button>
                                 </div>
                               </div>
                             );
                           })}
                         </div>
                         <div className="px-5 py-3 border-t border-[var(--border-default)] bg-[var(--bg-secondary)]">
-                          <span className="text-xs text-[var(--text-muted)]">{filteredHistory.length} {filteredHistory.length === 1 ? 'result' : 'results'}</span>
+                          <span className="text-xs text-[var(--text-muted)]">{filteredHistory.length} {filteredHistory.length === 1 ? t('dashboard.result') : t('dashboard.results')}</span>
                         </div>
                       </div>
                     ) : (
-                      <EmptyState icon={<Trophy size={32} strokeWidth={1.5} />} title="No exam history" description="Your completed exams will appear here." actionLabel="Try Practice" onAction={() => setActiveTab('practice')} />
+                      <EmptyState icon={<Trophy size={32} strokeWidth={1.5} />} title={t('dashboard.noHistory')} description={t('dashboard.noHistoryDesc')} actionLabel={t('dashboard.tryPractice')} onAction={() => setActiveTab('practice')} />
                     )}
                   </motion.div>
                 )}

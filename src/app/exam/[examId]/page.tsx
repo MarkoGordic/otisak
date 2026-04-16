@@ -13,6 +13,7 @@ import {
   CodeBlock,
   QuestionNav,
 } from '@/components/otisak';
+import { useLang } from '@/components/LangProvider';
 import type {
   OtisakExamWithSubject,
   OtisakQuestionWithAnswers,
@@ -33,6 +34,7 @@ const ANSWER_LABELS = 'ABCDEFGHIJ';
 export default function ExamPage() {
   const router = useRouter();
   const { examId } = useParams<{ examId: string }>()!;
+  const { t } = useLang();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -322,10 +324,10 @@ export default function ExamPage() {
 
           {user && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 }} className="flex flex-col items-center mb-8 sm:mb-14 w-full">
-              <div className="mb-3 text-gray-400 text-xs sm:text-sm uppercase tracking-widest font-medium">Logged in as</div>
+              <div className="mb-3 text-gray-400 text-xs sm:text-sm uppercase tracking-widest font-medium">{t('exam.loggedInAs')}</div>
               <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 bg-[#131520]/80 border border-blue-500/20 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.3)] backdrop-blur-sm max-w-full">
                 <span className="text-base sm:text-2xl text-white font-light tracking-wide truncate">
-                  {user.name || 'Student'}
+                  {user.name || t('exam.student')}
                   {user.index_number && (
                     <><span className="text-blue-500/50 mx-1 sm:mx-2">|</span><span className="font-mono text-blue-300">{user.index_number}</span></>
                   )}
@@ -339,17 +341,17 @@ export default function ExamPage() {
               <div className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 w-full origin-left animate-[otisak-progress_2s_ease-in-out_infinite] shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
             </div>
             <div className="absolute -bottom-6 left-0 w-full text-center">
-              <span className="text-blue-400/60 text-[10px] uppercase tracking-widest animate-pulse">Waiting for instructor to start the exam...</span>
+              <span className="text-blue-400/60 text-[10px] uppercase tracking-widest animate-pulse">{t('exam.waitingForInstructor')}</span>
             </div>
           </motion.div>
 
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.8 }} className="text-gray-300 text-xs sm:text-sm mb-10 sm:mb-16 mt-6 max-w-md leading-relaxed font-light px-2">
-            Waiting for the instructor to start the exam. You will be automatically redirected once the timer begins.
+            {t('exam.waitingDesc')}
           </motion.p>
 
           <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1 }} onClick={() => router.push('/dashboard')}
             className="flex items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-red-500/5 hover:bg-red-500/10 text-red-400/80 hover:text-red-400 text-xs font-medium rounded-lg transition-all border border-red-500/20 hover:border-red-500/40 mb-12 sm:mb-20 uppercase tracking-wider">
-            <Power className="w-3 h-3" />Back
+            <Power className="w-3 h-3" />{t('exam.back')}
           </motion.button>
 
           {exam?.negative_points_enabled && (
@@ -359,7 +361,7 @@ export default function ExamPage() {
                 <div className="px-5 py-4 flex items-start gap-3.5">
                   <div className="p-1.5 rounded-lg bg-red-500/10 mt-0.5"><AlertTriangle className="w-3.5 h-3.5 text-red-400/80" /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-red-300/90 uppercase tracking-wider mb-1.5">Negative Points</p>
+                    <p className="text-[11px] font-semibold text-red-300/90 uppercase tracking-wider mb-1.5">{t('exam.negativePoints')}</p>
                     <p className="text-[12px] text-gray-400/80 leading-relaxed">After {exam.negative_points_threshold} wrong answer(s), each additional wrong answer deducts {exam.negative_points_value} point(s).</p>
                     <div className="flex items-center gap-3 mt-3 pt-3 border-t border-red-500/10">
                       <span className="text-[10px] text-gray-500 uppercase tracking-wider">Threshold: {exam.negative_points_threshold}</span>
@@ -373,8 +375,8 @@ export default function ExamPage() {
           )}
 
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1.2 }} className="text-xs text-gray-500/60 max-w-lg leading-relaxed border-t border-gray-800/50 pt-6">
-            <p className="mb-2">Any form of cheating, unauthorized communication, or use of external resources is strictly prohibited during this exam.</p>
-            <p>Violations will result in immediate exam invalidation and disciplinary proceedings.</p>
+            <p className="mb-2">{t('exam.cheatingWarning')}</p>
+            <p>{t('exam.disciplinaryWarning')}</p>
           </motion.div>
         </div>
 
@@ -426,7 +428,7 @@ export default function ExamPage() {
             <div className="inline-flex items-center gap-3 py-2 px-4 rounded-full bg-red-500/[0.06] border border-red-500/10">
               <div className="flex items-center gap-1.5">
                 <AlertTriangle className="w-3 h-3 text-red-400/50" />
-                <span className="text-[10px] text-red-300/40 font-semibold uppercase tracking-wider">Negative Points</span>
+                <span className="text-[10px] text-red-300/40 font-semibold uppercase tracking-wider">{t('exam.negativePoints')}</span>
               </div>
               <div className="w-px h-3 bg-red-400/15" />
               <div className="flex items-center gap-2">
@@ -440,15 +442,15 @@ export default function ExamPage() {
         {phase === 'submitting' ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-            <p className="text-gray-400 text-sm">Submitting your exam...</p>
+            <p className="text-gray-400 text-sm">{t('exam.submitting')}</p>
           </div>
         ) : currentQuestion ? (
           <>
             <AnimatePresence mode="wait">
               <motion.div key={currentQIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="w-full">
                 <div className="text-blue-400/60 text-[10px] sm:text-xs uppercase tracking-widest mb-3 sm:mb-4 font-medium">
-                  Question {currentQIndex + 1} of {questions.length}
-                  {currentQuestion.points && <span className="ml-2 text-gray-500">&#8226; {currentQuestion.points} {currentQuestion.points === 1 ? 'point' : 'points'}</span>}
+                  {t('exam.question', { current: currentQIndex + 1, total: questions.length })}
+                  {currentQuestion.points && <span className="ml-2 text-gray-500">&#8226; {currentQuestion.points} {currentQuestion.points === 1 ? t('exam.point') : t('exam.points')}</span>}
                 </div>
 
                 <h2 className="text-lg sm:text-2xl text-white mb-4 sm:mb-6 font-light leading-relaxed drop-shadow-md">
@@ -473,20 +475,20 @@ export default function ExamPage() {
                           <div className="w-6 h-6 rounded-md bg-purple-500/15 flex items-center justify-center">
                             <svg className="w-3.5 h-3.5 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                           </div>
-                          <p className="text-purple-300/80 text-xs font-medium uppercase tracking-wider">Type your answer</p>
+                          <p className="text-purple-300/80 text-xs font-medium uppercase tracking-wider">{t('exam.typeAnswer')}</p>
                         </div>
-                        <span className="text-[10px] text-purple-400/40 font-mono">AI Graded</span>
+                        <span className="text-[10px] text-purple-400/40 font-mono">{t('exam.aiGraded')}</span>
                       </div>
                       <div className="relative">
                         <textarea
                           value={textAnswers[currentQuestion.id] || ''}
                           onChange={(e) => setTextAnswers(prev => ({ ...prev, [currentQuestion.id]: e.target.value }))}
                           className="w-full bg-[#131520]/80 border border-purple-500/20 rounded-xl px-5 py-4 text-white text-sm leading-relaxed focus:outline-none focus:border-purple-500/50 focus:shadow-[0_0_20px_rgba(168,85,247,0.1)] resize-none min-h-[180px] placeholder-white/15 transition-all"
-                          placeholder="Write your answer here..."
+                          placeholder={t('exam.answerPlaceholder')}
                           rows={8}
                         />
                         <div className="absolute bottom-3 right-4 text-[10px] text-purple-400/30 font-mono">
-                          {(textAnswers[currentQuestion.id] || '').length} characters
+                          {(textAnswers[currentQuestion.id] || '').length} {t('exam.characters')}
                         </div>
                       </div>
                     </div>
@@ -507,7 +509,7 @@ export default function ExamPage() {
                     };
                     return (
                       <div className="space-y-2">
-                        <p className="text-blue-400/70 text-xs italic mb-2">Arrange items in the correct order</p>
+                        <p className="text-blue-400/70 text-xs italic mb-2">{t('exam.orderItems')}</p>
                         {currentOrder.map((item, i) => (
                           <div key={`${item}-${i}`} className="flex items-center gap-2 bg-[#131520]/80 border border-blue-500/20 rounded-lg px-4 py-3">
                             <span className="text-blue-400 font-mono text-sm w-6 text-center flex-shrink-0">{i + 1}.</span>
@@ -533,7 +535,7 @@ export default function ExamPage() {
                     const usedRight = new Set(Object.values(curMatches));
                     return (
                       <div className="space-y-4">
-                        <p className="text-blue-400/70 text-xs italic mb-2">Match items from the left column with the right</p>
+                        <p className="text-blue-400/70 text-xs italic mb-2">{t('exam.matchItems')}</p>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             {left.map((item, i) => {
@@ -581,13 +583,13 @@ export default function ExamPage() {
                             return <span key={`text-${i}`}>{part}</span>;
                           })}
                         </div>
-                        <p className="text-[10px] text-blue-400/40">{blanks.length} blank(s) to fill</p>
+                        <p className="text-[10px] text-blue-400/40">{blanks.length} {t('exam.blanksToFill')}</p>
                       </div>
                     );
                   })() : (
                     <>
                       {currentQuestion.multi_answer && (
-                        <p className="text-blue-400/70 text-xs italic mb-1">Select all correct answers</p>
+                        <p className="text-blue-400/70 text-xs italic mb-1">{t('exam.selectAll')}</p>
                       )}
                       {currentQuestion.answers.map((answer, i) => (
                         <AnswerOption
@@ -618,12 +620,12 @@ export default function ExamPage() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center mt-6">
               <button type="button" onClick={() => handleFinish('manual')}
                 className="px-6 sm:px-8 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] transition-all uppercase tracking-widest text-xs sm:text-sm hover:-translate-y-1">
-                Finish Exam
+                {t('exam.finishExam')}
               </button>
             </motion.div>
           </>
         ) : (
-          <div className="text-center text-gray-400 py-20"><p>No questions loaded.</p></div>
+          <div className="text-center text-gray-400 py-20"><p>{t('exam.noQuestions')}</p></div>
         )}
       </main>
 
@@ -633,7 +635,7 @@ export default function ExamPage() {
           showNotes ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.2)]'
             : scratchNotes ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-500/60 hover:text-yellow-400 hover:bg-yellow-500/20'
               : 'bg-white/5 border border-white/10 text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/20'
-        }`} title="Scratch Notes">
+        }`} title={t('exam.scratchNotes')}>
         <StickyNote className="w-4.5 h-4.5" />
         {scratchNotes && !showNotes && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-500 border border-[#0a0a14]" />}
       </button>
@@ -648,7 +650,7 @@ export default function ExamPage() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/10">
                 <div className="flex items-center gap-2">
                   <StickyNote className="w-4 h-4 text-yellow-500/60" />
-                  <span className="text-sm font-medium text-yellow-200/80 uppercase tracking-wider">Scratch Notes</span>
+                  <span className="text-sm font-medium text-yellow-200/80 uppercase tracking-wider">{t('exam.scratchNotes')}</span>
                 </div>
                 <button type="button" onClick={() => setShowNotes(false)} className="p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-white/10 transition-colors">
                   <X className="w-4 h-4" />
@@ -657,10 +659,10 @@ export default function ExamPage() {
               <div className="flex-1 p-3">
                 <textarea value={scratchNotes} onChange={(e) => setScratchNotes(e.target.value)}
                   className="w-full h-full bg-yellow-500/[0.02] border border-yellow-500/10 rounded-lg px-4 py-3 text-yellow-100/70 text-xs font-mono leading-relaxed focus:outline-none focus:border-yellow-500/25 resize-none placeholder-yellow-500/20"
-                  placeholder={"Write your notes, calculations, or rough work here...\n\nThese notes are NOT submitted with your exam."} autoFocus />
+                  placeholder={t('exam.scratchPlaceholder')} autoFocus />
               </div>
               <div className="px-4 py-2.5 border-t border-yellow-500/10">
-                <p className="text-[9px] text-yellow-500/30 text-center">Personal use only &middot; Not submitted</p>
+                <p className="text-[9px] text-yellow-500/30 text-center">{t('exam.scratchFooter')}</p>
               </div>
             </motion.div>
           </>

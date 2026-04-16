@@ -8,6 +8,7 @@ import {
   Fingerprint, FileText, Clock, CalendarIcon, Radio, Link2, Copy,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '@/components/Sidebar';
+import { useLang } from '@/components/LangProvider';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Dropdown } from '@/components/ui/Dropdown';
@@ -17,34 +18,35 @@ import type { OtisakExamWithSubject } from '@/lib/db/otisak-types';
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
 type Subject = { id: string; name: string; code: string | null };
 
-const STATUS_OPTIONS = [
-  { value: 'all', label: 'All Statuses' },
-  { value: 'draft', label: 'Draft' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'active', label: 'Active' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'archived', label: 'Archived' },
-];
-
-const statusActions: Record<string, Array<{ label: string; status: string; icon: React.ReactNode }>> = {
-  draft: [
-    { label: 'Activate', status: 'active', icon: <Play size={14} /> },
-    { label: 'Schedule', status: 'scheduled', icon: <CalendarIcon size={14} /> },
-  ],
-  scheduled: [
-    { label: 'Activate', status: 'active', icon: <Play size={14} /> },
-  ],
-  active: [
-    { label: 'Complete', status: 'completed', icon: <Pause size={14} /> },
-  ],
-  completed: [
-    { label: 'Archive', status: 'archived', icon: <Archive size={14} /> },
-    { label: 'Reactivate', status: 'active', icon: <Play size={14} /> },
-  ],
-};
-
 export default function ManagePage() {
   const router = useRouter();
+  const { t } = useLang();
+
+  const STATUS_OPTIONS = [
+    { value: 'all', label: t('manage.allStatuses') },
+    { value: 'draft', label: t('manage.draft') },
+    { value: 'scheduled', label: t('manage.scheduled') },
+    { value: 'active', label: t('manage.active') },
+    { value: 'completed', label: t('manage.completed') },
+    { value: 'archived', label: t('manage.archived') },
+  ];
+
+  const statusActions: Record<string, Array<{ label: string; status: string; icon: React.ReactNode }>> = {
+    draft: [
+      { label: t('manage.activate'), status: 'active', icon: <Play size={14} /> },
+      { label: t('manage.schedule'), status: 'scheduled', icon: <CalendarIcon size={14} /> },
+    ],
+    scheduled: [
+      { label: t('manage.activate'), status: 'active', icon: <Play size={14} /> },
+    ],
+    active: [
+      { label: t('manage.complete'), status: 'completed', icon: <Pause size={14} /> },
+    ],
+    completed: [
+      { label: t('manage.archive'), status: 'archived', icon: <Archive size={14} /> },
+      { label: t('manage.reactivate'), status: 'active', icon: <Play size={14} /> },
+    ],
+  };
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState<OtisakExamWithSubject[]>([]);
@@ -124,7 +126,7 @@ export default function ManagePage() {
   };
 
   const handleDelete = async (examId: string) => {
-    if (!confirm('Delete this exam? This cannot be undone.')) return;
+    if (!confirm(t('manage.deleteConfirm'))) return;
     await fetch(`/api/otisak/exams?id=${examId}`, { method: 'DELETE', credentials: 'include' });
     loadData();
   };
@@ -150,12 +152,12 @@ export default function ManagePage() {
                   <Settings className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">Manage Exams</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">Create, edit and manage assessments</p>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('manage.title')}</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">{t('manage.subtitle')}</p>
                 </div>
               </div>
               <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreateModal(true)}>
-                New Exam
+                {t('manage.newExam')}
               </Button>
             </div>
 
@@ -164,7 +166,7 @@ export default function ManagePage() {
               <div className="w-[180px]">
                 <Dropdown options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
               </div>
-              <span className="text-xs text-[var(--text-muted)]">{filteredExams.length} exams</span>
+              <span className="text-xs text-[var(--text-muted)]">{filteredExams.length} {t('manage.exams')}</span>
             </div>
 
             {/* Exam List */}
@@ -204,7 +206,7 @@ export default function ManagePage() {
                       <div className="flex items-center gap-2 flex-shrink-0">
                         {exam.status === 'active' && (
                           <Button variant="primary" size="sm" leftIcon={<Radio size={14} />} onClick={() => router.push(`/manage/${exam.id}`)}>
-                            Room
+                            {t('manage.room')}
                           </Button>
                         )}
                         {statusActions[exam.status]?.map((action) => (
@@ -221,7 +223,7 @@ export default function ManagePage() {
                 ))}
               </div>
             ) : (
-              <EmptyState icon={<FileText size={32} strokeWidth={1.5} />} title="No exams yet" description="Create your first exam to get started." actionLabel="Create Exam" onAction={() => setShowCreateModal(true)} />
+              <EmptyState icon={<FileText size={32} strokeWidth={1.5} />} title={t('manage.noExams')} description={t('manage.noExamsDesc')} actionLabel={t('manage.createExam')} onAction={() => setShowCreateModal(true)} />
             )}
           </div>
         </main>
@@ -231,36 +233,36 @@ export default function ManagePage() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">Create New Exam</h2>
+            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('manage.createTitle')}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Title</label>
-                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Exam title" />
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.examTitle')}</label>
+                <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('manage.examTitlePlaceholder')} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Subject</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.subject')}</label>
                 <Dropdown
-                  options={[{ value: '', label: 'No subject' }, ...subjects.map((s) => ({ value: s.id, label: s.name }))]}
+                  options={[{ value: '', label: t('manage.noSubject') }, ...subjects.map((s) => ({ value: s.id, label: s.name }))]}
                   value={newSubjectId}
                   onChange={setNewSubjectId}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Duration (minutes)</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.duration')}</label>
                 <input type="number" value={newDuration} onChange={(e) => setNewDuration(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Mode</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.mode')}</label>
                 <Dropdown
-                  options={[{ value: 'real', label: 'Real Exam' }, { value: 'practice', label: 'Practice' }]}
+                  options={[{ value: 'real', label: t('manage.realExam') }, { value: 'practice', label: t('manage.practice') }]}
                   value={newMode}
                   onChange={setNewMode}
                 />
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreateModal(false)}>Cancel</Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>Create</Button>
+              <Button variant="secondary" onClick={() => setShowCreateModal(false)}>{t('manage.cancel')}</Button>
+              <Button variant="primary" loading={creating} onClick={handleCreate}>{t('manage.create')}</Button>
             </div>
           </div>
         </div>

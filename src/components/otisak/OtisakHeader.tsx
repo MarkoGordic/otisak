@@ -3,6 +3,7 @@
 import React from 'react';
 import { OtisakLogo } from './OtisakLogo';
 import { motion } from 'framer-motion';
+import { useLang } from '@/components/LangProvider';
 
 interface OtisakHeaderProps {
   user?: { name: string | null; index_number: string | null; avatar_url: string | null } | null;
@@ -12,7 +13,8 @@ interface OtisakHeaderProps {
 }
 
 export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }: OtisakHeaderProps) {
-  const displayDate = dateLabel || new Date().toLocaleDateString('en-GB', {
+  const { t } = useLang();
+  const displayDate = dateLabel || new Date().toLocaleDateString('sr-RS', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   }).replace(/\//g, '.');
 
@@ -63,10 +65,10 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
           >
             <div className="hidden sm:flex flex-col">
               <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">
-                Logged in as
+                {t('exam.loggedInAs')}
               </span>
               <span className="text-base font-semibold text-white tracking-wide">
-                {user.name || 'Student'}
+                {user.name || t('exam.student')}
               </span>
               {user.index_number && (
                 <span className="text-[11px] text-blue-400/80 font-mono">

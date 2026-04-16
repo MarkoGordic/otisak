@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { LangProvider } from '@/components/LangProvider';
 
 export const metadata: Metadata = {
   title: 'OTISAK - Automated Test & Assessment System',
@@ -22,7 +23,7 @@ export default function RootLayout({
         />
       </head>
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider><LangProvider>{children}</LangProvider></ThemeProvider>
       </body>
     </html>
   );
