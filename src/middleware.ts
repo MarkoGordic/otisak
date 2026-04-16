@@ -6,7 +6,7 @@ const PUBLIC_PATHS = ['/login', '/join', '/api/auth/login', '/api/auth/logout'];
 function isPublic(pathname: string): boolean {
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return true;
   // Allow join and room-status API for unauthenticated students
-  if (/^\/api\/otisak\/exams\/[^/]+\/(join|room-status)/.test(pathname)) return true;
+  if (/^\/api\/otisak\/exams\/[^/]+\/(join|room-status|lockdown)/.test(pathname)) return true;
   return false;
 }
 

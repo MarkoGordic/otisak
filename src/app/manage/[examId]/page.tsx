@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, Users, Play, Copy, Check, Clock, Link2, UserCheck, ArrowLeft,
-  Fingerprint, AlertTriangle, Radio,
+  Fingerprint, AlertTriangle, Radio, ShieldOff, ShieldAlert,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -41,6 +41,8 @@ export default function ExamRoomPage() {
   const [starting, setStarting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [started, setStarted] = useState(false);
+  const [locked, setLocked] = useState(false);
+  const [locking, setLocking] = useState(false);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
 
   const joinLink = typeof window !== 'undefined' ? `${window.location.origin}/join/${examId}` : '';
@@ -53,6 +55,11 @@ export default function ExamRoomPage() {
       setExam(data.exam);
       setParticipants(data.participants || []);
       if (data.exam?.exam_started_at) setStarted(true);
+      // Check lockdown status
+      try {
+        const lockRes = await fetch(`/api/otisak/exams/${examId}/lockdown`);
+        if (lockRes.ok) { const ld = await lockRes.json(); setLocked(!!ld.lockdown?.is_active); }
+      } catch {}
     } catch { router.push('/manage'); }
     finally { setLoading(false); }
   }, [examId, router]);
@@ -253,10 +260,65 @@ export default function ExamRoomPage() {
             <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
               <Play size={20} className="text-green-400 fill-current" />
             </div>
-            <div>
+            <div className="flex-1">
               <p className="text-green-300 font-medium">{t('room.examRunning')}</p>
               <p className="text-green-400/60 text-xs">Started at {exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : 'now'}. Timer is active for all students.</p>
             </div>
+          </motion.div>
+        )}
+
+        {/* Lockdown Controls */}
+        {started && (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className={`mt-4 rounded-xl border p-5 flex items-center justify-between ${
+              locked
+                ? 'bg-red-500/10 border-red-500/20'
+                : 'bg-[#131520]/80 border-blue-500/10'
+            }`}
+          >
+            <div className="flex items-center gap-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                locked ? 'bg-red-500/20' : 'bg-gray-700/50'
+              }`}>
+                {locked
+                  ? <ShieldAlert size={20} className="text-red-400" />
+                  : <ShieldOff size={20} className="text-gray-400" />
+                }
+              </div>
+              <div>
+                <p className={`font-medium ${locked ? 'text-red-300' : 'text-gray-300'}`}>
+                  {locked ? 'Rad je zabranjen' : 'Zabrana rada'}
+                </p>
+                <p className={`text-xs ${locked ? 'text-red-400/60' : 'text-gray-500'}`}>
+                  {locked
+                    ? 'Studentima se prikazuje crveni ekran. Kliknite za ukidanje.'
+                    : 'Zabranite rad na racunarima studenata tokom ispita.'}
+                </p>
+              </div>
+            </div>
+            <Button
+              variant={locked ? 'secondary' : 'danger'}
+              size="md"
+              loading={locking}
+              leftIcon={locked ? <ShieldOff size={16} /> : <ShieldAlert size={16} />}
+              onClick={async () => {
+                setLocking(true);
+                try {
+                  await fetch(`/api/otisak/exams/${examId}/lockdown`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                      action: locked ? 'unlock' : 'lock',
+                      message: 'Administrator je zabranio rad na racunarima.',
+                    }),
+                  });
+                  setLocked(!locked);
+                } catch {} finally { setLocking(false); }
+              }}
+            >
+              {locked ? 'Ukini zabranu' : 'Zabrani rad'}
+            </Button>
           </motion.div>
         )}
       </main>

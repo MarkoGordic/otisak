@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Power, AlertTriangle, StickyNote, X } from 'lucide-react';
+import { Loader2, Power, AlertTriangle, StickyNote, X, ShieldAlert } from 'lucide-react';
 import {
   OtisakHeader,
   OtisakFooter,
@@ -48,6 +48,8 @@ export default function ExamPage() {
   const [matchingSelectedLeft, setMatchingSelectedLeft] = useState<string | null>(null);
   const [scratchNotes, setScratchNotes] = useState('');
   const [showNotes, setShowNotes] = useState(false);
+  const [lockdown, setLockdown] = useState(false);
+  const [lockdownMessage, setLockdownMessage] = useState('');
   const startTimeRef = useRef<number>(Date.now());
 
   // 1. Auth + load exam data
@@ -227,6 +229,22 @@ export default function ExamPage() {
     }, 30000);
     return () => clearInterval(interval);
   }, [phase, attempt, examId, buildSavePayload]);
+
+  // Poll for lockdown every 3 seconds
+  useEffect(() => {
+    if (phase !== 'exam') return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/otisak/exams/${examId}/lockdown`);
+        if (res.ok) {
+          const data = await res.json();
+          setLockdown(!!data.lockdown?.is_active);
+          if (data.lockdown?.message) setLockdownMessage(data.lockdown.message);
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(poll);
+  }, [phase, examId]);
 
   // Select answer
   const handleSelectAnswer = (answerId: string) => {
@@ -670,6 +688,74 @@ export default function ExamPage() {
       </AnimatePresence>
 
       <OtisakFooter />
+
+      {/* LOCKDOWN OVERLAY */}
+      <AnimatePresence>
+        {lockdown && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-[#1a0505] flex flex-col items-center justify-center"
+          >
+            {/* Red background glows */}
+            <div className="absolute inset-0 overflow-hidden pointer-events-none">
+              <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-red-600/30 rounded-full blur-[150px] animate-pulse" />
+              <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-red-600/20 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
+            </div>
+
+            <div className="z-10 flex flex-col items-center text-center px-6 max-w-lg">
+              <motion.div
+                initial={{ scale: 0.5, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ type: 'spring', damping: 15 }}
+                className="w-24 h-24 rounded-full bg-red-500/20 border-2 border-red-500/40 flex items-center justify-center mb-8"
+              >
+                <ShieldAlert className="w-12 h-12 text-red-400" strokeWidth={1.5} />
+              </motion.div>
+
+              <motion.h1
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="text-3xl sm:text-4xl font-light text-red-400 tracking-[0.2em] uppercase mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+              >
+                RAD ZABRANJEN
+              </motion.h1>
+
+              <motion.p
+                initial={{ y: 20, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-red-300/60 text-sm sm:text-base leading-relaxed mb-8"
+              >
+                {lockdownMessage || 'Administrator je zabranio rad na racunarima. Sacekajte dalju instrukciju.'}
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.6 }}
+                className="flex items-center gap-3 px-6 py-3 bg-red-500/10 border border-red-500/20 rounded-xl"
+              >
+                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
+                <span className="text-red-400/80 text-xs uppercase tracking-widest font-medium">
+                  Ispit je pauziran od strane administratora
+                </span>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="mt-12 text-red-500/30 text-[10px] uppercase tracking-widest"
+              >
+                Ne zatvarajte ovaj prozor. Rad ce biti nastavljen automatski.
+              </motion.div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

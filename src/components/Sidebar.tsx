@@ -41,6 +41,7 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
     ] : []),
     ...(isAdmin ? [
       { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
+      { id: 'settings', label: t('nav.settings'), icon: Settings, href: '/admin/settings' },
     ] : []),
   ];
 
