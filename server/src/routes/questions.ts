@@ -49,7 +49,7 @@ router.post('/', async (req: Request, res: Response) => {
 // DELETE /questions
 router.delete('/', async (req: Request, res: Response) => {
   try {
-    const { id } = req.body;
+    const id = (req.query.id || req.body?.id) as string;
     if (!id) {
       return res.status(400).json({ error: 'Question id is required' });
     }

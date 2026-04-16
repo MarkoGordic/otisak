@@ -25,10 +25,10 @@ router.get('/', async (req: Request, res: Response) => {
         subject_id: subject_id as string | undefined,
         exam_mode: exam_mode as string | undefined,
       });
-      return res.json(exams);
+      return res.json({ exams });
     } else {
       const exams = await getExamsForUser(user.id);
-      return res.json(exams);
+      return res.json({ exams });
     }
   } catch (error) {
     console.error('Get exams error:', error);

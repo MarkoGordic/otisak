@@ -13,7 +13,7 @@ router.get('/users', async (_req: Request, res: Response) => {
   try {
     const users = await getAllUsers();
     const sanitized = users.map(({ password_hash, ...rest }) => rest);
-    return res.json(sanitized);
+    return res.json({ users: sanitized });
   } catch (error) {
     console.error('Get users error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -34,7 +34,7 @@ router.patch('/users', async (req: Request, res: Response) => {
     }
 
     const { password_hash, ...rest } = updated;
-    return res.json(rest);
+    return res.json({ user: rest });
   } catch (error) {
     console.error('Update user error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -45,7 +45,7 @@ router.patch('/users', async (req: Request, res: Response) => {
 router.get('/settings', async (_req: Request, res: Response) => {
   try {
     const settings = await getAllSettings();
-    return res.json(settings);
+    return res.json({ settings });
   } catch (error) {
     console.error('Get settings error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -65,7 +65,7 @@ router.patch('/settings', async (req: Request, res: Response) => {
     }
 
     const settings = await getAllSettings();
-    return res.json(settings);
+    return res.json({ settings });
   } catch (error) {
     console.error('Update settings error:', error);
     return res.status(500).json({ error: 'Internal server error' });

@@ -16,7 +16,7 @@ router.use(requireAuth);
 router.get('/', async (_req: Request, res: Response) => {
   try {
     const subjects = await getOtisakSubjects();
-    return res.json(subjects);
+    return res.json({ subjects });
   } catch (error) {
     console.error('Get subjects error:', error);
     return res.status(500).json({ error: 'Internal server error' });
