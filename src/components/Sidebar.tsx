@@ -15,6 +15,7 @@ import {
   Moon,
 } from 'lucide-react';
 import { useTheme } from '@/components/ThemeProvider';
+import { useLang } from '@/components/LangProvider';
 
 type SidebarProps = {
   userName?: string;
@@ -26,19 +27,20 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
   const { theme, toggle } = useTheme();
+  const { t, locale, setLocale } = useLang();
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'admin' || userRole === 'assistant';
 
   const navItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
+    { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, href: '/dashboard' },
     ...(isStaff ? [
-      { id: 'manage', label: 'Manage Exams', icon: Settings, href: '/manage' },
-      { id: 'subjects', label: 'Subjects', icon: BookMarked, href: '/subjects' },
-      { id: 'questions', label: 'Question Bank', icon: BookOpen, href: '/questions' },
+      { id: 'manage', label: t('nav.manage'), icon: Settings, href: '/manage' },
+      { id: 'subjects', label: t('nav.subjects'), icon: BookMarked, href: '/subjects' },
+      { id: 'questions', label: t('nav.questionBank'), icon: BookOpen, href: '/questions' },
     ] : []),
     ...(isAdmin ? [
-      { id: 'users', label: 'Users', icon: Users, href: '/admin/users' },
+      { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
     ] : []),
   ];
 
@@ -56,7 +58,7 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
         </div>
         <div>
           <div className="text-base font-display font-bold text-[var(--text-primary)] leading-tight">OTISAK</div>
-          <div className="text-[11px] text-[var(--text-muted)]">Assessment System</div>
+          <div className="text-[11px] text-[var(--text-muted)]">{t('nav.assessmentSystem')}</div>
         </div>
       </div>
 
@@ -89,7 +91,16 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-1"
         >
           {theme === 'dark' ? <Sun size={18} strokeWidth={1.5} /> : <Moon size={18} strokeWidth={1.5} />}
-          {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
+        </button>
+
+        {/* Language toggle */}
+        <button
+          onClick={() => setLocale(locale === 'sr' ? 'en' : 'sr')}
+          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-1"
+        >
+          <span className="text-base w-[18px] text-center">{locale === 'sr' ? '🇬🇧' : '🇷🇸'}</span>
+          {locale === 'sr' ? 'English' : 'Srpski'}
         </button>
 
         {/* User */}
@@ -104,7 +115,7 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
           <button
             onClick={handleLogout}
             className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger hover:bg-danger-light transition-colors"
-            title="Sign out"
+            title={t('nav.signOut')}
           >
             <LogOut size={16} />
           </button>
@@ -117,13 +128,14 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
 export function MobileNav({ userName, userRole }: SidebarProps) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t } = useLang();
 
   const isStaff = userRole === 'admin' || userRole === 'assistant';
 
   const navItems = [
-    { id: 'dashboard', label: 'Home', icon: LayoutDashboard, href: '/dashboard' },
+    { id: 'dashboard', label: t('nav.home'), icon: LayoutDashboard, href: '/dashboard' },
     ...(isStaff ? [
-      { id: 'manage', label: 'Manage', icon: Settings, href: '/manage' },
+      { id: 'manage', label: t('nav.manage.short'), icon: Settings, href: '/manage' },
     ] : []),
   ];
 

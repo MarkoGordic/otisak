@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
+import { useLang } from '@/components/LangProvider';
 
 type Participant = {
   user_id: string;
@@ -32,6 +33,7 @@ type ExamData = {
 export default function ExamRoomPage() {
   const router = useRouter();
   const { examId } = useParams<{ examId: string }>()!;
+  const { t } = useLang();
 
   const [loading, setLoading] = useState(true);
   const [exam, setExam] = useState<ExamData | null>(null);
@@ -71,7 +73,7 @@ export default function ExamRoomPage() {
 
   const handleStartExam = async () => {
     if (starting || started) return;
-    if (!confirm(`Start the exam for ${participants.length} student(s)? The timer will begin immediately for everyone.`)) return;
+    if (!confirm(t('room.startConfirm', { count: participants.length }))) return;
 
     setStarting(true);
     try {
@@ -84,10 +86,10 @@ export default function ExamRoomPage() {
         loadRoom();
       } else {
         const data = await res.json();
-        alert(data.error || 'Failed to start exam');
+        alert(data.error || t('room.startFailed'));
       }
     } catch {
-      alert('Failed to start exam');
+      alert(t('room.startFailed'));
     } finally {
       setStarting(false);
     }
@@ -119,7 +121,7 @@ export default function ExamRoomPage() {
             <div className="flex items-center gap-3">
               <Fingerprint className="w-8 h-8 text-blue-500" strokeWidth={1.5} />
               <div>
-                <h1 className="text-lg font-semibold text-white">{exam?.title || 'Exam Room'}</h1>
+                <h1 className="text-lg font-semibold text-white">{exam?.title || t('room.title')}</h1>
                 <div className="flex items-center gap-2 text-xs text-gray-500">
                   {exam?.subject_name && <span>{exam.subject_name}</span>}
                   <span>{exam?.duration_minutes}min</span>
@@ -131,9 +133,9 @@ export default function ExamRoomPage() {
 
           <div className="flex items-center gap-3">
             {started ? (
-              <Badge variant="success" size="md" dot>Exam Running</Badge>
+              <Badge variant="success" size="md" dot>{t('room.running')}</Badge>
             ) : (
-              <Badge variant="warning" size="md" dot>Waiting Room</Badge>
+              <Badge variant="warning" size="md" dot>{t('room.waiting')}</Badge>
             )}
           </div>
         </div>
@@ -145,7 +147,7 @@ export default function ExamRoomPage() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#131520]/80 border border-blue-500/20 rounded-xl p-5 mb-6 backdrop-blur-sm">
             <div className="flex items-center gap-2 mb-3">
               <Link2 size={16} className="text-blue-400" />
-              <span className="text-sm font-medium text-white">Student Join Link</span>
+              <span className="text-sm font-medium text-white">{t('room.joinLink')}</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="flex-1 bg-[#0a0c10]/80 border border-gray-700/50 rounded-lg px-4 py-3 font-mono text-sm text-blue-300 truncate">
@@ -159,10 +161,10 @@ export default function ExamRoomPage() {
                     : 'bg-blue-600 hover:bg-blue-500 text-white'
                 }`}
               >
-                {copied ? <><Check size={16} />Copied</> : <><Copy size={16} />Copy</>}
+                {copied ? <><Check size={16} />{t('room.copied')}</> : <><Copy size={16} />{t('room.copy')}</>}
               </button>
             </div>
-            <p className="text-[11px] text-gray-500 mt-2">Share this link with students. They can enter with just their index number.</p>
+            <p className="text-[11px] text-gray-500 mt-2">{t('room.joinLinkDesc')}</p>
           </motion.div>
         )}
 
@@ -172,12 +174,12 @@ export default function ExamRoomPage() {
             <div className="flex items-center gap-2 px-4 py-2 bg-[#131520]/80 border border-blue-500/10 rounded-lg">
               <Users size={16} className="text-blue-400" />
               <span className="text-white font-mono text-lg font-bold">{participants.length}</span>
-              <span className="text-gray-500 text-sm">joined</span>
+              <span className="text-gray-500 text-sm">{t('room.joined')}</span>
             </div>
             {!started && (
               <div className="flex items-center gap-2 text-xs text-gray-500">
                 <Radio size={12} className="text-green-400 animate-pulse" />
-                Live - auto-refreshing
+                {t('room.liveRefresh')}
               </div>
             )}
           </div>
@@ -191,7 +193,7 @@ export default function ExamRoomPage() {
               onClick={handleStartExam}
               className="shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)]"
             >
-              Start Exam
+              {t('room.startExam')}
             </Button>
           )}
         </div>
@@ -200,17 +202,17 @@ export default function ExamRoomPage() {
         <div className="bg-[#131520]/80 border border-blue-500/10 rounded-xl overflow-hidden backdrop-blur-sm">
           <div className="flex items-center px-5 py-3 bg-[#0d0f1a] border-b border-blue-500/10 text-xs font-semibold uppercase tracking-wider text-gray-500">
             <div className="w-8">#</div>
-            <div className="flex-1">Student</div>
-            <div className="w-40 hidden sm:block">Index Number</div>
-            <div className="w-32 hidden md:block">Joined At</div>
-            <div className="w-20 text-center">Status</div>
+            <div className="flex-1">{t('room.student')}</div>
+            <div className="w-40 hidden sm:block">{t('room.indexNumber')}</div>
+            <div className="w-32 hidden md:block">{t('room.joinedAt')}</div>
+            <div className="w-20 text-center">{t('room.status')}</div>
           </div>
 
           {participants.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <Users className="w-12 h-12 text-gray-700 mb-3" />
-              <p className="text-gray-500 text-sm mb-1">No students yet</p>
-              <p className="text-gray-600 text-xs">Share the join link to let students enter</p>
+              <p className="text-gray-500 text-sm mb-1">{t('room.noStudents')}</p>
+              <p className="text-gray-600 text-xs">{t('room.noStudentsDesc')}</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -236,7 +238,7 @@ export default function ExamRoomPage() {
                   <div className="w-20 flex justify-center">
                     <div className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-[10px] text-green-400/80 uppercase font-medium">Ready</span>
+                      <span className="text-[10px] text-green-400/80 uppercase font-medium">{t('room.ready')}</span>
                     </div>
                   </div>
                 </motion.div>
@@ -252,7 +254,7 @@ export default function ExamRoomPage() {
               <Play size={20} className="text-green-400 fill-current" />
             </div>
             <div>
-              <p className="text-green-300 font-medium">Exam is running</p>
+              <p className="text-green-300 font-medium">{t('room.examRunning')}</p>
               <p className="text-green-400/60 text-xs">Started at {exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : 'now'}. Timer is active for all students.</p>
             </div>
           </motion.div>

@@ -7,6 +7,7 @@ import {
   Loader2, Plus, Trash2, Search, BookOpen, Tag, FileText, Code, Image, MessageSquare,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '@/components/Sidebar';
+import { useLang } from '@/components/LangProvider';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Dropdown } from '@/components/ui/Dropdown';
@@ -36,6 +37,7 @@ const typeIcons: Record<string, React.ReactNode> = {
 
 export default function QuestionBankPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -129,7 +131,7 @@ export default function QuestionBankPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this question?')) return;
+    if (!confirm(t('questions.deleteConfirm'))) return;
     await fetch(`/api/otisak/questions?id=${id}`, { method: 'DELETE', credentials: 'include' });
     loadQuestions();
   };
@@ -153,12 +155,12 @@ export default function QuestionBankPage() {
                   <BookOpen className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">Question Bank</h1>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('questions.title')}</h1>
                   <p className="text-sm text-[var(--text-secondary)]">{total} questions across {subjects.length} subjects</p>
                 </div>
               </div>
               <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>
-                Add Question
+                {t('questions.add')}
               </Button>
             </div>
 
@@ -175,11 +177,11 @@ export default function QuestionBankPage() {
               <div className="w-[140px]">
                 <Dropdown
                   options={[
-                    { value: '', label: 'All Types' },
-                    { value: 'text', label: 'Multiple Choice' },
-                    { value: 'code', label: 'Code' },
-                    { value: 'image', label: 'Image' },
-                    { value: 'open_text', label: 'Open Text' },
+                    { value: '', label: t('questions.allTypes') },
+                    { value: 'text', label: t('questions.multipleChoice') },
+                    { value: 'code', label: t('questions.code') },
+                    { value: 'image', label: t('questions.image') },
+                    { value: 'open_text', label: t('questions.openText') },
                   ]}
                   value={typeFilter}
                   onChange={setTypeFilter}
@@ -191,14 +193,14 @@ export default function QuestionBankPage() {
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   className="w-full h-9 pl-8 pr-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm focus:border-accent focus:ring-0"
-                  placeholder="Search questions..."
+                  placeholder={t('questions.searchPlaceholder')}
                 />
               </div>
             </div>
 
             {/* Questions List */}
             {subjects.length === 0 ? (
-              <EmptyState icon={<BookOpen size={32} strokeWidth={1.5} />} title="No subjects" description="Create a subject first from the Manage Exams page." />
+              <EmptyState icon={<BookOpen size={32} strokeWidth={1.5} />} title={t('questions.noSubjects')} description={t('questions.noSubjectsDesc')} />
             ) : questions.length > 0 ? (
               <div className="space-y-2">
                 {questions.map((q, idx) => (
@@ -208,7 +210,7 @@ export default function QuestionBankPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
                           <Badge variant="neutral" size="sm">{typeIcons[q.type]} {q.type}</Badge>
-                          <Badge variant="accent" size="sm">{q.points} pts</Badge>
+                          <Badge variant="accent" size="sm">{q.points} {t('questions.pts')}</Badge>
                           {q.tags.map(tag => (
                             <Badge key={tag} variant="info" size="sm"><Tag size={10} className="mr-0.5" />{tag}</Badge>
                           ))}
@@ -232,7 +234,7 @@ export default function QuestionBankPage() {
                 ))}
               </div>
             ) : (
-              <EmptyState icon={<FileText size={32} strokeWidth={1.5} />} title="No questions yet" description="Add questions to this subject's bank." actionLabel="Add Question" onAction={() => setShowCreate(true)} />
+              <EmptyState icon={<FileText size={32} strokeWidth={1.5} />} title={t('questions.noQuestions')} description={t('questions.noQuestionsDesc')} actionLabel={t('questions.add')} onAction={() => setShowCreate(true)} />
             )}
           </div>
         </main>
@@ -242,19 +244,19 @@ export default function QuestionBankPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">Add Question</h2>
+            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('questions.addTitle')}</h2>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Type</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('questions.type')}</label>
                 <Dropdown options={[
-                  { value: 'text', label: 'Multiple Choice' },
-                  { value: 'code', label: 'Code' },
-                  { value: 'image', label: 'Image' },
-                  { value: 'open_text', label: 'Open Text' },
+                  { value: 'text', label: t('questions.multipleChoice') },
+                  { value: 'code', label: t('questions.code') },
+                  { value: 'image', label: t('questions.image') },
+                  { value: 'open_text', label: t('questions.openText') },
                 ]} value={newType} onChange={setNewType} />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Question Text</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('questions.questionText')}</label>
                 <textarea value={newText} onChange={(e) => setNewText(e.target.value)}
                   className="w-full h-24 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none" placeholder="Enter question..." />
               </div>
@@ -295,8 +297,8 @@ export default function QuestionBankPage() {
               )}
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>Create Question</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('questions.cancel')}</Button>
+              <Button variant="primary" loading={creating} onClick={handleCreate}>{t('questions.createQuestion')}</Button>
             </div>
           </div>
         </div>

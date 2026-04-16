@@ -7,6 +7,7 @@ import {
   Loader2, Plus, Users, Shield, GraduationCap, UserCircle2,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '@/components/Sidebar';
+import { useLang } from '@/components/LangProvider';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Dropdown } from '@/components/ui/Dropdown';
@@ -32,6 +33,7 @@ const roleIcon: Record<string, React.ReactNode> = {
 
 export default function AdminUsersPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<UserData[]>([]);
@@ -121,12 +123,12 @@ export default function AdminUsersPage() {
                   <Users className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">Users</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">{users.length} users registered</p>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('users.title')}</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">{users.length} {t('users.count')}</p>
                 </div>
               </div>
               <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>
-                Add User
+                {t('users.add')}
               </Button>
             </div>
 
@@ -135,10 +137,10 @@ export default function AdminUsersPage() {
             ) : (
               <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] overflow-hidden">
                 <div className="hidden sm:flex items-center px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  <div className="flex-1">User</div>
-                  <div className="w-32">Index</div>
-                  <div className="w-36">Role</div>
-                  <div className="w-32">Last Login</div>
+                  <div className="flex-1">{t('users.user')}</div>
+                  <div className="w-32">{t('users.index')}</div>
+                  <div className="w-36">{t('users.role')}</div>
+                  <div className="w-32">{t('users.lastLogin')}</div>
                 </div>
                 {users.map((u, idx) => (
                   <motion.div key={u.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}
@@ -152,16 +154,16 @@ export default function AdminUsersPage() {
                     <div className="w-36">
                       <Dropdown
                         options={[
-                          { value: 'student', label: 'Student' },
-                          { value: 'assistant', label: 'Assistant' },
-                          { value: 'admin', label: 'Admin' },
+                          { value: 'student', label: t('users.student') },
+                          { value: 'assistant', label: t('users.assistant') },
+                          { value: 'admin', label: t('users.admin') },
                         ]}
                         value={u.role}
                         onChange={(v) => handleRoleChange(u.id, v)}
                       />
                     </div>
                     <div className="w-32 text-xs text-[var(--text-muted)]">
-                      {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : 'Never'}
+                      {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : t('users.never')}
                     </div>
                   </motion.div>
                 ))}
@@ -175,17 +177,17 @@ export default function AdminUsersPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">Add User</h2>
+            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('users.addTitle')}</h2>
             <div className="space-y-3">
-              <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Email" />
-              <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="password" className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Password" />
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Name (optional)" />
-              <input value={newIndex} onChange={(e) => setNewIndex(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Index number (optional)" />
-              <Dropdown options={[{ value: 'student', label: 'Student' }, { value: 'assistant', label: 'Assistant' }, { value: 'admin', label: 'Admin' }]} value={newRole} onChange={setNewRole} />
+              <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.email')} />
+              <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="password" className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.password')} />
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.name')} />
+              <input value={newIndex} onChange={(e) => setNewIndex(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.indexNumber')} />
+              <Dropdown options={[{ value: 'student', label: t('users.student') }, { value: 'assistant', label: t('users.assistant') }, { value: 'admin', label: t('users.admin') }]} value={newRole} onChange={setNewRole} />
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>Create User</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('users.cancel')}</Button>
+              <Button variant="primary" loading={creating} onClick={handleCreate}>{t('users.createUser')}</Button>
             </div>
           </div>
         </div>

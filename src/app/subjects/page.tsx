@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Loader2, Plus, Trash2, Pencil, BookMarked, X, Check } from 'lucide-react';
 import { Sidebar, MobileNav } from '@/components/Sidebar';
+import { useLang } from '@/components/LangProvider';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 
@@ -13,6 +14,7 @@ type UserInfo = { name?: string; role?: string; avatar_url?: string };
 
 export default function SubjectsPage() {
   const router = useRouter();
+  const { t } = useLang();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -73,7 +75,7 @@ export default function SubjectsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this subject? All related exams and questions will lose their subject association.')) return;
+    if (!confirm(t('subjects.deleteConfirm'))) return;
     await fetch(`/api/otisak/subjects?id=${id}`, { method: 'DELETE', credentials: 'include' });
     loadSubjects();
   };
@@ -96,15 +98,15 @@ export default function SubjectsPage() {
                   <BookMarked className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">Subjects</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">{subjects.length} subjects</p>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('subjects.title')}</h1>
+                  <p className="text-sm text-[var(--text-secondary)]">{subjects.length} {t('subjects.count')}</p>
                 </div>
               </div>
-              <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>Add Subject</Button>
+              <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>{t('subjects.add')}</Button>
             </div>
 
             {subjects.length === 0 ? (
-              <EmptyState icon={<BookMarked size={32} strokeWidth={1.5} />} title="No subjects yet" description="Create a subject to organize your exams and question bank." actionLabel="Add Subject" onAction={() => setShowCreate(true)} />
+              <EmptyState icon={<BookMarked size={32} strokeWidth={1.5} />} title={t('subjects.noSubjects')} description={t('subjects.noSubjectsDesc')} actionLabel={t('subjects.add')} onAction={() => setShowCreate(true)} />
             ) : (
               <div className="space-y-2">
                 {subjects.map((s, idx) => (
@@ -113,16 +115,16 @@ export default function SubjectsPage() {
                     {editingId === s.id ? (
                       <div className="space-y-3">
                         <input value={editName} onChange={(e) => setEditName(e.target.value)}
-                          className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Subject name" />
+                          className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.namePlaceholder')} />
                         <div className="flex gap-3">
                           <input value={editCode} onChange={(e) => setEditCode(e.target.value)}
-                            className="w-32 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Code" />
+                            className="w-32 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.codePlaceholder')} />
                           <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
-                            className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Description" />
+                            className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.descPlaceholder')} />
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="primary" size="sm" leftIcon={<Check size={14} />} onClick={handleSaveEdit}>Save</Button>
-                          <Button variant="secondary" size="sm" leftIcon={<X size={14} />} onClick={() => setEditingId(null)}>Cancel</Button>
+                          <Button variant="primary" size="sm" leftIcon={<Check size={14} />} onClick={handleSaveEdit}>{t('subjects.save')}</Button>
+                          <Button variant="secondary" size="sm" leftIcon={<X size={14} />} onClick={() => setEditingId(null)}>{t('subjects.cancel')}</Button>
                         </div>
                       </div>
                     ) : (
@@ -154,15 +156,15 @@ export default function SubjectsPage() {
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">Add Subject</h2>
+            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('subjects.add')}</h2>
             <div className="space-y-3">
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Subject name (e.g. Mathematics)" autoFocus />
-              <input value={newCode} onChange={(e) => setNewCode(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Code (e.g. MATH101)" />
-              <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="Description (optional)" />
+              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.namePlaceholder')} autoFocus />
+              <input value={newCode} onChange={(e) => setNewCode(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.codePlaceholder')} />
+              <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.descPlaceholder')} />
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>Cancel</Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>Create</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('subjects.cancel')}</Button>
+              <Button variant="primary" loading={creating} onClick={handleCreate}>{t('subjects.create')}</Button>
             </div>
           </div>
         </div>

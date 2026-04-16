@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Fingerprint, AlertTriangle, Power, Hash } from 'lucide-react';
 import { OtisakLogo, OtisakFooter } from '@/components/otisak';
+import { useLang } from '@/components/LangProvider';
 
 type Phase = 'index-entry' | 'waiting' | 'starting' | 'error';
 
@@ -19,6 +20,7 @@ type ExamInfo = {
 export default function JoinExamPage() {
   const router = useRouter();
   const { examId } = useParams<{ examId: string }>()!;
+  const { t } = useLang();
 
   const [phase, setPhase] = useState<Phase>('index-entry');
   const [indexNumber, setIndexNumber] = useState('');
@@ -34,16 +36,16 @@ export default function JoinExamPage() {
     (async () => {
       try {
         const res = await fetch(`/api/otisak/exams/${examId}/room-status`);
-        if (!res.ok) { setPhase('error'); setError('Exam not found.'); return; }
+        if (!res.ok) { setPhase('error'); setError(t('join.examNotFound')); return; }
         const data = await res.json();
         setExamInfo(data);
         if (data.status !== 'active') {
           setPhase('error');
-          setError('This exam is not currently active.');
+          setError(t('join.examNotActive'));
         }
       } catch {
         setPhase('error');
-        setError('Could not connect to exam server.');
+        setError(t('join.connectionError'));
       }
     })();
   }, [examId]);
@@ -73,7 +75,7 @@ export default function JoinExamPage() {
       setUserIndex(data.user?.index_number || indexNumber);
       setPhase('waiting');
     } catch {
-      setError('Network error. Please try again.');
+      setError(t('join.networkError'));
     } finally {
       setJoining(false);
     }
@@ -112,9 +114,9 @@ export default function JoinExamPage() {
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center p-4">
         <div className="text-center">
           <AlertTriangle className="w-16 h-16 text-red-400/60 mx-auto mb-4" />
-          <h1 className="text-xl text-white font-light mb-2">Cannot Join</h1>
+          <h1 className="text-xl text-white font-light mb-2">{t('join.cannotJoin')}</h1>
           <p className="text-gray-400 text-sm mb-6">{error}</p>
-          <button onClick={() => window.history.back()} className="text-blue-400 hover:text-blue-300 text-sm">Go back</button>
+          <button onClick={() => window.history.back()} className="text-blue-400 hover:text-blue-300 text-sm">{t('join.goBack')}</button>
         </div>
       </div>
     );
@@ -147,10 +149,10 @@ export default function JoinExamPage() {
           {examInfo && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }} className="mb-8 w-full">
               <div className="bg-[#131520]/80 border border-blue-500/20 rounded-xl px-5 py-4 backdrop-blur-sm">
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">Joining Exam</p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest mb-1">{t('join.joiningExam')}</p>
                 <p className="text-lg text-white font-light">{examInfo.title}</p>
                 {examInfo.subject_name && <p className="text-xs text-blue-400/60 mt-1">{examInfo.subject_name}</p>}
-                <p className="text-[11px] text-gray-500 mt-2">{examInfo.duration_minutes} minutes</p>
+                <p className="text-[11px] text-gray-500 mt-2">{examInfo.duration_minutes} {t('join.minutes')}</p>
               </div>
             </motion.div>
           )}
@@ -165,7 +167,7 @@ export default function JoinExamPage() {
           >
             <div>
               <label className="block text-[10px] text-gray-400 uppercase tracking-widest mb-2 text-left font-medium">
-                Enter your index number
+                {t('join.enterIndex')}
               </label>
               <div className="relative">
                 <Hash size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-blue-400/40" />
@@ -173,7 +175,7 @@ export default function JoinExamPage() {
                   type="text"
                   value={indexNumber}
                   onChange={(e) => setIndexNumber(e.target.value)}
-                  placeholder="e.g. IT 42/2024"
+                  placeholder={t('join.indexPlaceholder')}
                   required
                   autoFocus
                   className="w-full h-14 pl-11 pr-4 bg-[#131520]/80 border border-blue-500/20 rounded-xl text-white text-lg font-mono placeholder-white/15 focus:outline-none focus:border-blue-500/50 focus:shadow-[0_0_20px_rgba(59,130,246,0.15)] transition-all"
@@ -194,9 +196,9 @@ export default function JoinExamPage() {
               className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] transition-all uppercase tracking-widest text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {joining ? (
-                <><Loader2 size={16} className="animate-spin" />Joining...</>
+                <><Loader2 size={16} className="animate-spin" />{t('join.joining')}</>
               ) : (
-                'Join Exam'
+                t('join.joinExam')
               )}
             </button>
           </motion.form>
@@ -217,8 +219,8 @@ export default function JoinExamPage() {
           <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
             <Fingerprint className="w-10 h-10 text-green-400" strokeWidth={1.5} />
           </div>
-          <h2 className="text-2xl text-green-400 font-light tracking-[0.2em] uppercase mb-2">Exam Starting</h2>
-          <p className="text-gray-400 text-sm">Redirecting you now...</p>
+          <h2 className="text-2xl text-green-400 font-light tracking-[0.2em] uppercase mb-2">{t('join.examStarting')}</h2>
+          <p className="text-gray-400 text-sm">{t('join.redirecting')}</p>
         </motion.div>
       </div>
     );
@@ -248,10 +250,10 @@ export default function JoinExamPage() {
 
         {/* User Info */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 }} className="flex flex-col items-center mb-8 sm:mb-14 w-full">
-          <div className="mb-3 text-gray-400 text-xs sm:text-sm uppercase tracking-widest font-medium">Logged in as</div>
+          <div className="mb-3 text-gray-400 text-xs sm:text-sm uppercase tracking-widest font-medium">{t('join.loggedInAs')}</div>
           <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 bg-[#131520]/80 border border-blue-500/20 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.3)] backdrop-blur-sm max-w-full">
             <span className="text-base sm:text-2xl text-white font-light tracking-wide truncate">
-              {userName || 'Student'}
+              {userName || t('exam.student')}
               <span className="text-blue-500/50 mx-1 sm:mx-2">|</span>
               <span className="font-mono text-blue-300">{userIndex}</span>
             </span>
@@ -264,26 +266,26 @@ export default function JoinExamPage() {
             <div className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 w-full origin-left animate-[otisak-progress_2s_ease-in-out_infinite] shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
           </div>
           <div className="absolute -bottom-6 left-0 w-full text-center">
-            <span className="text-blue-400/60 text-[10px] uppercase tracking-widest animate-pulse">Waiting for instructor to start the exam...</span>
+            <span className="text-blue-400/60 text-[10px] uppercase tracking-widest animate-pulse">{t('join.waitingForInstructor')}</span>
           </div>
         </motion.div>
 
         <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.8 }} className="text-gray-300 text-xs sm:text-sm mb-10 sm:mb-16 mt-8 max-w-md leading-relaxed font-light px-2">
-          You have successfully joined the exam. Please wait for the instructor to start the timer. Do not close this window.
+          {t('join.waitingDesc')}
         </motion.p>
 
         {/* Exam info */}
         {examInfo && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1 }} className="mb-8 px-6 py-4 bg-[#131520]/60 border border-blue-500/10 rounded-xl">
             <p className="text-white font-light text-lg">{examInfo.title}</p>
-            <p className="text-gray-500 text-xs mt-1">{examInfo.duration_minutes} minutes {examInfo.subject_name ? `| ${examInfo.subject_name}` : ''}</p>
+            <p className="text-gray-500 text-xs mt-1">{examInfo.duration_minutes} {t('join.minutes')} {examInfo.subject_name ? `| ${examInfo.subject_name}` : ''}</p>
           </motion.div>
         )}
 
         {/* Warning */}
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1.2 }} className="text-xs text-gray-500/60 max-w-lg leading-relaxed border-t border-gray-800/50 pt-6">
-          <p className="mb-2">Any form of cheating, unauthorized communication, or use of external resources is strictly prohibited during this exam.</p>
-          <p>Violations will result in immediate exam invalidation and disciplinary proceedings.</p>
+          <p className="mb-2">{t('exam.cheatingWarning')}</p>
+          <p>{t('exam.disciplinaryWarning')}</p>
         </motion.div>
       </div>
 
