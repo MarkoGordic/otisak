@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const SESSION_COOKIE_NAME = 'otisak_session';
-const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout'];
+const PUBLIC_PATHS = ['/login', '/join', '/api/auth/login', '/api/auth/logout'];
+
+function isPublic(pathname: string): boolean {
+  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) return true;
+  // Allow join and room-status API for unauthenticated students
+  if (/^\/api\/otisak\/exams\/[^/]+\/(join|room-status)/.test(pathname)) return true;
+  return false;
+}
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
-    return NextResponse.next();
-  }
-
+  if (isPublic(pathname)) return NextResponse.next();
   if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname === '/') {
     return NextResponse.next();
   }

@@ -1102,3 +1102,52 @@ export async function getTagCountsForSubject(
   );
   return result.rows;
 }
+
+// ========================================
+// ROOM / LIVE EXAM CONTROL
+// ========================================
+
+export async function startExamTimer(examId: string): Promise<OtisakExam | null> {
+  const result = await query<OtisakExam>(
+    `UPDATE otisak_exams SET exam_started_at = NOW() WHERE id = $1 AND status = 'active' RETURNING *`,
+    [examId]
+  );
+  return result.rows[0] || null;
+}
+
+export async function getExamRoomStatus(examId: string): Promise<{
+  exam: OtisakExamWithSubject | null;
+  participants: Array<{ user_id: string; name: string | null; email: string; index_number: string | null; enrolled_at: Date }>;
+  activeAttempts: number;
+}> {
+  const exam = await getOtisakExamById(examId);
+  const enrollments = await getExamEnrollments(examId);
+  const attemptCount = await query<{ count: number }>(
+    `SELECT COUNT(*)::int as count FROM otisak_attempts WHERE exam_id = $1 AND submitted = FALSE`,
+    [examId]
+  );
+  return {
+    exam,
+    participants: enrollments,
+    activeAttempts: attemptCount.rows[0]?.count ?? 0,
+  };
+}
+
+export async function joinExamByIndex(examId: string, indexNumber: string): Promise<{
+  user: { id: string; name: string | null; index_number: string | null } | null;
+  error?: string;
+}> {
+  const userResult = await query<{ id: string; name: string | null; index_number: string | null }>(
+    'SELECT id, name, index_number FROM users WHERE index_number = $1 AND is_active = TRUE LIMIT 1',
+    [indexNumber.trim()]
+  );
+  const user = userResult.rows[0];
+  if (!user) return { user: null, error: 'Index number not found. Contact your administrator.' };
+
+  const exam = await getOtisakExamById(examId);
+  if (!exam) return { user: null, error: 'Exam not found.' };
+  if (exam.status !== 'active') return { user: null, error: 'Exam is not active.' };
+
+  await enrollUserInExam(examId, user.id);
+  return { user };
+}
