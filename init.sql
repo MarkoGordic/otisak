@@ -332,6 +332,19 @@ CREATE INDEX idx_exam_events_exam ON otisak_exam_events(exam_id);
 -- ========================================
 
 -- Default admin: admin@otisak.local / admin123
--- Generate new hash: node -e "require('bcryptjs').hash('admin123',10).then(console.log)"
+-- All student passwords: student123
+-- Generate new hash: node -e "require('bcryptjs').hash('password',10).then(console.log)"
 INSERT INTO users (email, password_hash, name, role) VALUES
   ('admin@otisak.local', '$2a$10$O0OB15ON/cB19RiHEC/SXOTs/Zz4gc6WANwYaDz.zCFuTlBuOBz7.', 'Admin', 'admin');
+
+INSERT INTO users (email, password_hash, name, role, index_number) VALUES
+  ('student1@ftn.uns.ac.rs', '$2a$10$dXLy0hp2af3rYXjhyj3Wge6hAjmv87sikD7/UloyZnWBHuoJWsdJK', 'Marko Petrovic', 'student', 'IN 1/2024'),
+  ('student2@ftn.uns.ac.rs', '$2a$10$Jnclx1d9XgVj1H2cBybbneTJSmK.etFnEsrftKEf/ve01MwlCDRP6', 'Ana Jovanovic', 'student', 'IN 2/2024'),
+  ('student3@ftn.uns.ac.rs', '$2a$10$NDGO226XqHHgvDh4eAYfcOXPzbhGAhqdDcaX3ikZjhOO3EI7qlBzC', 'Stefan Nikolic', 'student', 'IN 3/2024'),
+  ('student4@ftn.uns.ac.rs', '$2a$10$hiUU.U8F6QPA0FYGtRlQg.hv9AInpof9/80XqNHNnIAvZehNw6rPC', 'Jelena Djordjevic', 'student', 'IN 4/2024'),
+  ('student5@ftn.uns.ac.rs', '$2a$10$.xihQr/6WcT2ewAlvRMNZOPdkJLMTaBdsQHrLaaejy1WjzvDKwP7S', 'Nikola Stojanovic', 'student', 'IN 5/2024'),
+  ('student6@ftn.uns.ac.rs', '$2a$10$8r70/VQwxDa79FCGXgW2Zu6d5rfFEuZD8WO7b9ybwAkS95NxfVSn6', 'Milica Ilic', 'student', 'IN 6/2024'),
+  ('student7@ftn.uns.ac.rs', '$2a$10$b5htCKYWsOu0rivJda1utuog7VIYkohqCJVjJlFtPjgNZG9SOXv76', 'Lazar Markovic', 'student', 'IN 7/2024'),
+  ('student8@ftn.uns.ac.rs', '$2a$10$cmgqFUMFpZYfJwOkvOnvHutJ6oQGKBwwIKkRNhWNp2h/E2yYnZx26', 'Tamara Pavlovic', 'student', 'IN 8/2024'),
+  ('student9@ftn.uns.ac.rs', '$2a$10$lMO/JOyOTLG9al56nmHV8Os.UrJqhz9okQY4i24mN/igmyQfUjLP2', 'Dusan Milosevic', 'student', 'SW 1/2024'),
+  ('student10@ftn.uns.ac.rs', '$2a$10$xOS3DHeg7vw0wPNIr1OOdeXE91wgFRcM0I9cdiCnzQM9Tec6EwHae', 'Maja Kovacevic', 'student', 'SW 2/2024');

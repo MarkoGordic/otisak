@@ -339,12 +339,12 @@ export default function ExamPage() {
               <div className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 w-full origin-left animate-[otisak-progress_2s_ease-in-out_infinite] shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
             </div>
             <div className="absolute -bottom-6 left-0 w-full text-center">
-              <span className="text-blue-400/60 text-[10px] uppercase tracking-widest animate-pulse">Loading system...</span>
+              <span className="text-blue-400/60 text-[10px] uppercase tracking-widest animate-pulse">Waiting for instructor to start the exam...</span>
             </div>
           </motion.div>
 
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.8 }} className="text-gray-300 text-xs sm:text-sm mb-10 sm:mb-16 mt-6 max-w-md leading-relaxed font-light px-2">
-            {exam?.status === 'active' ? 'The exam is active. You will be automatically redirected...' : 'Please wait for the exam to start.'}
+            Waiting for the instructor to start the exam. You will be automatically redirected once the timer begins.
           </motion.p>
 
           <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1 }} onClick={() => router.push('/dashboard')}
