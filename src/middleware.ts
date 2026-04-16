@@ -1,25 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { SESSION_COOKIE } from './lib/session';
 
+const SESSION_COOKIE_NAME = 'otisak_session';
 const PUBLIC_PATHS = ['/login', '/api/auth/login', '/api/auth/logout'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Allow public paths
   if (PUBLIC_PATHS.some((p) => pathname.startsWith(p))) {
     return NextResponse.next();
   }
 
-  // Allow static assets
   if (pathname.startsWith('/_next') || pathname.startsWith('/favicon') || pathname === '/') {
     return NextResponse.next();
   }
 
-  // Check for session cookie (lightweight check - full validation in API routes)
-  const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
+  const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME)?.value;
   if (!sessionCookie) {
-    // Redirect to login for page requests, 401 for API requests
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
