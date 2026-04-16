@@ -327,6 +327,24 @@ CREATE TABLE otisak_exam_events (
 CREATE INDEX idx_exam_events_exam ON otisak_exam_events(exam_id);
 
 -- ========================================
+-- EXAM ACTIVITY LOG (detailed tracking)
+-- ========================================
+
+CREATE TABLE exam_activity_log (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  attempt_id UUID NOT NULL REFERENCES otisak_attempts(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  exam_id UUID NOT NULL REFERENCES otisak_exams(id) ON DELETE CASCADE,
+  event_type TEXT NOT NULL,
+  event_data JSONB NOT NULL DEFAULT '{}',
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_activity_log_attempt ON exam_activity_log(attempt_id);
+CREATE INDEX idx_activity_log_user ON exam_activity_log(user_id, exam_id);
+CREATE INDEX idx_activity_log_time ON exam_activity_log(attempt_id, timestamp);
+
+-- ========================================
 -- APP SETTINGS
 -- ========================================
 

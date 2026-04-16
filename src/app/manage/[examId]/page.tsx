@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, Users, Play, Copy, Check, Clock, Link2, UserCheck, ArrowLeft,
-  Fingerprint, AlertTriangle, Radio, ShieldOff, ShieldAlert,
+  Fingerprint, AlertTriangle, Radio, ShieldOff, ShieldAlert, FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -248,6 +248,14 @@ export default function ExamRoomPage() {
                       <span className="text-[10px] text-green-400/80 uppercase font-medium">{t('room.ready')}</span>
                     </div>
                   </div>
+                  {started && (
+                    <div className="w-10 flex justify-center">
+                      <button onClick={() => router.push(`/manage/${examId}/report/${p.user_id}`)}
+                        className="p-1.5 rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors" title="Izvestaj">
+                        <FileText size={14} />
+                      </button>
+                    </div>
+                  )}
                 </motion.div>
               ))}
             </AnimatePresence>
