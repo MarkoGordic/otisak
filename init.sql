@@ -81,6 +81,7 @@ CREATE TABLE otisak_exams (
   negative_points_value NUMERIC NOT NULL DEFAULT 0,
   negative_points_threshold INTEGER NOT NULL DEFAULT 1,
   partial_scoring BOOLEAN NOT NULL DEFAULT FALSE,
+  exam_started_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

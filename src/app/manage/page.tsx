@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Loader2, Plus, Settings, Trash2, Users, Play, Pause, Archive, Eye,
-  Fingerprint, FileText, Clock, CalendarIcon,
+  Fingerprint, FileText, Clock, CalendarIcon, Radio, Link2, Copy,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '@/components/Sidebar';
 import { Badge } from '@/components/ui/Badge';
@@ -202,6 +202,11 @@ export default function ManagePage() {
                       </div>
 
                       <div className="flex items-center gap-2 flex-shrink-0">
+                        {exam.status === 'active' && (
+                          <Button variant="primary" size="sm" leftIcon={<Radio size={14} />} onClick={() => router.push(`/manage/${exam.id}`)}>
+                            Room
+                          </Button>
+                        )}
                         {statusActions[exam.status]?.map((action) => (
                           <Button key={action.status} variant="secondary" size="sm" leftIcon={action.icon} onClick={() => handleStatusChange(exam.id, action.status)}>
                             {action.label}

@@ -10,6 +10,7 @@ import {
   LogOut,
   FileText,
   BookOpen,
+  BookMarked,
   Sun,
   Moon,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/dashboard' },
     ...(isStaff ? [
       { id: 'manage', label: 'Manage Exams', icon: Settings, href: '/manage' },
+      { id: 'subjects', label: 'Subjects', icon: BookMarked, href: '/subjects' },
       { id: 'questions', label: 'Question Bank', icon: BookOpen, href: '/questions' },
     ] : []),
     ...(isAdmin ? [

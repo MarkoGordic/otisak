@@ -83,7 +83,11 @@ export default function ExamPage() {
 
           if (examData.attempt) {
             setAttempt(examData.attempt);
-            startTimeRef.current = new Date(examData.attempt.started_at).getTime();
+            // Use exam_started_at as the reference time for the timer if available
+            const timerStart = examData.exam.exam_started_at
+              ? new Date(examData.exam.exam_started_at).getTime()
+              : new Date(examData.attempt.started_at).getTime();
+            startTimeRef.current = timerStart;
 
             if (Array.isArray(examData.savedAnswers)) {
               const restored: Record<string, string[]> = {};
@@ -95,8 +99,14 @@ export default function ExamPage() {
               setAnswers(restored);
             }
 
-            setPhase('exam');
+            // If exam hasn't been started by admin yet, show lobby
+            if (examData.exam.status === 'active' && !examData.exam.exam_started_at) {
+              setPhase('lobby');
+            } else {
+              setPhase('exam');
+            }
           } else if (examData.exam.status === 'active') {
+            // No attempt yet - show lobby (will auto-start when admin triggers)
             setPhase('lobby');
           } else if (examData.exam.status === 'completed' || examData.exam.status === 'archived') {
             router.push(`/exam/${examId}/results`);
@@ -111,16 +121,36 @@ export default function ExamPage() {
     return () => { mounted = false; };
   }, [examId, router]);
 
-  // Auto-start after lobby
+  // Poll for admin to start the exam
   useEffect(() => {
     if (phase !== 'lobby' || !exam || exam.status !== 'active') return;
-    const timer = setTimeout(() => {
-      // The attempt is already created by the GET /api/otisak/exams/[examId] route
-      // Just transition to exam phase
-      setPhase('exam');
-    }, 4000);
-    return () => clearTimeout(timer);
-  }, [phase, exam]);
+    // If exam already started, go directly
+    if (exam.exam_started_at) { setPhase('exam'); return; }
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/otisak/exams/${examId}/room-status`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.exam_started_at) {
+          clearInterval(pollInterval);
+          // Reload exam data to get attempt
+          const examRes = await fetch(`/api/otisak/exams/${examId}`, { credentials: 'include' });
+          if (examRes.ok) {
+            const examData = await examRes.json();
+            setExam(examData.exam);
+            setQuestions(examData.questions || []);
+            if (examData.attempt) {
+              setAttempt(examData.attempt);
+              startTimeRef.current = new Date(data.exam_started_at).getTime();
+            }
+          }
+          setPhase('exam');
+        }
+      } catch { /* silent */ }
+    }, 2000);
+    return () => clearInterval(pollInterval);
+  }, [phase, exam, examId]);
 
   // Build save payload
   const answersRef = useRef(answers);
@@ -383,7 +413,7 @@ export default function ExamPage() {
           attempt && exam ? (
             <OtisakTimer
               durationSeconds={exam.duration_minutes * 60}
-              startedAt={attempt.started_at as unknown as string}
+              startedAt={(exam.exam_started_at || attempt.started_at) as unknown as string}
               onExpire={handleTimerExpire}
             />
           ) : null
