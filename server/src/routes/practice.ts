@@ -17,12 +17,12 @@ router.get('/', async (req: Request, res: Response) => {
     if (user.role === 'student') {
       const practiceEnabled = await getSetting('practice_mode_enabled');
       if (practiceEnabled === 'false') {
-        return res.json([]);
+        return res.json({ exams: [], practice_disabled: true });
       }
     }
 
     const exams = await getSelfServicePracticeExams(user.id, subject_id as string | undefined);
-    return res.json(exams);
+    return res.json({ exams });
   } catch (error) {
     console.error('Get practice exams error:', error);
     return res.status(500).json({ error: 'Internal server error' });

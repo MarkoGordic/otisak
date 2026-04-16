@@ -137,7 +137,7 @@ router.get('/results', requireAuth, async (req: Request, res: Response) => {
     }
 
     const results = await getAttemptResults(attempt.id);
-    return res.json(results);
+    return res.json({ results });
   } catch (error) {
     console.error('Results error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -486,7 +486,7 @@ router.get('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (r
   try {
     const examId = getExamId(req);
     const enrollments = await getExamEnrollments(examId);
-    return res.json(enrollments);
+    return res.json({ enrollments });
   } catch (error) {
     console.error('Get enrollments error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -498,7 +498,7 @@ router.get('/questions', requireAuth, requireRole(['admin', 'assistant']), async
   try {
     const examId = getExamId(req);
     const questions = await getOtisakQuestions(examId);
-    return res.json(questions);
+    return res.json({ questions });
   } catch (error) {
     console.error('Get questions error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -627,7 +627,7 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
     if (!exam) {
       return res.status(400).json({ error: 'Exam not found or not active' });
     }
-    return res.json(exam);
+    return res.json({ exam });
   } catch (error) {
     console.error('Start exam error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -639,7 +639,7 @@ router.get('/lockdown', async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     const lockdown = await getActiveLockdown(examId);
-    return res.json({ locked: !!lockdown, message: lockdown?.message || null });
+    return res.json({ lockdown: lockdown ? { is_active: true, message: lockdown.message } : null });
   } catch (error) {
     console.error('Lockdown status error:', error);
     return res.status(500).json({ error: 'Internal server error' });
