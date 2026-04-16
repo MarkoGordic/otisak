@@ -25,6 +25,7 @@ const sr: Record<string, string> = {
   'nav.users': 'Korisnici',
   'nav.lightMode': 'Svetli rezim',
   'nav.darkMode': 'Tamni rezim',
+  'nav.settings': 'Podesavanja',
   'nav.signOut': 'Odjavi se',
   'nav.home': 'Pocetna',
   'nav.manage.short': 'Upravljanje',

@@ -25,6 +25,7 @@ const en: Record<string, string> = {
   'nav.users': 'Users',
   'nav.lightMode': 'Light Mode',
   'nav.darkMode': 'Dark Mode',
+  'nav.settings': 'Settings',
   'nav.signOut': 'Sign out',
   'nav.home': 'Home',
   'nav.manage.short': 'Manage',

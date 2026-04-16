@@ -327,6 +327,33 @@ CREATE TABLE otisak_exam_events (
 CREATE INDEX idx_exam_events_exam ON otisak_exam_events(exam_id);
 
 -- ========================================
+-- APP SETTINGS
+-- ========================================
+
+CREATE TABLE app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+INSERT INTO app_settings (key, value) VALUES
+  ('practice_mode_enabled', 'false');
+
+-- ========================================
+-- EXAM LOCKDOWNS
+-- ========================================
+
+CREATE TABLE exam_lockdowns (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  exam_id UUID NOT NULL REFERENCES otisak_exams(id) ON DELETE CASCADE,
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  message TEXT,
+  started_by UUID REFERENCES users(id),
+  started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ended_at TIMESTAMPTZ
+);
+
+-- ========================================
 -- SEED: Default admin user
 -- Password: admin123 (bcrypt hash)
 -- ========================================
