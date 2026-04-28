@@ -12,6 +12,25 @@ import { requireAuth, requireRole } from '../middleware';
 
 const router = Router();
 
+// GET /exams/active - public, list active real exams for student picker
+router.get('/active', async (_req: Request, res: Response) => {
+  try {
+    const exams = await getOtisakExams({ status: 'active', exam_mode: 'real' });
+    const sanitized = exams.map((e) => ({
+      id: e.id,
+      title: e.title,
+      duration_minutes: e.duration_minutes,
+      subject_name: e.subject_name,
+      subject_code: e.subject_code,
+      exam_started_at: e.exam_started_at,
+    }));
+    return res.json({ exams: sanitized });
+  } catch (error) {
+    console.error('Get active exams error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 router.use(requireAuth);
 
 // GET /exams

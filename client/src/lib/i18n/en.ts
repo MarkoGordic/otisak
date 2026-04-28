@@ -277,6 +277,16 @@ const en: Record<string, string> = {
   'join.joinFailed': 'Failed to join.',
   'join.networkError': 'Network error. Please try again.',
 
+  // Home (active exams picker)
+  'home.title': 'Active exams',
+  'home.subtitle': 'Pick an exam to join',
+  'home.noActive': 'There are no active exams right now.',
+  'home.refresh': 'Refresh',
+  'home.adminLogin': 'Admin login',
+  'home.minutes': 'minutes',
+  'home.inProgress': 'In progress',
+  'home.waiting': 'Waiting',
+
   // Common
   'common.cancel': 'Cancel',
   'common.save': 'Save',

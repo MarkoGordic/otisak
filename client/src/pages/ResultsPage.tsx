@@ -32,9 +32,9 @@ export default function ResultsPage() {
     (async () => {
       try {
         const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
-        if (!sessionRes.ok) { navigate('/login', { replace: true }); return; }
+        if (!sessionRes.ok) { navigate('/', { replace: true }); return; }
         const sessionData = await sessionRes.json();
-        if (!sessionData.authenticated) { navigate('/login', { replace: true }); return; }
+        if (!sessionData.authenticated) { navigate('/', { replace: true }); return; }
 
         if (mounted) {
           setUser({

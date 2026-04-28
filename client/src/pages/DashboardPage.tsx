@@ -112,7 +112,7 @@ export default function DashboardPage() {
       try {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         const data = await res.json();
-        if (!data.authenticated) { navigate('/login', { replace: true }); return; }
+        if (!data.authenticated) { navigate('/admin', { replace: true }); return; }
         if (mounted) {
           setUser({
             name: data.user?.name,
@@ -121,7 +121,7 @@ export default function DashboardPage() {
             role: data.user?.role,
           });
         }
-      } catch { navigate('/login', { replace: true }); }
+      } catch { navigate('/admin', { replace: true }); }
     })();
     return () => { mounted = false; };
   }, [navigate]);
