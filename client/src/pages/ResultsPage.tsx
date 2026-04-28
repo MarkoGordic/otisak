@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, ArrowLeft, Check, X, ChevronDown, ChevronUp, Clock, Award, Target } from 'lucide-react';
-import { OtisakHeader, OtisakFooter, CodeBlock } from '../components/otisak';
+import { Loader2, ArrowLeft, Clock, Target } from 'lucide-react';
+import { OtisakHeader, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import type { OtisakExamResults } from '../lib/types';
 
@@ -13,8 +13,6 @@ type UserInfo = {
   index_number?: string;
 };
 
-const ANSWER_LABELS = 'ABCDEFGHIJ';
-
 export default function ResultsPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
@@ -23,7 +21,6 @@ export default function ResultsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [results, setResults] = useState<OtisakExamResults | null>(null);
-  const [expandedQ, setExpandedQ] = useState<Set<number>>(new Set());
   const [aiGradingStatus, setAiGradingStatus] = useState<string | null>(null);
   const [pollingAi, setPollingAi] = useState(false);
 
@@ -87,20 +84,6 @@ export default function ResultsPage() {
     return () => clearInterval(interval);
   }, [pollingAi, results?.attempt?.id, examId]);
 
-  const toggleQuestion = (idx: number) => {
-    setExpandedQ((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx); else next.add(idx);
-      return next;
-    });
-  };
-
-  const expandAll = () => {
-    if (!results) return;
-    if (expandedQ.size === results.questions.length) setExpandedQ(new Set());
-    else setExpandedQ(new Set(results.questions.map((_, i) => i)));
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
@@ -144,8 +127,8 @@ export default function ResultsPage() {
           <div className="text-center py-20">
             <p className="text-gray-400 text-lg mb-2">{t('results.notAvailable')}</p>
             <p className="text-gray-500 text-sm mb-6">{t('results.processing')}</p>
-            <button onClick={() => navigate('/dashboard')} className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2 mx-auto">
-              <ArrowLeft className="w-4 h-4" />{t('results.backToDashboard')}
+            <button onClick={() => navigate('/')} className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2 mx-auto">
+              <ArrowLeft className="w-4 h-4" />{t('results.backToHome')}
             </button>
           </div>
         ) : (
@@ -202,214 +185,10 @@ export default function ResultsPage() {
               </motion.div>
             )}
 
-            {/* Expand/Collapse */}
-            <div className="w-full flex justify-end mb-3">
-              <button onClick={expandAll} className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
-                {expandedQ.size === totalQuestions ? t('results.collapseAll') : t('results.expandAll')}
-              </button>
-            </div>
-
-            {/* Questions Review */}
-            <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.2 }} className="w-full space-y-2 mb-10">
-              {results.questions.map((q, idx) => {
-                const isOpenText = q.question.type === 'open_text';
-                const qAiStatus = q.ai_grading_status;
-                const isPendingAi = isOpenText && (qAiStatus === 'pending' || qAiStatus === 'grading');
-                const isCorrect = isPendingAi ? false : q.points_awarded > 0;
-                const isExpanded = expandedQ.has(idx);
-                const selectedIds = new Set(q.selected_answer_ids || (q.selected_answer_id ? [q.selected_answer_id] : []));
-                const correctIds = new Set(q.correct_answer_ids || (q.correct_answer_id ? [q.correct_answer_id] : []));
-                const allowReview = results.exam.allow_review;
-
-                return (
-                  <div key={q.question.id}
-                    className={`rounded-xl border overflow-hidden transition-colors ${
-                      isPendingAi ? 'border-purple-500/20 bg-purple-500/[0.03]' : isCorrect ? 'border-green-500/20 bg-green-500/[0.03]' : 'border-red-500/20 bg-red-500/[0.03]'
-                    }`}>
-                    <button type="button" onClick={() => toggleQuestion(idx)}
-                      className="w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 sm:py-3 text-left hover:bg-white/[0.02] transition-colors">
-                      <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                        isPendingAi ? 'bg-purple-500/20' : isCorrect ? 'bg-green-500/20' : 'bg-red-500/20'
-                      }`}>
-                        {isPendingAi ? <Loader2 className="w-3 h-3 text-purple-400 animate-spin" /> : isCorrect ? <Check className="w-3 h-3 text-green-400" /> : <X className="w-3 h-3 text-red-400" />}
-                      </div>
-                      <span className="text-gray-300 font-medium text-xs sm:text-sm flex-1 truncate">
-                        <span className="text-gray-500 mr-2">{idx + 1}.</span>{q.question.text}
-                      </span>
-                      <span className={`font-mono text-xs font-bold flex-shrink-0 ${isPendingAi ? 'text-purple-400' : isCorrect ? 'text-green-500' : 'text-red-400'}`}>
-                        {isPendingAi ? '...' : q.points_awarded}/{Number(q.question.points)}
-                      </span>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-gray-500 flex-shrink-0" />}
-                    </button>
-
-                    {isExpanded && (
-                      <div className="px-3 sm:px-4 pb-3 sm:pb-4 pt-1 border-t border-white/[0.04]">
-                        <p className="text-sm text-gray-300 mb-3 leading-relaxed">{q.question.text}</p>
-
-                        {q.question.type === 'code' && q.question.content && <div className="mb-3"><CodeBlock code={q.question.content} /></div>}
-                        {q.question.type === 'image' && q.question.content && (
-                          <div className="mb-3 bg-white p-2 rounded-lg max-w-lg shadow-lg"><img src={q.question.content} alt="Question" className="w-full h-auto rounded" /></div>
-                        )}
-
-                        {q.question.type === 'open_text' ? (
-                          <div className="space-y-3">
-                            <div>
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.yourAnswer')}</p>
-                              <div className="bg-[#181a25]/50 border border-gray-700 rounded-lg px-3 py-2">
-                                <p className="text-sm text-gray-300 whitespace-pre-wrap">{q.text_answer || <span className="italic text-gray-500">{t('results.noAnswer')}</span>}</p>
-                              </div>
-                            </div>
-                            {q.ai_grading_status === 'graded' && q.ai_feedback && (
-                              <div className="bg-purple-500/[0.06] border border-purple-500/20 rounded-lg px-3 py-2">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-[10px] text-purple-400 uppercase font-medium">{t('results.aiFeedback')}</span>
-                                </div>
-                                <p className="text-xs text-purple-300/80">{q.ai_feedback}</p>
-                              </div>
-                            )}
-                            {q.ai_grading_status === 'pending' && (
-                              <div className="flex items-center gap-2 text-xs text-purple-400/60"><Loader2 className="w-3 h-3 animate-spin" /><span>{t('results.aiPending')}</span></div>
-                            )}
-                            {q.ai_grading_status === 'grading' && (
-                              <div className="flex items-center gap-2 text-xs text-purple-400"><Loader2 className="w-3 h-3 animate-spin" /><span>{t('results.aiGrading')}</span></div>
-                            )}
-                            {q.ai_grading_status === 'error' && (
-                              <div className="bg-red-500/[0.06] border border-red-500/20 rounded-lg px-3 py-2">
-                                <p className="text-xs text-red-400">{t('results.aiFailed')}</p>
-                                {q.ai_feedback && <p className="text-[10px] text-red-400/60 mt-1">{q.ai_feedback}</p>}
-                              </div>
-                            )}
-                          </div>
-                        ) : q.question.type === 'ordering' ? (() => {
-                          const cData = (() => { try { return JSON.parse(q.question.content || '{}'); } catch { return {}; } })();
-                          const correctOrder: string[] = cData.items || [];
-                          const studentOrder: string[] = (() => { try { const p = JSON.parse(q.text_answer || '[]'); return Array.isArray(p) ? p : []; } catch { return []; } })();
-                          return (
-                            <div className="space-y-3">
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.ordering')}</p>
-                              <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                  <p className="text-[10px] text-blue-400/60 uppercase mb-1">{t('results.yourOrder')}</p>
-                                  {studentOrder.map((item, i) => {
-                                    const isCorrectPos = allowReview && correctOrder[i] === item;
-                                    return (<div key={`s-${i}`} className={`flex items-center gap-2 px-3 py-1.5 rounded border text-xs ${isCorrectPos ? 'border-green-500/30 bg-green-500/[0.06] text-green-300' : allowReview ? 'border-red-500/30 bg-red-500/[0.06] text-red-300' : 'border-gray-700 bg-[#181a25]/50 text-gray-300'}`}><span className="font-mono text-[10px] w-4">{i + 1}.</span>{item}</div>);
-                                  })}
-                                </div>
-                                {allowReview && (
-                                  <div>
-                                    <p className="text-[10px] text-green-400/60 uppercase mb-1">{t('results.correctOrder')}</p>
-                                    {correctOrder.map((item, i) => (<div key={`c-${i}`} className="flex items-center gap-2 px-3 py-1.5 rounded border border-green-500/20 bg-green-500/[0.04] text-xs text-green-300"><span className="font-mono text-[10px] w-4">{i + 1}.</span>{item}</div>))}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          );
-                        })() : q.question.type === 'matching' ? (() => {
-                          const cData = (() => { try { return JSON.parse(q.question.content || '{}'); } catch { return {}; } })();
-                          const leftArr: string[] = cData.left || [];
-                          const rightArr: string[] = cData.right || [];
-                          const studentMatches: Record<string, string> = (() => { try { return JSON.parse(q.text_answer || '{}'); } catch { return {}; } })();
-                          return (
-                            <div className="space-y-3">
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.matching')}</p>
-                              <div className="space-y-1.5">
-                                {leftArr.map((left, i) => {
-                                  const studentRight = studentMatches[left] || '';
-                                  const correctRight = rightArr[i] || '';
-                                  const isMatch = studentRight === correctRight;
-                                  return (
-                                    <div key={`m-${i}`} className={`flex items-center gap-2 px-3 py-2 rounded border text-xs ${isMatch && allowReview ? 'border-green-500/30 bg-green-500/[0.06]' : !isMatch && allowReview ? 'border-red-500/30 bg-red-500/[0.06]' : 'border-gray-700 bg-[#181a25]/50'}`}>
-                                      <span className="text-gray-300 flex-1">{left}</span>
-                                      <span className="text-gray-500">&#8594;</span>
-                                      <span className={isMatch && allowReview ? 'text-green-300 flex-1' : !isMatch && allowReview ? 'text-red-300 flex-1' : 'text-gray-300 flex-1'}>{studentRight || '-'}</span>
-                                      {allowReview && !isMatch && <span className="text-green-400/60 text-[10px]">({correctRight})</span>}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })() : q.question.type === 'fill_blank' ? (() => {
-                          const cData = (() => { try { return JSON.parse(q.question.content || '{}'); } catch { return {}; } })();
-                          const blanks: Array<{ id: string; correct: string }> = cData.blanks || [];
-                          const studentFills: Record<string, string> = (() => { try { return JSON.parse(q.text_answer || '{}'); } catch { return {}; } })();
-                          return (
-                            <div className="space-y-3">
-                              <p className="text-[10px] text-gray-500 uppercase mb-1">{t('results.fillBlanks')}</p>
-                              <div className="space-y-1.5">
-                                {blanks.map((blank) => {
-                                  const sv = (studentFills[blank.id] || '').trim();
-                                  const cv = (blank.correct || '').trim();
-                                  const isMatch = sv.toLowerCase() === cv.toLowerCase();
-                                  return (
-                                    <div key={blank.id} className={`flex items-center gap-2 px-3 py-2 rounded border text-xs ${isMatch && allowReview ? 'border-green-500/30 bg-green-500/[0.06]' : !isMatch && allowReview ? 'border-red-500/30 bg-red-500/[0.06]' : 'border-gray-700 bg-[#181a25]/50'}`}>
-                                      <span className="text-gray-500 font-mono text-[10px]">{blank.id}:</span>
-                                      <span className={isMatch && allowReview ? 'text-green-300' : !isMatch && allowReview ? 'text-red-300' : 'text-gray-300'}>{sv || '-'}</span>
-                                      {allowReview && !isMatch && <span className="text-green-400/60 text-[10px] ml-auto">({cv})</span>}
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })() : (
-                          <div className="space-y-1.5">
-                            {q.answers.map((a, ai) => {
-                              const wasSelected = selectedIds.has(a.id);
-                              const isCorrectAnswer = allowReview && correctIds.has(a.id);
-                              const isWrongSelection = wasSelected && allowReview && !correctIds.has(a.id);
-
-                              let borderClass = 'border-transparent';
-                              let bgClass = 'bg-[#181a25]/50';
-                              let labelClass = 'bg-[#2a2d3d] text-gray-400';
-
-                              if (allowReview && isCorrectAnswer) {
-                                borderClass = 'border-green-500/30'; bgClass = 'bg-green-500/[0.06]';
-                                labelClass = wasSelected ? 'bg-green-600 text-white' : 'bg-green-500/20 text-green-400';
-                              } else if (isWrongSelection) {
-                                borderClass = 'border-red-500/30'; bgClass = 'bg-red-500/[0.06]';
-                                labelClass = 'bg-red-600 text-white';
-                              } else if (wasSelected && !allowReview) {
-                                borderClass = 'border-blue-500/30'; bgClass = 'bg-blue-500/[0.06]';
-                                labelClass = 'bg-blue-600 text-white';
-                              }
-
-                              return (
-                                <div key={a.id} className={`flex items-center gap-2.5 px-3 py-2 rounded border ${borderClass} ${bgClass}`}>
-                                  <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 text-[10px] font-bold ${labelClass}`}>
-                                    {wasSelected && allowReview && isCorrectAnswer ? <Check className="w-3 h-3" strokeWidth={3} />
-                                      : wasSelected && isWrongSelection ? <X className="w-3 h-3" strokeWidth={3} />
-                                      : allowReview && isCorrectAnswer ? <Check className="w-3 h-3" strokeWidth={3} />
-                                      : ANSWER_LABELS[ai] || String(ai + 1)}
-                                  </div>
-                                  <span className={`text-sm ${wasSelected ? 'text-white' : 'text-gray-400'}`}>{a.text}</span>
-                                  {wasSelected && !allowReview && <span className="text-[10px] text-blue-400 ml-auto">{t('results.yourAnswer')}</span>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                        )}
-
-                        {allowReview && q.question.explanation && (
-                          <div className="mt-3 px-3 py-2 rounded-lg bg-blue-500/[0.06] border border-blue-500/20">
-                            <p className="text-xs text-blue-300">{q.question.explanation}</p>
-                          </div>
-                        )}
-
-                        {!allowReview && q.question.type !== 'open_text' && (
-                          <p className="text-[11px] text-gray-500 mt-2 italic">{t('results.reviewNotAvailable')}</p>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </motion.div>
-
             <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 }}
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate('/')}
               className="w-full max-w-xs flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-all uppercase tracking-[0.15em] text-sm shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] hover:-translate-y-0.5 mb-10">
-              <ArrowLeft className="w-4 h-4" />{t('results.backToDashboard')}
+              <ArrowLeft className="w-4 h-4" />{t('results.backToHome')}
             </motion.button>
           </>
         )}

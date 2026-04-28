@@ -315,7 +315,7 @@ export default function ExamRoomPage() {
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
-                      action: locked ? 'unlock' : 'lock',
+                      lock: !locked,
                       message: 'Administrator je zabranio rad na racunarima.',
                     }),
                   });
