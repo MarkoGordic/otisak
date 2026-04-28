@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Fingerprint, AlertTriangle, Power, Hash } from 'lucide-react';
+import { Loader2, Fingerprint, AlertTriangle, Hash, ArrowLeft, Check, User as UserIcon } from 'lucide-react';
 import { OtisakLogo, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 
-type Phase = 'index-entry' | 'waiting' | 'starting' | 'error';
+type Phase = 'index-entry' | 'confirm' | 'waiting' | 'starting' | 'error';
 
 type ExamInfo = {
   title: string;
@@ -24,6 +24,7 @@ export default function JoinExamPage() {
   const [indexNumber, setIndexNumber] = useState('');
   const [error, setError] = useState('');
   const [joining, setJoining] = useState(false);
+  const [lookingUp, setLookingUp] = useState(false);
   const [userName, setUserName] = useState('');
   const [userIndex, setUserIndex] = useState('');
   const [examInfo, setExamInfo] = useState<ExamInfo | null>(null);
@@ -48,10 +49,38 @@ export default function JoinExamPage() {
     })();
   }, [examId]);
 
-  // Join with index number
-  const handleJoin = async (e: React.FormEvent) => {
+  // Step 1: lookup user by index, then show confirmation screen
+  const handleLookup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!indexNumber.trim()) return;
+    setError('');
+    setLookingUp(true);
+
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/lookup-by-index`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ index_number: indexNumber.trim() }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || t('join.joinFailed'));
+        return;
+      }
+
+      setUserName(data.user?.name || '');
+      setUserIndex(data.user?.index_number || indexNumber);
+      setPhase('confirm');
+    } catch {
+      setError(t('join.networkError'));
+    } finally {
+      setLookingUp(false);
+    }
+  };
+
+  // Step 2: actually join (creates session)
+  const handleConfirm = async () => {
     setError('');
     setJoining(true);
 
@@ -65,7 +94,8 @@ export default function JoinExamPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || 'Failed to join.');
+        setError(data.error || t('join.joinFailed'));
+        setPhase('index-entry');
         return;
       }
 
@@ -74,9 +104,15 @@ export default function JoinExamPage() {
       setPhase('waiting');
     } catch {
       setError(t('join.networkError'));
+      setPhase('index-entry');
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleBackToIndex = () => {
+    setError('');
+    setPhase('index-entry');
   };
 
   // Poll for exam start
@@ -160,7 +196,7 @@ export default function JoinExamPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.6 }}
-            onSubmit={handleJoin}
+            onSubmit={handleLookup}
             className="w-full space-y-4"
           >
             <div>
@@ -190,16 +226,94 @@ export default function JoinExamPage() {
 
             <button
               type="submit"
-              disabled={joining || !indexNumber.trim()}
+              disabled={lookingUp || !indexNumber.trim()}
               className="w-full h-12 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] transition-all uppercase tracking-widest text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
-              {joining ? (
-                <><Loader2 size={16} className="animate-spin" />{t('join.joining')}</>
+              {lookingUp ? (
+                <><Loader2 size={16} className="animate-spin" />{t('join.lookingUp')}</>
               ) : (
                 t('join.joinExam')
               )}
             </button>
           </motion.form>
+        </div>
+
+        <div className="absolute bottom-0 w-full"><OtisakFooter /></div>
+      </div>
+    );
+  }
+
+  // ========================================
+  // CONFIRM SCREEN ("Is this you?")
+  // ========================================
+  if (phase === 'confirm') {
+    return (
+      <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
+          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/15 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <div className="z-10 w-full max-w-md px-4 sm:px-6 flex flex-col items-center text-center">
+          <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+            <OtisakLogo className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] mb-6" />
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="text-xs text-blue-400/70 uppercase tracking-[0.3em] mb-5"
+          >
+            {t('join.confirmQuestion')}
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="w-full bg-[#131520]/80 border border-blue-500/30 rounded-xl px-6 py-7 mb-6 backdrop-blur-sm shadow-[0_0_30px_rgba(59,130,246,0.15)]"
+          >
+            <UserIcon className="w-10 h-10 text-blue-400/70 mx-auto mb-4" strokeWidth={1.5} />
+            <div className="text-2xl sm:text-3xl text-white font-light mb-2 break-words">
+              {userName || t('exam.student')}
+            </div>
+            <div className="font-mono text-blue-300 text-sm">{userIndex}</div>
+          </motion.div>
+
+          {error && (
+            <div className="w-full flex items-center gap-2 p-3 mb-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+              <AlertTriangle size={14} />
+              {error}
+            </div>
+          )}
+
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.5 }}
+            className="w-full flex flex-col sm:flex-row gap-3"
+          >
+            <button
+              onClick={handleBackToIndex}
+              disabled={joining}
+              className="flex-1 h-12 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-medium rounded-xl border border-white/10 hover:border-white/20 transition-all uppercase tracking-widest text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <ArrowLeft size={16} />
+              {t('join.confirmBack')}
+            </button>
+            <button
+              onClick={handleConfirm}
+              disabled={joining}
+              className="flex-1 h-12 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] transition-all uppercase tracking-widest text-sm disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              {joining ? (
+                <><Loader2 size={16} className="animate-spin" />{t('join.joining')}</>
+              ) : (
+                <><Check size={16} />{t('join.confirmYes')}</>
+              )}
+            </button>
+          </motion.div>
         </div>
 
         <div className="absolute bottom-0 w-full"><OtisakFooter /></div>

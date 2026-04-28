@@ -276,6 +276,10 @@ const en: Record<string, string> = {
   'join.connectionError': 'Could not connect to exam server.',
   'join.joinFailed': 'Failed to join.',
   'join.networkError': 'Network error. Please try again.',
+  'join.confirmQuestion': 'Is this you?',
+  'join.confirmYes': 'Yes, that’s me',
+  'join.confirmBack': 'Back',
+  'join.lookingUp': 'Checking...',
 
   // Home (active exams picker)
   'home.title': 'Active exams',
