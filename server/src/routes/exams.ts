@@ -31,10 +31,8 @@ router.get('/active', async (_req: Request, res: Response) => {
   }
 });
 
-router.use(requireAuth);
-
 // GET /exams
-router.get('/', async (req: Request, res: Response) => {
+router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user!;
     if (user.role === 'admin' || user.role === 'assistant') {
@@ -56,7 +54,7 @@ router.get('/', async (req: Request, res: Response) => {
 });
 
 // POST /exams
-router.post('/', requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const exam = await createOtisakExam(req.body, req.user!.id);
 
@@ -73,7 +71,7 @@ router.post('/', requireRole(['admin', 'assistant']), async (req: Request, res: 
 });
 
 // PATCH /exams
-router.patch('/', requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const { id, status, tag_rules, ...fields } = req.body;
     if (!id) {
@@ -106,7 +104,7 @@ router.patch('/', requireRole(['admin', 'assistant']), async (req: Request, res:
 });
 
 // DELETE /exams
-router.delete('/', requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.delete('/', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const { id } = req.body;
     if (!id) {

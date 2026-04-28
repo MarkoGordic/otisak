@@ -23,7 +23,7 @@ import {
 } from '../db/otisak';
 import { getActiveLockdown, createLockdown, endLockdown } from '../db/settings';
 import { logEvents, getActivityLog, getActivityStats } from '../db/activity-log';
-import { findUserById } from '../db/users';
+import { findUserById, findUserByIndexNumber } from '../db/users';
 import { createSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth, requireRole } from '../middleware';
 
@@ -532,6 +532,42 @@ router.delete('/questions', requireAuth, requireRole(['admin', 'assistant']), as
     return res.json({ success: true });
   } catch (error) {
     console.error('Delete question error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /exams/:examId/lookup-by-index - public, look up student name by index for confirmation
+router.post('/lookup-by-index', async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const { index_number } = req.body;
+
+    if (!index_number?.trim()) {
+      return res.status(400).json({ error: 'Index number is required' });
+    }
+
+    const exam = await getOtisakExamById(examId);
+    if (!exam) {
+      return res.status(404).json({ error: 'Exam not found' });
+    }
+    if (exam.status !== 'active') {
+      return res.status(400).json({ error: 'Exam is not active' });
+    }
+
+    const user = await findUserByIndexNumber(index_number.trim());
+    if (!user) {
+      return res.status(404).json({ error: 'Index number not found. Contact your administrator.' });
+    }
+
+    return res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        index_number: user.index_number,
+      },
+    });
+  } catch (error) {
+    console.error('Lookup error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

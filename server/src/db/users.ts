@@ -17,6 +17,14 @@ export async function findUserById(id: string): Promise<User | null> {
   return result.rows[0] || null;
 }
 
+export async function findUserByIndexNumber(indexNumber: string): Promise<User | null> {
+  const result = await query<User>(
+    'SELECT * FROM users WHERE index_number = $1 AND is_active = TRUE LIMIT 1',
+    [indexNumber]
+  );
+  return result.rows[0] || null;
+}
+
 export async function updateLastLogin(userId: string): Promise<void> {
   await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [userId]);
 }

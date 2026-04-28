@@ -276,6 +276,10 @@ const sr: Record<string, string> = {
   'join.connectionError': 'Nije moguce povezivanje sa serverom.',
   'join.joinFailed': 'Pristup neuspesan.',
   'join.networkError': 'Greska u mrezi. Pokusajte ponovo.',
+  'join.confirmQuestion': 'Da li ste vi?',
+  'join.confirmYes': 'Da, to sam ja',
+  'join.confirmBack': 'Nazad',
+  'join.lookingUp': 'Provera...',
 
   // Home (active exams picker)
   'home.title': 'Aktivni ispiti',
