@@ -45,7 +45,7 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    navigate('/login');
+    navigate('/admin');
   };
 
   return (

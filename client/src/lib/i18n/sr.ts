@@ -277,6 +277,16 @@ const sr: Record<string, string> = {
   'join.joinFailed': 'Pristup neuspesan.',
   'join.networkError': 'Greska u mrezi. Pokusajte ponovo.',
 
+  // Home (active exams picker)
+  'home.title': 'Aktivni ispiti',
+  'home.subtitle': 'Izaberite ispit kojem zelite da pristupite',
+  'home.noActive': 'Trenutno nema aktivnih ispita.',
+  'home.refresh': 'Osvezi',
+  'home.adminLogin': 'Prijava administratora',
+  'home.minutes': 'minuta',
+  'home.inProgress': 'U toku',
+  'home.waiting': 'Cekanje',
+
   // Common
   'common.cancel': 'Otkazi',
   'common.save': 'Sacuvaj',

@@ -17,7 +17,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/admin" element={<LoginPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/manage" element={<ManagePage />} />
       <Route path="/manage/:examId" element={<RoomPage />} />
