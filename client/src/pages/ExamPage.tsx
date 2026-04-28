@@ -48,6 +48,7 @@ export default function ExamPage() {
   const [showNotes, setShowNotes] = useState(false);
   const [lockdown, setLockdown] = useState(false);
   const [lockdownMessage, setLockdownMessage] = useState('');
+  const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
 
   // ========================================
@@ -224,6 +225,11 @@ export default function ExamPage() {
 
           if (examData.expired && examData.attemptId) {
             navigate(`/exam/${examId}/results`);
+            return;
+          }
+
+          if (examData.alreadySubmitted) {
+            navigate(`/exam/${examId}/results`, { replace: true });
             return;
           }
 
@@ -444,7 +450,7 @@ export default function ExamPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'submit', answers: answerPayload, time_spent_seconds: timeSpent }),
+        body: JSON.stringify({ submit: true, answers: answerPayload, time_spent_seconds: timeSpent }),
       });
       if (res.ok) navigate(`/exam/${examId}/results`);
     } catch (e) {
@@ -796,7 +802,7 @@ export default function ExamPage() {
             />
 
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center mt-6">
-              <button type="button" onClick={() => handleFinish('manual')}
+              <button type="button" onClick={() => setShowFinishConfirm(true)}
                 className="px-6 sm:px-8 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] transition-all uppercase tracking-widest text-xs sm:text-sm hover:-translate-y-1">
                 {t('exam.finishExam')}
               </button>
@@ -848,6 +854,62 @@ export default function ExamPage() {
       </AnimatePresence>
 
       <OtisakFooter />
+
+      {/* FINISH CONFIRMATION MODAL */}
+      <AnimatePresence>
+        {showFinishConfirm && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={() => phase !== 'submitting' && setShowFinishConfirm(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: 'spring', damping: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-[#131520] border border-blue-500/30 rounded-2xl shadow-[0_0_60px_rgba(59,130,246,0.2)] max-w-md w-full p-6 sm:p-8"
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                </div>
+                <h3 className="text-lg font-medium text-white">{t('exam.finishConfirmTitle')}</h3>
+              </div>
+              <p className="text-gray-400 text-sm leading-relaxed mb-2">
+                {t('exam.finishConfirmBody')}
+              </p>
+              <p className="text-amber-400/80 text-xs leading-relaxed mb-6">
+                {t('exam.finishConfirmWarning')}
+              </p>
+
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => setShowFinishConfirm(false)}
+                  disabled={phase === 'submitting'}
+                  className="flex-1 h-11 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-medium rounded-xl border border-white/10 hover:border-white/20 transition-all uppercase tracking-widest text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {t('exam.finishConfirmCancel')}
+                </button>
+                <button
+                  onClick={() => { setShowFinishConfirm(false); handleFinish('manual'); }}
+                  disabled={phase === 'submitting'}
+                  className="flex-1 h-11 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-xl shadow-[0_0_25px_rgba(37,99,235,0.4)] transition-all uppercase tracking-widest text-xs disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {phase === 'submitting' ? (
+                    <><Loader2 size={14} className="animate-spin" />{t('exam.submitting')}</>
+                  ) : (
+                    t('exam.finishConfirmYes')
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* LOCKDOWN OVERLAY */}
       <AnimatePresence>

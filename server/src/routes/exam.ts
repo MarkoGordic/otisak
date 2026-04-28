@@ -53,6 +53,15 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       }
     }
 
+    // If student already has a submitted attempt, signal client to redirect to results
+    if (!attempt && user.role === 'student') {
+      const userAttempts = await getUserAttempts(user.id);
+      const submitted = userAttempts.find((a) => a.exam_id === examId && a.submitted);
+      if (submitted) {
+        return res.json({ exam, attempt: null, questions: [], savedAnswers: [], alreadySubmitted: true });
+      }
+    }
+
     let questions = await getOtisakQuestions(examId);
 
     // For students, strip correct answers
