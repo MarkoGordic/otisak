@@ -87,7 +87,7 @@ export default function StudentReportPage() {
               <p className="text-xs text-gray-500">{exam.title}</p>
             </div>
           </div>
-          <a href={`/api/otisak/exams/${examId}/report/${userId}/pdf`} target="_blank"
+          <a href={`/api/otisak/exams/${examId}/report/${userId}/pdf`}
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">
             <FileDown size={16} />PDF Izvestaj
           </a>
@@ -220,8 +220,16 @@ export default function StudentReportPage() {
                       <tr key={i} className={`border-t border-gray-800/50 ${isSus ? 'bg-red-500/5' : ''}`}>
                         <td className="py-1.5 px-3 text-gray-500 font-mono whitespace-nowrap">{new Date(e.time).toLocaleTimeString('sr-RS')}</td>
                         <td className={`py-1.5 px-3 ${isSus ? 'text-red-400' : 'text-gray-300'}`}>{EVENT_LABELS[e.type] || e.type}</td>
-                        <td className="py-1.5 px-3 text-gray-600 max-w-[300px] truncate">
-                          {Object.entries(e.data || {}).filter(([k]) => k !== 'ts').map(([k, v]) => `${k}: ${v}`).join(', ')}
+                        <td className="py-1.5 px-3 text-gray-300 max-w-[420px]">
+                          {Object.entries(e.data || {}).length === 0 ? <span className="text-gray-600">-</span> : (
+                            <div className="flex flex-col gap-0.5">
+                              {Object.entries(e.data || {}).map(([k, v]) => (
+                                <div key={k} className="leading-tight">
+                                  <span className="text-gray-500">{k}:</span> <span className="text-gray-300">{String(v)}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     );

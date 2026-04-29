@@ -347,11 +347,18 @@ export async function autoFinishIfExpired(
   const exam = await getOtisakExamById(attempt.exam_id);
   if (!exam) return null;
 
-  const startMs = new Date(attempt.started_at).getTime();
+  // Use admin-controlled exam_started_at as the timer reference when present, otherwise fall back to attempt start
+  const startMs = exam.exam_started_at
+    ? new Date(exam.exam_started_at).getTime()
+    : new Date(attempt.started_at).getTime();
   const durationMs = exam.duration_minutes * 60 * 1000;
   const now = Date.now();
 
-  if (now >= startMs + durationMs) {
+  // Discount any time the exam has spent in lockdown (paused)
+  const { getTotalLockdownPauseSeconds } = await import('./settings');
+  const pauseMs = (await getTotalLockdownPauseSeconds(exam.id)) * 1000;
+
+  if (now - pauseMs >= startMs + durationMs) {
     return finishAttempt(attempt.id, exam.duration_minutes * 60);
   }
   return null;
@@ -359,9 +366,9 @@ export async function autoFinishIfExpired(
 
 export async function getSavedAnswers(
   attemptId: string
-): Promise<Array<{ question_id: string; selected_answer_ids: string[] }>> {
-  const result = await query<{ question_id: string; selected_answer_id: string | null; selected_answer_ids: string[] | null }>(
-    'SELECT question_id, selected_answer_id, selected_answer_ids FROM otisak_attempt_answers WHERE attempt_id = $1',
+): Promise<Array<{ question_id: string; selected_answer_ids: string[]; text_answer: string | null }>> {
+  const result = await query<{ question_id: string; selected_answer_id: string | null; selected_answer_ids: string[] | null; text_answer: string | null }>(
+    'SELECT question_id, selected_answer_id, selected_answer_ids, text_answer FROM otisak_attempt_answers WHERE attempt_id = $1',
     [attemptId]
   );
   return result.rows.map((row) => ({
@@ -371,6 +378,7 @@ export async function getSavedAnswers(
       : row.selected_answer_id
         ? [row.selected_answer_id]
         : [],
+    text_answer: row.text_answer,
   }));
 }
 
@@ -712,7 +720,7 @@ export async function getAttemptResults(attemptId: string): Promise<OtisakExamRe
 }
 
 export async function getUserAttempts(userId: string, mode?: string | null): Promise<OtisakAttemptWithExam[]> {
-  let sql = `SELECT a.*, e.title as exam_title, s.name as subject_name
+  let sql = `SELECT a.*, e.title as exam_title, e.pass_threshold, s.name as subject_name
      FROM otisak_attempts a
      JOIN otisak_exams e ON a.exam_id = e.id
      LEFT JOIN otisak_subjects s ON e.subject_id = s.id
@@ -1108,8 +1116,15 @@ export async function getTagCountsForSubject(
 // ========================================
 
 export async function startExamTimer(examId: string): Promise<OtisakExam | null> {
+  // Auto-activate scheduled/draft exams when admin starts the timer.
+  // Idempotent: if exam_started_at is already set, leave it untouched.
   const result = await query<OtisakExam>(
-    `UPDATE otisak_exams SET exam_started_at = NOW() WHERE id = $1 AND status = 'active' RETURNING *`,
+    `UPDATE otisak_exams
+     SET status = 'active',
+         exam_started_at = COALESCE(exam_started_at, NOW())
+     WHERE id = $1
+       AND status IN ('draft', 'scheduled', 'active')
+     RETURNING *`,
     [examId]
   );
   return result.rows[0] || null;

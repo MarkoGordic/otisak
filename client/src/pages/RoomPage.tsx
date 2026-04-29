@@ -278,27 +278,25 @@ export default function ExamRoomPage() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className={`mt-4 rounded-xl border p-5 flex items-center justify-between ${
               locked
-                ? 'bg-red-500/10 border-red-500/20'
+                ? 'bg-amber-500/[0.08] border-amber-500/25'
                 : 'bg-[#131520]/80 border-blue-500/10'
             }`}
           >
             <div className="flex items-center gap-4">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                locked ? 'bg-red-500/20' : 'bg-gray-700/50'
+                locked ? 'bg-amber-500/15' : 'bg-gray-700/50'
               }`}>
                 {locked
-                  ? <ShieldAlert size={20} className="text-red-400" />
+                  ? <ShieldAlert size={20} className="text-amber-400" />
                   : <ShieldOff size={20} className="text-gray-400" />
                 }
               </div>
               <div>
-                <p className={`font-medium ${locked ? 'text-red-300' : 'text-gray-300'}`}>
-                  {locked ? 'Rad je zabranjen' : 'Zabrana rada'}
+                <p className={`font-medium ${locked ? 'text-amber-200' : 'text-gray-300'}`}>
+                  {t('lockdown.title.short')}
                 </p>
-                <p className={`text-xs ${locked ? 'text-red-400/60' : 'text-gray-500'}`}>
-                  {locked
-                    ? 'Studentima se prikazuje crveni ekran. Kliknite za ukidanje.'
-                    : 'Zabranite rad na racunarima studenata tokom ispita.'}
+                <p className={`text-xs ${locked ? 'text-amber-300/70' : 'text-gray-500'}`}>
+                  {locked ? t('lockdown.desc.active') : t('lockdown.desc.idle')}
                 </p>
               </div>
             </div>
@@ -316,14 +314,14 @@ export default function ExamRoomPage() {
                     credentials: 'include',
                     body: JSON.stringify({
                       lock: !locked,
-                      message: 'Administrator je zabranio rad na racunarima.',
+                      message: t('lockdown.adminMessage'),
                     }),
                   });
                   setLocked(!locked);
                 } catch {} finally { setLocking(false); }
               }}
             >
-              {locked ? 'Ukini zabranu' : 'Zabrani rad'}
+              {locked ? t('lockdown.button.resume') : t('lockdown.button.pause')}
             </Button>
           </motion.div>
         )}

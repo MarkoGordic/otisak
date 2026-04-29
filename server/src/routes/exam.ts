@@ -22,7 +22,7 @@ import {
   startExamTimer,
 } from '../db/otisak';
 import { getActiveLockdown, createLockdown, endLockdown } from '../db/settings';
-import { logEvents, getActivityLog, getActivityStats } from '../db/activity-log';
+import { logEvents, getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
 import { findUserById, findUserByIndexNumber } from '../db/users';
 import { createSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth, requireRole } from '../middleware';
@@ -33,6 +33,19 @@ const router = Router({ mergeParams: true });
 function getExamId(req: Request): string {
   return req.params.examId;
 }
+
+// Tiny in-memory cache for high-frequency polling endpoints. 1s TTL keeps the load
+// off the DB when many students poll /room-status and /lockdown every 2-3s.
+const examCache = new Map<string, { exam: Awaited<ReturnType<typeof getOtisakExamById>>; expiresAt: number }>();
+async function getCachedExam(examId: string) {
+  const now = Date.now();
+  const hit = examCache.get(examId);
+  if (hit && hit.expiresAt > now) return hit.exam;
+  const exam = await getOtisakExamById(examId);
+  examCache.set(examId, { exam, expiresAt: now + 1000 });
+  return exam;
+}
+function invalidateExamCache(examId: string) { examCache.delete(examId); }
 
 // GET /exams/:examId - get exam + attempt + questions for student
 router.get('/', requireAuth, async (req: Request, res: Response) => {
@@ -60,6 +73,14 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       if (submitted) {
         return res.json({ exam, attempt: null, questions: [], savedAnswers: [], alreadySubmitted: true });
       }
+    }
+
+    // Auto-create attempt for students once admin has started the exam, so the timer becomes visible
+    if (!attempt && user.role === 'student' && exam.status === 'active' && exam.exam_started_at) {
+      attempt = await startExamAttempt(examId, user.id, {
+        ip_address: req.ip || undefined,
+        user_agent: req.headers['user-agent'] || undefined,
+      });
     }
 
     let questions = await getOtisakQuestions(examId);
@@ -120,7 +141,7 @@ router.post('/attempt', requireAuth, async (req: Request, res: Response) => {
     }
 
     // Submit (finish) attempt
-    if (submit) {
+    if (submit === true) {
       const timeSpent = time_spent_seconds || Math.floor((Date.now() - new Date(attempt.started_at).getTime()) / 1000);
       const finished = await finishAttempt(attempt.id, timeSpent);
       return res.json({ attempt: finished, submitted: true });
@@ -187,22 +208,64 @@ router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant']), 
       return res.status(404).json({ error: 'No submitted attempt found' });
     }
 
-    const results = await getAttemptResults(attempt.id);
+    const fullResults = await getAttemptResults(attempt.id);
     const activityLog = await getActivityLog(attempt.id);
     const stats = await getActivityStats(attempt.id);
 
+    const results = fullResults
+      ? {
+          questions: fullResults.questions.map((q, i) => ({
+            index: i + 1,
+            text: q.question.text,
+            type: q.question.type,
+            points: Number(q.question.points),
+            points_awarded: Number(q.points_awarded),
+            selected_answer_ids: q.selected_answer_ids,
+            correct_answer_ids: q.correct_answer_ids,
+            text_answer: q.text_answer,
+            answers: q.answers.map((a) => ({
+              id: a.id,
+              text: a.text,
+              is_correct: a.is_correct,
+            })),
+          })),
+        }
+      : null;
+
+    const enriched = await enrichActivityEventData(examId, activityLog);
+    const timeline = enriched.map((e) => ({
+      time: typeof e.timestamp === 'string' ? e.timestamp : new Date(e.timestamp).toISOString(),
+      type: e.event_type,
+      data: e.event_data,
+    }));
+
     return res.json({
-      exam,
+      exam: {
+        id: exam.id,
+        title: exam.title,
+        subject_name: exam.subject_name,
+        duration_minutes: exam.duration_minutes,
+        pass_threshold: Number(exam.pass_threshold),
+      },
       student: {
         id: student.id,
         name: student.name,
         email: student.email,
         index_number: student.index_number,
       },
-      attempt,
+      attempt: {
+        id: attempt.id,
+        started_at: attempt.started_at,
+        finished_at: attempt.finished_at,
+        total_points: Number(attempt.total_points),
+        max_points: Number(attempt.max_points),
+        time_spent_seconds: Number(attempt.time_spent_seconds),
+      },
       results,
-      activityLog,
-      stats,
+      activity: {
+        stats,
+        timeline,
+      },
     });
   } catch (error) {
     console.error('Student report error:', error);
@@ -308,16 +371,18 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
       </div>`;
     }).join('') || '';
 
-    const timelineHtml = activityLog.slice(0, 200).map((e) => {
+    const enrichedActivity = await enrichActivityEventData(examId, activityLog);
+    const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]);
+    const timelineHtml = enrichedActivity.slice(0, 200).map((e) => {
       const isSuspicious = ['copy_attempt', 'cut_attempt', 'paste_attempt', 'page_blur', 'mouse_leave_window', 'devtools_attempt', 'print_attempt'].includes(e.event_type);
       const color = isSuspicious ? '#f87171' : '#94a3b8';
       const bg = isSuspicious ? 'rgba(239,68,68,0.05)' : 'transparent';
       const label = EVENT_LABELS[e.event_type] || e.event_type;
-      const dataStr = Object.entries(e.event_data || {}).filter(([k]) => k !== 'ts').map(([k, v]) => `${k}: ${v}`).join(', ');
+      const dataStr = Object.entries(e.event_data || {}).map(([k, v]) => `${k}: ${escapeHtml(String(v))}`).join('<br/>');
       return `<tr style="background:${bg};">
-        <td style="padding:4px 8px;font-size:10px;color:#6b7280;font-family:monospace;white-space:nowrap;border-bottom:1px solid #1a1a2e;">${formatTime(e.timestamp)}</td>
-        <td style="padding:4px 8px;font-size:10px;color:${color};border-bottom:1px solid #1a1a2e;">${isSuspicious ? '&#9888; ' : ''}${label}</td>
-        <td style="padding:4px 8px;font-size:9px;color:#4b5563;border-bottom:1px solid #1a1a2e;max-width:250px;overflow:hidden;text-overflow:ellipsis;">${dataStr}</td>
+        <td style="padding:5px 8px;font-size:10px;color:#6b7280;font-family:monospace;white-space:nowrap;border-bottom:1px solid #1a1a2e;vertical-align:top;">${formatTime(e.timestamp)}</td>
+        <td style="padding:5px 8px;font-size:10px;color:${color};border-bottom:1px solid #1a1a2e;vertical-align:top;white-space:nowrap;">${isSuspicious ? '&#9888; ' : ''}${label}</td>
+        <td style="padding:5px 8px;font-size:10px;color:#cbd5e1;border-bottom:1px solid #1a1a2e;line-height:1.5;">${dataStr}</td>
       </tr>`;
     }).join('');
 
@@ -328,12 +393,11 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
 <title>OTISAK Izvestaj - ${student.name || student.email}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+  @page { size: A4; margin: 0; }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Inter',sans-serif; background:#070b14; color:#e5e7eb; }
-  .page { max-width:800px; margin:0 auto; padding:40px; }
+  html, body { background:#070b14; color:#e5e7eb; font-family:'Inter',sans-serif; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  .page { background:#070b14; padding:14mm 12mm; }
   @media print {
-    body { background:#070b14 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-    .page { padding:20px; }
     .no-print { display:none !important; }
   }
 </style>
@@ -441,14 +505,32 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
   </div>
 </div>
 
-<div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;">
-  <button onclick="window.print()" style="padding:10px 20px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:13px;cursor:pointer;font-family:Inter,sans-serif;">Stampaj / Sacuvaj PDF</button>
-</div>
 </body>
 </html>`;
 
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.send(html);
+    // Render the HTML to a real PDF via headless Chromium with the dark background preserved.
+    const puppeteer = await import('puppeteer');
+    const browser = await puppeteer.default.launch({
+      headless: true,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    try {
+      const page = await browser.newPage();
+      await page.emulateMediaType('screen');
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+      const pdf = await page.pdf({
+        format: 'A4',
+        printBackground: true,
+        preferCSSPageSize: true,
+        margin: { top: 0, bottom: 0, left: 0, right: 0 },
+      });
+      const safeName = (student.index_number || student.name || student.email).replace(/[^a-z0-9._-]+/gi, '_');
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="otisak-izvestaj-${safeName}.pdf"`);
+      return res.end(pdf);
+    } finally {
+      await browser.close();
+    }
   } catch (error) {
     console.error('PDF report error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -612,7 +694,7 @@ router.post('/join', async (req: Request, res: Response) => {
 
     res.cookie(SESSION_COOKIE, cookie, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: DEFAULT_TTL_MS,
       path: '/',
@@ -636,15 +718,22 @@ router.post('/join', async (req: Request, res: Response) => {
 router.get('/room-status', async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
-    const exam = await getOtisakExamById(examId);
+    const exam = await getCachedExam(examId);
     if (!exam) {
       return res.status(404).json({ error: 'Exam not found' });
     }
+
+    const lockdown = await getActiveLockdown(examId);
+    const { getTotalLockdownPauseSeconds } = await import('../db/settings');
+    const paused_seconds = await getTotalLockdownPauseSeconds(examId);
 
     return res.json({
       status: exam.status,
       exam_started_at: exam.exam_started_at,
       duration_minutes: exam.duration_minutes,
+      lockdown_active: !!lockdown,
+      lockdown_message: lockdown?.message ?? null,
+      paused_seconds,
     });
   } catch (error) {
     console.error('Room status error:', error);
@@ -672,6 +761,7 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
     if (!exam) {
       return res.status(400).json({ error: 'Exam not found or not active' });
     }
+    invalidateExamCache(examId);
     return res.json({ exam });
   } catch (error) {
     console.error('Start exam error:', error);
@@ -679,12 +769,17 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
   }
 });
 
-// GET /exams/:examId/lockdown - public, check lockdown status
+// GET /exams/:examId/lockdown - public, check lockdown status (and total paused seconds for timer)
 router.get('/lockdown', async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     const lockdown = await getActiveLockdown(examId);
-    return res.json({ lockdown: lockdown ? { is_active: true, message: lockdown.message } : null });
+    const { getTotalLockdownPauseSeconds } = await import('../db/settings');
+    const paused_seconds = await getTotalLockdownPauseSeconds(examId);
+    return res.json({
+      lockdown: lockdown ? { is_active: true, message: lockdown.message } : null,
+      paused_seconds,
+    });
   } catch (error) {
     console.error('Lockdown status error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -718,6 +813,16 @@ router.post('/events', requireAuth, async (req: Request, res: Response) => {
 
     if (!attempt_id || !Array.isArray(events)) {
       return res.status(400).json({ error: 'attempt_id and events array are required' });
+    }
+    if (events.length > 500) {
+      return res.status(400).json({ error: 'Too many events in one batch' });
+    }
+
+    // Verify the attempt belongs to this user and exam — prevent log poisoning across students
+    const userAttempts = await getUserAttempts(req.user!.id);
+    const owns = userAttempts.some((a) => a.id === attempt_id && a.exam_id === examId);
+    if (!owns) {
+      return res.status(403).json({ error: 'Attempt does not belong to this user' });
     }
 
     await logEvents(attempt_id, req.user!.id, examId, events);

@@ -80,7 +80,9 @@ function getExamStatusInfo(exam: OtisakExamWithSubject) {
     return { labelKey: 'dashboard.enrolled', variant: 'accent' as const, dot: false, canStart: false, countdown: diff > 0 ? diff : undefined };
   }
   if (exam.status === 'completed') return { labelKey: 'dashboard.completed', variant: 'neutral' as const, dot: false, canStart: false };
-  return { labelKey: exam.status, variant: 'neutral' as const, dot: false, canStart: false };
+  if (exam.status === 'draft') return { labelKey: 'dashboard.draft', variant: 'neutral' as const, dot: false, canStart: false };
+  if (exam.status === 'archived') return { labelKey: 'dashboard.archived', variant: 'neutral' as const, dot: false, canStart: false };
+  return { labelKey: 'dashboard.unknown', variant: 'neutral' as const, dot: false, canStart: false };
 }
 
 function formatCountdown(ms: number) {
@@ -159,7 +161,9 @@ export default function DashboardPage() {
         return;
       }
       const data = await res.json();
-      navigate(data.redirect_url || `/exam/${data.child_exam.id}`);
+      const newExamId = data.exam?.id || data.child_exam?.id;
+      if (!newExamId) { alert('Error starting practice exam.'); return; }
+      navigate(`/exam/${newExamId}`);
     } catch {
       alert('Error starting practice exam.');
     } finally {
@@ -171,7 +175,10 @@ export default function DashboardPage() {
   const totalPoints = completedAttempts.reduce((s, a) => s + Number(a.total_points), 0);
   const totalMaxPoints = completedAttempts.reduce((s, a) => s + Number(a.max_points), 0);
   const avgPercent = totalMaxPoints > 0 ? Math.round((totalPoints / totalMaxPoints) * 100) : 0;
-  const passedCount = completedAttempts.filter(a => Number(a.total_points) >= Number(a.max_points) * 0.5).length;
+  const passedCount = completedAttempts.filter(a => {
+    const pct = Number(a.max_points) > 0 ? (Number(a.total_points) / Number(a.max_points)) * 100 : 0;
+    return pct >= Number(a.pass_threshold ?? 50);
+  }).length;
   const totalTimeSpent = completedAttempts.reduce((s, a) => s + Number(a.time_spent_seconds || 0), 0);
 
   const subjectOptions = (() => {
@@ -187,7 +194,7 @@ export default function DashboardPage() {
     if (!a.submitted) return false;
     if (historySubject !== 'all' && a.subject_name !== historySubject) return false;
     const pct = Number(a.max_points) > 0 ? Math.round((Number(a.total_points) / Number(a.max_points)) * 100) : 0;
-    const passed = pct >= 50;
+    const passed = pct >= Number(a.pass_threshold ?? 50);
     if (historyStatus === 'passed' && !passed) return false;
     if (historyStatus === 'failed' && passed) return false;
     return true;
@@ -390,7 +397,7 @@ export default function DashboardPage() {
                         <div className="flex flex-col">
                           {filteredHistory.map((attempt) => {
                             const pct = Number(attempt.max_points) > 0 ? Math.round((Number(attempt.total_points) / Number(attempt.max_points)) * 100) : 0;
-                            const passed = pct >= 50;
+                            const passed = pct >= Number(attempt.pass_threshold ?? 50);
                             const subjectColor = getSubjectColor(attempt.subject_name);
                             return (
                               <div key={attempt.id}

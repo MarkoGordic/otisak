@@ -38,7 +38,7 @@ router.post('/login', async (req: Request, res: Response) => {
 
     res.cookie(SESSION_COOKIE, cookie, {
       httpOnly: true,
-      secure: false,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: DEFAULT_TTL_MS,
       path: '/',

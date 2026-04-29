@@ -61,7 +61,7 @@ router.patch('/', requireRole(['admin', 'assistant']), async (req: Request, res:
 // DELETE /subjects
 router.delete('/', requireRole(['admin']), async (req: Request, res: Response) => {
   try {
-    const { id } = req.body;
+    const id = (req.query.id as string | undefined) || req.body?.id;
     if (!id) {
       return res.status(400).json({ error: 'Subject id is required' });
     }
