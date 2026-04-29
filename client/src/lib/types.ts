@@ -90,6 +90,7 @@ export interface OtisakAttempt {
 export interface OtisakAttemptWithExam extends OtisakAttempt {
   exam_title: string;
   subject_name: string | null;
+  pass_threshold: number;
 }
 
 export interface OtisakExamResults {

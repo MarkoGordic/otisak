@@ -173,13 +173,13 @@ export default function ResultsPage() {
                     <Loader2 className="w-5 h-5 animate-spin text-purple-400 flex-shrink-0" />
                     <div>
                       <p className="text-sm text-purple-300 font-medium">{t('results.aiGradingInProgress')}</p>
-                      <p className="text-xs text-purple-400/60">Open-text answers are being graded. Score will update automatically.</p>
+                      <p className="text-xs text-purple-400/60">{t('results.aiGradingWait')}</p>
                     </div>
                   </>
                 ) : (
                   <div>
-                    <p className="text-sm text-amber-300 font-medium">Partial AI grading</p>
-                    <p className="text-xs text-amber-400/60">Some answers could not be graded automatically.</p>
+                    <p className="text-sm text-amber-300 font-medium">{t('results.aiGradingPartial')}</p>
+                    <p className="text-xs text-amber-400/60">{t('results.aiGradingPartialHint')}</p>
                   </div>
                 )}
               </motion.div>

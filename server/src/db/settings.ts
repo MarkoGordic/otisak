@@ -1,4 +1,4 @@
-import { query } from './client';
+import { query, transaction } from './client';
 
 export async function getSetting(key: string): Promise<string | null> {
   const result = await query<{ value: string }>(
@@ -29,12 +29,22 @@ export async function getAllSettings(): Promise<Record<string, string>> {
 
 // Lockdown
 export async function createLockdown(examId: string, userId: string, message?: string): Promise<void> {
-  // Deactivate any existing lockdown first
-  await query('UPDATE exam_lockdowns SET is_active = FALSE, ended_at = NOW() WHERE exam_id = $1 AND is_active = TRUE', [examId]);
-  await query(
-    'INSERT INTO exam_lockdowns (exam_id, is_active, message, started_by) VALUES ($1, TRUE, $2, $3)',
-    [examId, message || null, userId]
-  );
+  // Atomically: close any existing active lockdowns, then create exactly one new active lockdown.
+  // FOR UPDATE serializes concurrent createLockdown calls so we don't end up with two active rows.
+  await transaction(async (client) => {
+    await client.query(
+      'SELECT 1 FROM exam_lockdowns WHERE exam_id = $1 AND is_active = TRUE FOR UPDATE',
+      [examId]
+    );
+    await client.query(
+      'UPDATE exam_lockdowns SET is_active = FALSE, ended_at = NOW() WHERE exam_id = $1 AND is_active = TRUE',
+      [examId]
+    );
+    await client.query(
+      'INSERT INTO exam_lockdowns (exam_id, is_active, message, started_by) VALUES ($1, TRUE, $2, $3)',
+      [examId, message || null, userId]
+    );
+  });
 }
 
 export async function endLockdown(examId: string): Promise<void> {
@@ -50,4 +60,15 @@ export async function getActiveLockdown(examId: string): Promise<{ is_active: bo
     [examId]
   );
   return result.rows[0] || null;
+}
+
+// Total seconds the exam has been paused due to lockdowns (closed + currently active).
+export async function getTotalLockdownPauseSeconds(examId: string): Promise<number> {
+  const result = await query<{ paused_seconds: string }>(
+    `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (COALESCE(ended_at, NOW()) - started_at))), 0)::numeric AS paused_seconds
+     FROM exam_lockdowns
+     WHERE exam_id = $1`,
+    [examId]
+  );
+  return Number(result.rows[0]?.paused_seconds ?? 0);
 }

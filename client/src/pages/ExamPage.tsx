@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Power, AlertTriangle, StickyNote, X, ShieldAlert } from 'lucide-react';
+import { Loader2, Power, AlertTriangle, StickyNote, X, PauseCircle } from 'lucide-react';
 import {
   OtisakHeader,
   OtisakFooter,
@@ -48,6 +48,7 @@ export default function ExamPage() {
   const [showNotes, setShowNotes] = useState(false);
   const [lockdown, setLockdown] = useState(false);
   const [lockdownMessage, setLockdownMessage] = useState('');
+  const [pausedSeconds, setPausedSeconds] = useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
 
@@ -217,16 +218,11 @@ export default function ExamPage() {
         }
 
         const examRes = await fetch(`/api/otisak/exams/${examId}`, { credentials: 'include' });
-        if (!examRes.ok) { if (mounted) navigate('/dashboard'); return; }
+        if (!examRes.ok) { if (mounted) navigate('/'); return; }
         const examData = await examRes.json();
 
         if (mounted) {
           setExam(examData.exam);
-
-          if (examData.expired && examData.attemptId) {
-            navigate(`/exam/${examId}/results`);
-            return;
-          }
 
           if (examData.alreadySubmitted) {
             navigate(`/exam/${examId}/results`, { replace: true });
@@ -245,12 +241,18 @@ export default function ExamPage() {
 
             if (Array.isArray(examData.savedAnswers)) {
               const restored: Record<string, string[]> = {};
+              const restoredText: Record<string, string> = {};
               for (const sa of examData.savedAnswers) {
-                if (sa.question_id && Array.isArray(sa.selected_answer_ids) && sa.selected_answer_ids.length > 0) {
+                if (!sa.question_id) continue;
+                if (Array.isArray(sa.selected_answer_ids) && sa.selected_answer_ids.length > 0) {
                   restored[sa.question_id] = sa.selected_answer_ids;
+                }
+                if (typeof sa.text_answer === 'string' && sa.text_answer.length > 0) {
+                  restoredText[sa.question_id] = sa.text_answer;
                 }
               }
               setAnswers(restored);
+              setTextAnswers(restoredText);
             }
 
             // If exam hasn't been started by admin yet, show lobby
@@ -269,7 +271,7 @@ export default function ExamPage() {
           }
         }
       } catch {
-        if (mounted) navigate('/dashboard');
+        if (mounted) navigate('/');
       }
     })();
     return () => { mounted = false; };
@@ -338,7 +340,7 @@ export default function ExamPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', answers: payload }),
+        body: JSON.stringify({ answers: payload }),
         keepalive: true,
       });
     } catch { /* best effort */ }
@@ -374,25 +376,28 @@ export default function ExamPage() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'save', answers: payload }),
+        body: JSON.stringify({ answers: payload }),
       }).catch(() => {});
     }, 30000);
     return () => clearInterval(interval);
   }, [phase, attempt, examId, buildSavePayload]);
 
-  // Poll for lockdown every 3 seconds
+  // Poll for lockdown every 3 seconds (also returns total paused seconds)
   useEffect(() => {
     if (phase !== 'exam') return;
-    const poll = setInterval(async () => {
+    const fetchOnce = async () => {
       try {
         const res = await fetch(`/api/otisak/exams/${examId}/lockdown`);
         if (res.ok) {
           const data = await res.json();
           setLockdown(!!data.lockdown?.is_active);
           if (data.lockdown?.message) setLockdownMessage(data.lockdown.message);
+          if (typeof data.paused_seconds === 'number') setPausedSeconds(data.paused_seconds);
         }
       } catch {}
-    }, 3000);
+    };
+    fetchOnce();
+    const poll = setInterval(fetchOnce, 3000);
     return () => clearInterval(poll);
   }, [phase, examId]);
 
@@ -533,7 +538,7 @@ export default function ExamPage() {
             {t('exam.waitingDesc')}
           </motion.p>
 
-          <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1 }} onClick={() => navigate('/dashboard')}
+          <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1 }} onClick={() => navigate('/')}
             className="flex items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-red-500/5 hover:bg-red-500/10 text-red-400/80 hover:text-red-400 text-xs font-medium rounded-lg transition-all border border-red-500/20 hover:border-red-500/40 mb-12 sm:mb-20 uppercase tracking-wider">
             <Power className="w-3 h-3" />{t('exam.back')}
           </motion.button>
@@ -600,6 +605,8 @@ export default function ExamPage() {
             <OtisakTimer
               durationSeconds={exam.duration_minutes * 60}
               startedAt={(exam.exam_started_at || attempt.started_at) as unknown as string}
+              pausedSeconds={pausedSeconds}
+              paused={lockdown}
               onExpire={handleTimerExpire}
             />
           ) : null
@@ -911,68 +918,79 @@ export default function ExamPage() {
         )}
       </AnimatePresence>
 
-      {/* LOCKDOWN OVERLAY */}
+      {/* PAUSE / LOCKDOWN OVERLAY */}
       <AnimatePresence>
         {lockdown && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-[#1a0505] flex flex-col items-center justify-center"
+            className="fixed inset-0 z-[100] bg-[#0b0f17] flex flex-col items-center justify-center"
           >
-            {/* Red background glows */}
+            {/* Soft amber/slate ambient glow */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-red-600/30 rounded-full blur-[150px] animate-pulse" />
-              <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-red-600/20 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
+              <div className="absolute top-[-15%] right-[-15%] w-[55vw] h-[55vw] bg-amber-500/[0.08] rounded-full blur-[160px]" />
+              <div className="absolute bottom-[-15%] left-[-15%] w-[55vw] h-[55vw] bg-slate-500/[0.06] rounded-full blur-[160px]" />
+              <div
+                className="absolute inset-0 opacity-[0.025]"
+                style={{
+                  backgroundImage:
+                    'linear-gradient(rgba(245,158,11,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.5) 1px, transparent 1px)',
+                  backgroundSize: '60px 60px',
+                }}
+              />
             </div>
 
             <div className="z-10 flex flex-col items-center text-center px-6 max-w-lg">
               <motion.div
-                initial={{ scale: 0.5, opacity: 0 }}
+                initial={{ scale: 0.85, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
-                transition={{ type: 'spring', damping: 15 }}
-                className="w-24 h-24 rounded-full bg-red-500/20 border-2 border-red-500/40 flex items-center justify-center mb-8"
+                transition={{ duration: 0.5 }}
+                className="w-24 h-24 rounded-2xl bg-amber-500/[0.08] border border-amber-500/25 flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(245,158,11,0.12)]"
               >
-                <ShieldAlert className="w-12 h-12 text-red-400" strokeWidth={1.5} />
+                <PauseCircle className="w-12 h-12 text-amber-400/80" strokeWidth={1.25} />
               </motion.div>
 
               <motion.h1
-                initial={{ y: 20, opacity: 0 }}
+                initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="text-3xl sm:text-4xl font-light text-red-400 tracking-[0.2em] uppercase mb-4 drop-shadow-[0_0_20px_rgba(239,68,68,0.4)]"
+                transition={{ delay: 0.15 }}
+                className="text-3xl sm:text-4xl font-light text-amber-300/90 tracking-[0.3em] uppercase mb-3"
               >
-                RAD ZABRANJEN
+                {t('lockdown.title')}
               </motion.h1>
 
               <motion.p
-                initial={{ y: 20, opacity: 0 }}
+                initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                className="text-red-300/60 text-sm sm:text-base leading-relaxed mb-8"
+                transition={{ delay: 0.3 }}
+                className="text-slate-300/70 text-sm sm:text-base leading-relaxed mb-8 max-w-md"
               >
-                {lockdownMessage || 'Administrator je zabranio rad na racunarima. Sacekajte dalju instrukciju.'}
+                {lockdownMessage || t('lockdown.body')}
               </motion.p>
 
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.6 }}
-                className="flex items-center gap-3 px-6 py-3 bg-red-500/10 border border-red-500/20 rounded-xl"
+                transition={{ delay: 0.45 }}
+                className="flex items-center gap-3 px-5 py-2.5 bg-amber-500/[0.06] border border-amber-500/20 rounded-full"
               >
-                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-red-400/80 text-xs uppercase tracking-widest font-medium">
-                  Ispit je pauziran od strane administratora
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400/60 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+                </span>
+                <span className="text-amber-300/80 text-[11px] uppercase tracking-[0.25em] font-medium">
+                  {t('lockdown.timerPaused')}
                 </span>
               </motion.div>
 
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                className="mt-12 text-red-500/30 text-[10px] uppercase tracking-widest"
+                transition={{ delay: 0.6 }}
+                className="mt-14 text-slate-500/60 text-[10px] uppercase tracking-[0.2em]"
               >
-                Ne zatvarajte ovaj prozor. Rad ce biti nastavljen automatski.
+                {t('lockdown.dontCloseWindow')}
               </motion.div>
             </div>
           </motion.div>

@@ -44,9 +44,9 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
         </div>
 
         {/* Center */}
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center max-w-[55%] sm:max-w-none">
           {showDate && (
-            <span className="text-gray-400 text-xs mb-1 font-medium tracking-wide opacity-60">
+            <span className="hidden sm:inline text-gray-400 text-xs mb-1 font-medium tracking-wide opacity-60">
               {displayDate}
             </span>
           )}
