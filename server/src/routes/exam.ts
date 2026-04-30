@@ -752,8 +752,10 @@ router.post('/join', async (req: Request, res: Response) => {
 
     // Late-join detection: if the admin has already started the exam,
     // submit a late_join request that the admin must approve.
+    // Read fresh — never from the 1s poll cache — so we never miss a /start
+    // that fired in the same second the student joined.
     let pendingRequestId: string | null = null;
-    const exam = await getCachedExam(examId);
+    const exam = await getOtisakExamById(examId);
     if (exam && exam.exam_started_at && exam.status === 'active') {
       const created = await createExamRequest({
         examId,
@@ -794,6 +796,8 @@ router.get('/room-status', async (req: Request, res: Response) => {
 
     const extraSec = Number((exam as unknown as { extra_seconds?: number }).extra_seconds ?? 0);
     return res.json({
+      title: exam.title,
+      subject_name: exam.subject_name,
       status: exam.status,
       exam_started_at: exam.exam_started_at,
       duration_minutes: exam.duration_minutes,

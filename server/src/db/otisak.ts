@@ -1153,9 +1153,11 @@ export async function joinExamByIndex(examId: string, indexNumber: string): Prom
   user: { id: string; name: string | null; index_number: string | null } | null;
   error?: string;
 }> {
+  const normalized = indexNumber.trim().toLowerCase().replace(/\s+/g, '');
   const userResult = await query<{ id: string; name: string | null; index_number: string | null }>(
-    'SELECT id, name, index_number FROM users WHERE index_number = $1 AND is_active = TRUE LIMIT 1',
-    [indexNumber.trim()]
+    `SELECT id, name, index_number FROM users
+     WHERE LOWER(REPLACE(index_number, ' ', '')) = $1 AND is_active = TRUE LIMIT 1`,
+    [normalized]
   );
   const user = userResult.rows[0];
   if (!user) return { user: null, error: 'Index number not found. Contact your administrator.' };

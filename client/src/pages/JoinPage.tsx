@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Fingerprint, AlertTriangle, Hash, ArrowLeft, Check, User as UserIcon } from 'lucide-react';
 import { OtisakLogo, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
+import { useExamSocket } from '../lib/useExamSocket';
 
 type Phase = 'index-entry' | 'confirm' | 'waiting' | 'starting' | 'error';
 
@@ -147,6 +148,16 @@ export default function JoinExamPage() {
     pollRef.current = setInterval(pollForStart, 2000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [phase, pollForStart]);
+
+  // Live push channel: when the assistant starts the exam, jump to /exam
+  // immediately instead of waiting for the next 2s poll.
+  useExamSocket(phase === 'waiting' ? examId : undefined, useCallback((evt) => {
+    if (evt.type === 'exam.started') {
+      setPhase('starting');
+      if (pollRef.current) clearInterval(pollRef.current);
+      setTimeout(() => navigate(`/exam/${examId}`), 800);
+    }
+  }, [examId, navigate]));
 
   // ========================================
   // ERROR

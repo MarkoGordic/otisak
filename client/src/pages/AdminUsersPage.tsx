@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Loader2, Plus, Users, Shield, GraduationCap, UserCircle2,
+  Loader2, Plus, Users, Shield, GraduationCap, UserCircle2, Upload,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -42,6 +42,8 @@ export default function AdminUsersPage() {
   const [newRole, setNewRole] = useState('student');
   const [newIndex, setNewIndex] = useState('');
   const [creating, setCreating] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importSummary, setImportSummary] = useState<{ created: number; skipped: number; total: number; items?: { skipped: Array<{ index_number: string; reason: string }> } } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -93,6 +95,32 @@ export default function AdminUsersPage() {
     finally { setCreating(false); }
   };
 
+  const handleImportFile = async (file: File | null) => {
+    if (!file) return;
+    setImportSummary(null);
+    setImporting(true);
+    try {
+      const csv = await file.text();
+      const res = await fetch('/api/admin/users/import-csv', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ csv }),
+      });
+      const d = await res.json();
+      if (!res.ok) {
+        alert(d.error || t('users.importFailed'));
+        return;
+      }
+      setImportSummary(d);
+      loadUsers();
+    } catch (e) {
+      alert((e as Error).message || t('users.importFailed'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const handleRoleChange = async (userId: string, newRole: string) => {
     await fetch('/api/admin/users', {
       method: 'PATCH',
@@ -125,10 +153,54 @@ export default function AdminUsersPage() {
                   <p className="text-sm text-[var(--text-secondary)]">{users.length} {t('users.count')}</p>
                 </div>
               </div>
-              <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>
-                {t('users.add')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0] || null; handleImportFile(f); e.target.value = ''; }}
+                    disabled={importing}
+                  />
+                  <span className={`inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium transition-colors ${importing ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent hover:text-accent'}`}>
+                    {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                    {t('users.importCsv')}
+                  </span>
+                </label>
+                <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>
+                  {t('users.add')}
+                </Button>
+              </div>
             </div>
+
+            {importSummary && (
+              <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-[var(--text-primary)] font-medium">{t('users.importDone')}</span>
+                    <span className="text-success">+{importSummary.created} {t('users.imported')}</span>
+                    {importSummary.skipped > 0 && (
+                      <span className="text-warning">{importSummary.skipped} {t('users.skipped')}</span>
+                    )}
+                    <span className="text-[var(--text-muted)]">/ {importSummary.total} {t('users.totalRows')}</span>
+                  </div>
+                  <button onClick={() => setImportSummary(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs">{t('users.dismiss')}</button>
+                </div>
+                {importSummary.items?.skipped && importSummary.items.skipped.length > 0 && (
+                  <details className="mt-2 text-xs text-[var(--text-secondary)]">
+                    <summary className="cursor-pointer">{t('users.viewSkipped')}</summary>
+                    <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto">
+                      {importSummary.items.skipped.map((s, i) => (
+                        <li key={i} className="flex justify-between gap-3">
+                          <span className="font-mono">{s.index_number || '—'}</span>
+                          <span className="text-[var(--text-muted)]">{s.reason}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </details>
+                )}
+              </div>
+            )}
 
             {loading ? (
               <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>

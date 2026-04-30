@@ -333,25 +333,32 @@ export default function ExamPage() {
         const res = await fetch(`/api/otisak/exams/${examId}/room-status`);
         if (!res.ok) return;
         const data = await res.json();
-        if (data.exam_started_at) {
-          clearInterval(pollInterval);
-          // Reload exam data to get attempt
-          const examRes = await fetch(`/api/otisak/exams/${examId}`, { credentials: 'include' });
-          if (examRes.ok) {
-            const examData = await examRes.json();
-            setExam(examData.exam);
-            setQuestions(examData.questions || []);
-            if (examData.attempt) {
-              setAttempt(examData.attempt);
-              startTimeRef.current = new Date(data.exam_started_at).getTime();
-            }
-          }
-          setPhase('exam');
+        if (!data.exam_started_at) return;
+
+        clearInterval(pollInterval);
+        // Reload exam data so we know whether the student now has an attempt,
+        // is awaiting late-join approval, or has already submitted.
+        const examRes = await fetch(`/api/otisak/exams/${examId}`, { credentials: 'include' });
+        if (!examRes.ok) return;
+        const examData = await examRes.json();
+        if (examData.alreadySubmitted) {
+          navigate(`/exam/${examId}/results`, { replace: true });
+          return;
         }
+        if (examData.exam) setExam(examData.exam);
+        if (examData.attempt) {
+          setQuestions(examData.questions || []);
+          setAttempt(examData.attempt);
+          startTimeRef.current = new Date(examData.exam.exam_started_at || data.exam_started_at).getTime();
+          setPhase('exam');
+        } else if (examData.pendingRequest?.type === 'late_join') {
+          setPhase('awaitingApproval');
+        }
+        // else: stay in lobby; the next poll cycle will retry.
       } catch { /* silent */ }
     }, 2000);
     return () => clearInterval(pollInterval);
-  }, [phase, exam, examId]);
+  }, [phase, exam, examId, navigate]);
 
   // Build save payload
   const answersRef = useRef(answers);
