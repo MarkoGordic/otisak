@@ -17,10 +17,19 @@ export async function findUserById(id: string): Promise<User | null> {
   return result.rows[0] || null;
 }
 
+// Index format expected (post-migration): "ra1-2025" — letters + digits + dash + four-digit year.
+// Lookup is case-insensitive and whitespace-tolerant so a student typing "RA1-2025" or " ra1 - 2025 "
+// still matches a stored "ra1-2025".
+export function normalizeIndexNumber(raw: string): string {
+  return raw.trim().toLowerCase().replace(/\s+/g, '');
+}
+
 export async function findUserByIndexNumber(indexNumber: string): Promise<User | null> {
+  const normalized = normalizeIndexNumber(indexNumber);
+  if (!normalized) return null;
   const result = await query<User>(
-    'SELECT * FROM users WHERE index_number = $1 AND is_active = TRUE LIMIT 1',
-    [indexNumber]
+    'SELECT * FROM users WHERE LOWER(REPLACE(index_number, \' \', \'\')) = $1 AND is_active = TRUE LIMIT 1',
+    [normalized]
   );
   return result.rows[0] || null;
 }

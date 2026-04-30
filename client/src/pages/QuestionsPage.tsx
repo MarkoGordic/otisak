@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Loader2, Plus, Trash2, Search, BookOpen, Tag, FileText, Code, Image, MessageSquare, Upload,
+  Loader2, Plus, Trash2, Search, BookOpen, Tag, FileText, Code, Image as ImageIcon, MessageSquare, Upload,
 } from 'lucide-react';
 import { CodeBlock } from '../components/otisak';
 import { Sidebar, MobileNav } from '../components/Sidebar';
@@ -30,7 +30,7 @@ type UserInfo = { name?: string; role?: string; avatar_url?: string };
 const typeIcons: Record<string, React.ReactNode> = {
   text: <FileText size={14} />,
   code: <Code size={14} />,
-  image: <Image size={14} />,
+  image: <ImageIcon size={14} />,
   open_text: <MessageSquare size={14} />,
 };
 

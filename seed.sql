@@ -6,24 +6,23 @@ INSERT INTO otisak_subjects (id, name, code, description, created_by)
 VALUES ('a1b2c3d4-1111-2222-3333-444455556666', 'Arhitektura racunara', 'AR', 'Osnove arhitekture racunarskih sistema, digitalni sistemi, procesori, memorije', (SELECT id FROM users WHERE role='admin' LIMIT 1))
 ON CONFLICT DO NOTHING;
 
--- Students (IN XX/2025, password: student123)
--- Hash generated with bcrypt.hash('student123', 10)
+-- Students (ra<N>-2025, password: ftn — bcrypt hash of "ftn")
 INSERT INTO users (email, password_hash, name, role, index_number) VALUES
-  ('in1.2025@ftn.uns.ac.rs', '$2a$10$dXLy0hp2af3rYXjhyj3Wge6hAjmv87sikD7/UloyZnWBHuoJWsdJK', 'Marko Petrovic', 'student', 'IN 1/2025'),
-  ('in2.2025@ftn.uns.ac.rs', '$2a$10$Jnclx1d9XgVj1H2cBybbneTJSmK.etFnEsrftKEf/ve01MwlCDRP6', 'Ana Jovanovic', 'student', 'IN 2/2025'),
-  ('in3.2025@ftn.uns.ac.rs', '$2a$10$NDGO226XqHHgvDh4eAYfcOXPzbhGAhqdDcaX3ikZjhOO3EI7qlBzC', 'Stefan Nikolic', 'student', 'IN 3/2025'),
-  ('in4.2025@ftn.uns.ac.rs', '$2a$10$hiUU.U8F6QPA0FYGtRlQg.hv9AInpof9/80XqNHNnIAvZehNw6rPC', 'Jelena Djordjevic', 'student', 'IN 4/2025'),
-  ('in5.2025@ftn.uns.ac.rs', '$2a$10$.xihQr/6WcT2ewAlvRMNZOPdkJLMTaBdsQHrLaaejy1WjzvDKwP7S', 'Nikola Stojanovic', 'student', 'IN 5/2025'),
-  ('in6.2025@ftn.uns.ac.rs', '$2a$10$8r70/VQwxDa79FCGXgW2Zu6d5rfFEuZD8WO7b9ybwAkS95NxfVSn6', 'Milica Ilic', 'student', 'IN 6/2025'),
-  ('in7.2025@ftn.uns.ac.rs', '$2a$10$b5htCKYWsOu0rivJda1utuog7VIYkohqCJVjJlFtPjgNZG9SOXv76', 'Lazar Markovic', 'student', 'IN 7/2025'),
-  ('in8.2025@ftn.uns.ac.rs', '$2a$10$cmgqFUMFpZYfJwOkvOnvHutJ6oQGKBwwIKkRNhWNp2h/E2yYnZx26', 'Tamara Pavlovic', 'student', 'IN 8/2025'),
-  ('in9.2025@ftn.uns.ac.rs', '$2a$10$lMO/JOyOTLG9al56nmHV8Os.UrJqhz9okQY4i24mN/igmyQfUjLP2', 'Dusan Milosevic', 'student', 'IN 9/2025'),
-  ('in10.2025@ftn.uns.ac.rs', '$2a$10$xOS3DHeg7vw0wPNIr1OOdeXE91wgFRcM0I9cdiCnzQM9Tec6EwHae', 'Maja Kovacevic', 'student', 'IN 10/2025'),
-  ('in11.2025@ftn.uns.ac.rs', '$2a$10$dXLy0hp2af3rYXjhyj3Wge6hAjmv87sikD7/UloyZnWBHuoJWsdJK', 'Milos Todorovic', 'student', 'IN 11/2025'),
-  ('in12.2025@ftn.uns.ac.rs', '$2a$10$Jnclx1d9XgVj1H2cBybbneTJSmK.etFnEsrftKEf/ve01MwlCDRP6', 'Sara Popovic', 'student', 'IN 12/2025'),
-  ('in13.2025@ftn.uns.ac.rs', '$2a$10$NDGO226XqHHgvDh4eAYfcOXPzbhGAhqdDcaX3ikZjhOO3EI7qlBzC', 'Aleksa Lazarevic', 'student', 'IN 13/2025'),
-  ('in14.2025@ftn.uns.ac.rs', '$2a$10$hiUU.U8F6QPA0FYGtRlQg.hv9AInpof9/80XqNHNnIAvZehNw6rPC', 'Jovana Simic', 'student', 'IN 14/2025'),
-  ('in15.2025@ftn.uns.ac.rs', '$2a$10$.xihQr/6WcT2ewAlvRMNZOPdkJLMTaBdsQHrLaaejy1WjzvDKwP7S', 'Filip Djukic', 'student', 'IN 15/2025')
+  ('ra1-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Marko Petrovic',     'student', 'ra1-2025'),
+  ('ra2-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Ana Jovanovic',      'student', 'ra2-2025'),
+  ('ra3-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Stefan Nikolic',     'student', 'ra3-2025'),
+  ('ra4-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Jelena Djordjevic',  'student', 'ra4-2025'),
+  ('ra5-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Nikola Stojanovic',  'student', 'ra5-2025'),
+  ('ra6-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Milica Ilic',        'student', 'ra6-2025'),
+  ('ra7-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Lazar Markovic',     'student', 'ra7-2025'),
+  ('ra8-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Tamara Pavlovic',    'student', 'ra8-2025'),
+  ('ra9-2025@ftn.uns.ac.rs',  '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Dusan Milosevic',    'student', 'ra9-2025'),
+  ('ra10-2025@ftn.uns.ac.rs', '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Maja Kovacevic',     'student', 'ra10-2025'),
+  ('ra11-2025@ftn.uns.ac.rs', '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Milos Todorovic',    'student', 'ra11-2025'),
+  ('ra12-2025@ftn.uns.ac.rs', '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Sara Popovic',       'student', 'ra12-2025'),
+  ('ra13-2025@ftn.uns.ac.rs', '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Aleksa Lazarevic',   'student', 'ra13-2025'),
+  ('ra14-2025@ftn.uns.ac.rs', '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Jovana Simic',       'student', 'ra14-2025'),
+  ('ra15-2025@ftn.uns.ac.rs', '$2a$10$6hods4IFrEGvWgydUguQXe9ru/sTbWEPENvb0F.OcW90gGYmuo5yu', 'Filip Djukic',       'student', 'ra15-2025')
 ON CONFLICT (email) DO NOTHING;
 
 -- 15 Question Bank entries with answers
