@@ -187,8 +187,36 @@ router.get('/results', requireAuth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'No submitted attempt found' });
     }
 
-    const results = await getAttemptResults(attempt.id);
-    return res.json({ results });
+    const fullResults = await getAttemptResults(attempt.id);
+
+    // For students, strip everything that could leak correct answers or content.
+    // The recap UI only needs per-question id + points (max) + points_awarded + ai_grading_status.
+    if (user.role === 'student' && fullResults) {
+      const safe = {
+        attempt: fullResults.attempt,
+        exam: {
+          id: fullResults.exam.id,
+          title: fullResults.exam.title,
+          pass_threshold: fullResults.exam.pass_threshold,
+          allow_review: false,
+        },
+        questions: fullResults.questions.map((q) => ({
+          question: { id: q.question.id, points: q.question.points, type: q.question.type },
+          answers: [],
+          selected_answer_id: null,
+          selected_answer_ids: [],
+          points_awarded: q.points_awarded,
+          correct_answer_id: null,
+          correct_answer_ids: [],
+          text_answer: null,
+          ai_grading_status: q.ai_grading_status,
+          ai_feedback: null,
+        })),
+      };
+      return res.json({ results: safe });
+    }
+
+    return res.json({ results: fullResults });
   } catch (error) {
     console.error('Results error:', error);
     return res.status(500).json({ error: 'Internal server error' });

@@ -61,17 +61,17 @@ export function OtisakTimer({
 
   const isLow = !paused && timeLeft < 60;
   const digitColor = paused
-    ? 'text-amber-400'
+    ? 'text-sky-300'
     : isLow
       ? 'text-red-500 animate-pulse'
       : 'text-green-500';
   const sepColor = paused
-    ? 'text-amber-400/70'
+    ? 'text-sky-300/70'
     : isLow
       ? 'text-red-500/70'
       : 'text-green-500/70';
   const glow = paused
-    ? 'drop-shadow-[0_0_8px_rgba(245,158,11,0.5)]'
+    ? 'drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]'
     : isLow
       ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]'
       : 'drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]';
@@ -108,7 +108,7 @@ export function OtisakTimer({
       <Separator />
       <DigitBox value={fmt(seconds)} />
       {paused && (
-        <span className="ml-2 text-[10px] uppercase tracking-widest text-amber-400/80 font-medium">
+        <span className="ml-2 text-[10px] uppercase tracking-widest text-sky-300/80 font-medium">
           PAUZA
         </span>
       )}

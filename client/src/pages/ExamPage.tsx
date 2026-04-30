@@ -595,23 +595,23 @@ export default function ExamPage() {
     return (
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-amber-500/[0.10] rounded-full blur-[150px] animate-pulse" />
+          <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-sky-500/[0.09] rounded-full blur-[150px] animate-pulse" />
           <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/[0.10] rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
         </div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="z-10 w-full max-w-md px-6 flex flex-col items-center text-center">
           <OtisakLogo className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] mb-8" />
-          <div className="w-20 h-20 rounded-2xl bg-amber-500/[0.08] border border-amber-500/25 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(245,158,11,0.12)]">
-            <Loader2 className="w-9 h-9 text-amber-400/80 animate-spin" strokeWidth={1.5} />
+          <div className="w-20 h-20 rounded-2xl bg-sky-500/[0.08] border border-sky-400/25 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(56,189,248,0.10)]">
+            <Loader2 className="w-9 h-9 text-sky-300/85 animate-spin" strokeWidth={1.5} />
           </div>
           <h1 className="text-2xl sm:text-3xl font-light text-white tracking-[0.2em] uppercase mb-3">{t('exam.awaitingApproval.title')}</h1>
           <p className="text-slate-300/70 text-sm leading-relaxed mb-6 max-w-sm">{t('exam.awaitingApproval.body')}</p>
-          <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-500/[0.06] border border-amber-500/20 rounded-full">
+          <div className="flex items-center gap-3 px-5 py-2.5 bg-sky-500/[0.06] border border-sky-400/20 rounded-full">
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400/60 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+              <span className="absolute inline-flex h-full w-full rounded-full bg-sky-300/60 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-300" />
             </span>
-            <span className="text-amber-300/80 text-[11px] uppercase tracking-[0.25em] font-medium">{t('exam.awaitingApproval.pill')}</span>
+            <span className="text-sky-200/85 text-[11px] uppercase tracking-[0.25em] font-medium">{t('exam.awaitingApproval.pill')}</span>
           </div>
           <p className="text-slate-500/60 text-[10px] uppercase tracking-[0.2em] mt-12">{t('exam.awaitingApproval.dontClose')}</p>
         </motion.div>
@@ -1058,15 +1058,15 @@ export default function ExamPage() {
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-[#0b0f17] flex flex-col items-center justify-center"
           >
-            {/* Soft amber/slate ambient glow */}
+            {/* Calm slate-blue ambient glow */}
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-[-15%] right-[-15%] w-[55vw] h-[55vw] bg-amber-500/[0.08] rounded-full blur-[160px]" />
-              <div className="absolute bottom-[-15%] left-[-15%] w-[55vw] h-[55vw] bg-slate-500/[0.06] rounded-full blur-[160px]" />
+              <div className="absolute top-[-15%] right-[-15%] w-[55vw] h-[55vw] bg-sky-500/[0.07] rounded-full blur-[160px]" />
+              <div className="absolute bottom-[-15%] left-[-15%] w-[55vw] h-[55vw] bg-slate-500/[0.05] rounded-full blur-[160px]" />
               <div
                 className="absolute inset-0 opacity-[0.025]"
                 style={{
                   backgroundImage:
-                    'linear-gradient(rgba(245,158,11,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(245,158,11,0.5) 1px, transparent 1px)',
+                    'linear-gradient(rgba(148,163,184,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.5) 1px, transparent 1px)',
                   backgroundSize: '60px 60px',
                 }}
               />
@@ -1077,16 +1077,16 @@ export default function ExamPage() {
                 initial={{ scale: 0.85, opacity: 0 }}
                 animate={{ scale: 1, opacity: 1 }}
                 transition={{ duration: 0.5 }}
-                className="w-24 h-24 rounded-2xl bg-amber-500/[0.08] border border-amber-500/25 flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(245,158,11,0.12)]"
+                className="w-24 h-24 rounded-2xl bg-sky-500/[0.08] border border-sky-400/25 flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(56,189,248,0.10)]"
               >
-                <PauseCircle className="w-12 h-12 text-amber-400/80" strokeWidth={1.25} />
+                <PauseCircle className="w-12 h-12 text-sky-300/85" strokeWidth={1.25} />
               </motion.div>
 
               <motion.h1
                 initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
                 transition={{ delay: 0.15 }}
-                className="text-3xl sm:text-4xl font-light text-amber-300/90 tracking-[0.3em] uppercase mb-3"
+                className="text-3xl sm:text-4xl font-light text-slate-100/90 tracking-[0.3em] uppercase mb-3"
               >
                 {t('lockdown.title')}
               </motion.h1>
@@ -1104,13 +1104,13 @@ export default function ExamPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.45 }}
-                className="flex items-center gap-3 px-5 py-2.5 bg-amber-500/[0.06] border border-amber-500/20 rounded-full"
+                className="flex items-center gap-3 px-5 py-2.5 bg-sky-500/[0.06] border border-sky-400/20 rounded-full"
               >
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400/60 animate-ping" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-sky-300/60 animate-ping" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-300" />
                 </span>
-                <span className="text-amber-300/80 text-[11px] uppercase tracking-[0.25em] font-medium">
+                <span className="text-sky-200/85 text-[11px] uppercase tracking-[0.25em] font-medium">
                   {t('lockdown.timerPaused')}
                 </span>
               </motion.div>

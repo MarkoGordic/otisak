@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, ArrowLeft, Clock, Target } from 'lucide-react';
+import { Loader2, Clock, Target } from 'lucide-react';
 import { OtisakHeader, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import type { OtisakExamResults } from '../lib/types';
@@ -102,9 +102,11 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a14] flex flex-col relative overflow-hidden">
+      {/* Soft white ambient glow — terminal "finished" screen */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_0%_0%,_rgba(59,130,246,0.15),_transparent_40%)] blur-[100px]" />
-        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_100%_100%,_rgba(59,130,246,0.15),_transparent_40%)] blur-[100px]" />
+        <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-white/[0.06] rounded-full blur-[180px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] bg-white/[0.04] rounded-full blur-[180px]" />
+        <div className="absolute top-[40%] right-[30%] w-[35vw] h-[35vw] bg-white/[0.025] rounded-full blur-[140px]" />
       </div>
 
       <OtisakHeader
@@ -125,14 +127,24 @@ export default function ResultsPage() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-10 z-10 flex flex-col items-center">
         {!results ? (
           <div className="text-center py-20">
-            <p className="text-gray-400 text-lg mb-2">{t('results.notAvailable')}</p>
-            <p className="text-gray-500 text-sm mb-6">{t('results.processing')}</p>
-            <button onClick={() => navigate('/')} className="text-blue-400 hover:text-blue-300 text-sm flex items-center gap-2 mx-auto">
-              <ArrowLeft className="w-4 h-4" />{t('results.backToHome')}
-            </button>
+            <p className="text-gray-300 text-lg mb-2">{t('results.notAvailable')}</p>
+            <p className="text-gray-500 text-sm">{t('results.processing')}</p>
           </div>
         ) : (
           <>
+            {/* Terminal "exam finished" banner — student cannot navigate away */}
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="text-center mb-8 sm:mb-10"
+            >
+              <p className="text-[11px] sm:text-xs uppercase tracking-[0.35em] text-white/50 mb-3">{t('results.finishedKicker')}</p>
+              <h1 className="text-2xl sm:text-3xl font-light text-white tracking-wide leading-snug">
+                {t('results.finishedTitle')}
+              </h1>
+              <p className="text-sm text-white/60 mt-3 max-w-md mx-auto">{t('results.finishedSubtitle')}</p>
+            </motion.div>
             {/* Score Card */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
               className="bg-[#1a1c26]/90 border border-gray-800 rounded-xl p-4 sm:p-6 w-full mb-6 shadow-[0_0_30px_rgba(0,0,0,0.3)] backdrop-blur-sm">
@@ -185,11 +197,53 @@ export default function ResultsPage() {
               </motion.div>
             )}
 
-            <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 }}
-              onClick={() => navigate('/')}
-              className="w-full max-w-xs flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-lg transition-all uppercase tracking-[0.15em] text-sm shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] hover:-translate-y-0.5 mb-10">
-              <ArrowLeft className="w-4 h-4" />{t('results.backToHome')}
-            </motion.button>
+            {/* Per-question recap — points only, no text or answers */}
+            {results.questions && results.questions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 }}
+                className="bg-[#1a1c26]/90 border border-gray-800 rounded-xl p-4 sm:p-5 w-full mb-6 backdrop-blur-sm"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium">{t('results.recap')}</span>
+                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">{t('results.recapHint')}</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {results.questions.map((q, i) => {
+                    const awarded = Number(q.points_awarded ?? 0);
+                    const max = Number(q.question.points ?? 0);
+                    const pending = q.ai_grading_status === 'pending' || q.ai_grading_status === 'grading';
+                    const tone = pending
+                      ? 'border-purple-500/25 bg-purple-500/[0.06] text-purple-300'
+                      : max > 0 && awarded === max
+                        ? 'border-green-500/25 bg-green-500/[0.06] text-green-300'
+                        : awarded > 0
+                          ? 'border-amber-500/25 bg-amber-500/[0.06] text-amber-300'
+                          : 'border-red-500/25 bg-red-500/[0.06] text-red-300';
+                    return (
+                      <div key={q.question.id} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs ${tone}`}>
+                        <span className="font-medium tabular-nums">{t('results.questionNumber', { number: i + 1 })}</span>
+                        <span className="font-mono tabular-nums">
+                          {pending ? '…' : awarded}/{max}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Intentionally no navigation button — once the exam is over,
+                the student stays on this terminal screen. */}
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.4 }}
+              className="text-[10px] uppercase tracking-[0.3em] text-white/35 mt-4 mb-10"
+            >
+              {t('results.finishedFooter')}
+            </motion.p>
           </>
         )}
       </main>
