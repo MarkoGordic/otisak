@@ -32,6 +32,7 @@ export interface OtisakExam {
   negative_points_threshold: number;
   partial_scoring: boolean;
   exam_started_at: string | null;
+  extra_seconds: number;
   created_at: string;
   updated_at: string;
 }

@@ -101,6 +101,14 @@ export default function JoinExamPage() {
 
       setUserName(data.user?.name || '');
       setUserIndex(data.user?.index_number || indexNumber);
+
+      // Late join: admin already started — navigate into the exam page where
+      // the "waiting for approval" state takes over.
+      if (data.late_join) {
+        navigate(`/exam/${examId}`);
+        return;
+      }
+
       setPhase('waiting');
     } catch {
       setError(t('join.networkError'));

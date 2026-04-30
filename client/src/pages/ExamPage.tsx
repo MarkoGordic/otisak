@@ -12,6 +12,7 @@ import {
   QuestionNav,
 } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
+import { useExamSocket } from '../lib/useExamSocket';
 import type {
   OtisakExamWithSubject,
   OtisakQuestionWithAnswers,
@@ -25,7 +26,7 @@ type UserInfo = {
   index_number?: string;
 };
 
-type Phase = 'loading' | 'lobby' | 'exam' | 'submitting';
+type Phase = 'loading' | 'lobby' | 'awaitingApproval' | 'exam' | 'submitting';
 
 const ANSWER_LABELS = 'ABCDEFGHIJ';
 
@@ -261,6 +262,9 @@ export default function ExamPage() {
             } else {
               setPhase('exam');
             }
+          } else if (examData.pendingRequest?.type === 'late_join') {
+            // Late joiner: server has created a request, awaiting admin approval.
+            setPhase('awaitingApproval');
           } else if (examData.exam.status === 'active') {
             // No attempt yet - show lobby (will auto-start when admin triggers)
             setPhase('lobby');
@@ -276,6 +280,47 @@ export default function ExamPage() {
     })();
     return () => { mounted = false; };
   }, [examId, navigate]);
+
+  // Poll while awaiting admin approval of a late_join request
+  useEffect(() => {
+    if (phase !== 'awaitingApproval') return;
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/otisak/exams/${examId}`, { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.alreadySubmitted) { navigate(`/exam/${examId}/results`, { replace: true }); return; }
+        if (data.attempt) {
+          // Approved! Load the exam and start.
+          setExam(data.exam);
+          setQuestions(data.questions || []);
+          setAttempt(data.attempt);
+          if (Array.isArray(data.savedAnswers)) {
+            const restored: Record<string, string[]> = {};
+            const restoredText: Record<string, string> = {};
+            for (const sa of data.savedAnswers) {
+              if (!sa.question_id) continue;
+              if (Array.isArray(sa.selected_answer_ids) && sa.selected_answer_ids.length > 0) {
+                restored[sa.question_id] = sa.selected_answer_ids;
+              }
+              if (typeof sa.text_answer === 'string' && sa.text_answer.length > 0) {
+                restoredText[sa.question_id] = sa.text_answer;
+              }
+            }
+            setAnswers(restored);
+            setTextAnswers(restoredText);
+          }
+          const tStart = data.exam.exam_started_at ? new Date(data.exam.exam_started_at).getTime() : new Date(data.attempt.started_at).getTime();
+          startTimeRef.current = tStart;
+          setPhase('exam');
+        } else if (!data.pendingRequest) {
+          // Request denied or removed by admin — kick back to home.
+          navigate('/', { replace: true });
+        }
+      } catch { /* silent */ }
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [phase, examId, navigate]);
 
   // Poll for admin to start the exam
   useEffect(() => {
@@ -346,6 +391,55 @@ export default function ExamPage() {
     } catch { /* best effort */ }
   }, [examId, buildSavePayload]);
 
+  // ============================================================================
+  // WebSocket: live push channel for admin commands.
+  // The HTTP polls below remain as a fallback so the UI keeps working if the
+  // socket drops or the server hasn't broadcasted yet.
+  // ============================================================================
+  useExamSocket(examId, useCallback((evt) => {
+    if (evt.type === 'lockdown.changed') {
+      setLockdown(!!evt.is_active);
+      if (evt.is_active && evt.message) setLockdownMessage(evt.message);
+    } else if (evt.type === 'timer.adjusted') {
+      setExam((prev) => (prev && prev.extra_seconds !== evt.extra_seconds ? { ...prev, extra_seconds: evt.extra_seconds } : prev));
+    } else if (evt.type === 'exam.started' || evt.type === 'request.decided') {
+      // Trigger a refetch of /exams/:id so the lobby/awaiting-approval flow advances immediately.
+      // Done via a small ping flag so we don't duplicate the load logic here.
+      (async () => {
+        try {
+          const res = await fetch(`/api/otisak/exams/${examId}`, { credentials: 'include' });
+          if (!res.ok) return;
+          const data = await res.json();
+          if (data.alreadySubmitted) { navigate(`/exam/${examId}/results`, { replace: true }); return; }
+          if (data.exam) setExam(data.exam);
+          if (Array.isArray(data.questions) && data.questions.length > 0) setQuestions(data.questions);
+          if (data.attempt) {
+            setAttempt(data.attempt);
+            const tStart = data.exam?.exam_started_at ? new Date(data.exam.exam_started_at).getTime() : new Date(data.attempt.started_at).getTime();
+            startTimeRef.current = tStart;
+            if (Array.isArray(data.savedAnswers)) {
+              const restored: Record<string, string[]> = {};
+              const restoredText: Record<string, string> = {};
+              for (const sa of data.savedAnswers) {
+                if (!sa.question_id) continue;
+                if (Array.isArray(sa.selected_answer_ids) && sa.selected_answer_ids.length > 0) restored[sa.question_id] = sa.selected_answer_ids;
+                if (typeof sa.text_answer === 'string' && sa.text_answer.length > 0) restoredText[sa.question_id] = sa.text_answer;
+              }
+              setAnswers(restored);
+              setTextAnswers(restoredText);
+            }
+            if (phase !== 'exam') setPhase('exam');
+          } else if (data.pendingRequest) {
+            if (phase !== 'awaitingApproval') setPhase('awaitingApproval');
+          } else if (phase === 'awaitingApproval') {
+            // No attempt and no pending request anymore = denied or cancelled.
+            navigate('/', { replace: true });
+          }
+        } catch { /* fallback to polling */ }
+      })();
+    }
+  }, [examId, navigate, phase]));
+
   // Warn before leaving + save on unload
   useEffect(() => {
     if (phase !== 'exam') return;
@@ -393,6 +487,10 @@ export default function ExamPage() {
           setLockdown(!!data.lockdown?.is_active);
           if (data.lockdown?.message) setLockdownMessage(data.lockdown.message);
           if (typeof data.paused_seconds === 'number') setPausedSeconds(data.paused_seconds);
+          // Pick up admin-side timer adjustments live.
+          if (typeof data.extra_seconds === 'number') {
+            setExam((prev) => (prev && prev.extra_seconds !== data.extra_seconds ? { ...prev, extra_seconds: data.extra_seconds } : prev));
+          }
         }
       } catch {}
     };
@@ -486,6 +584,39 @@ export default function ExamPage() {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  // ========================================
+  // AWAITING APPROVAL (late join)
+  // ========================================
+  if (phase === 'awaitingApproval') {
+    return (
+      <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-amber-500/[0.10] rounded-full blur-[150px] animate-pulse" />
+          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/[0.10] rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="z-10 w-full max-w-md px-6 flex flex-col items-center text-center">
+          <OtisakLogo className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] mb-8" />
+          <div className="w-20 h-20 rounded-2xl bg-amber-500/[0.08] border border-amber-500/25 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(245,158,11,0.12)]">
+            <Loader2 className="w-9 h-9 text-amber-400/80 animate-spin" strokeWidth={1.5} />
+          </div>
+          <h1 className="text-2xl sm:text-3xl font-light text-white tracking-[0.2em] uppercase mb-3">{t('exam.awaitingApproval.title')}</h1>
+          <p className="text-slate-300/70 text-sm leading-relaxed mb-6 max-w-sm">{t('exam.awaitingApproval.body')}</p>
+          <div className="flex items-center gap-3 px-5 py-2.5 bg-amber-500/[0.06] border border-amber-500/20 rounded-full">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400/60 animate-ping" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-400" />
+            </span>
+            <span className="text-amber-300/80 text-[11px] uppercase tracking-[0.25em] font-medium">{t('exam.awaitingApproval.pill')}</span>
+          </div>
+          <p className="text-slate-500/60 text-[10px] uppercase tracking-[0.2em] mt-12">{t('exam.awaitingApproval.dontClose')}</p>
+        </motion.div>
+
+        <div className="absolute bottom-0 w-full"><OtisakFooter /></div>
       </div>
     );
   }
@@ -603,7 +734,7 @@ export default function ExamPage() {
         centerContent={
           attempt && exam ? (
             <OtisakTimer
-              durationSeconds={exam.duration_minutes * 60}
+              durationSeconds={exam.duration_minutes * 60 + Number(exam.extra_seconds || 0)}
               startedAt={(exam.exam_started_at || attempt.started_at) as unknown as string}
               pausedSeconds={pausedSeconds}
               paused={lockdown}

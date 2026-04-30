@@ -23,7 +23,16 @@ import {
 } from '../db/otisak';
 import { getActiveLockdown, createLockdown, endLockdown } from '../db/settings';
 import { logEvents, getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
+import {
+  createExamRequest,
+  listPendingRequestsForExam,
+  listRequestsForUser,
+  decideExamRequest,
+  isSubmittableByStudent,
+} from '../db/exam-requests';
 import { findUserById, findUserByIndexNumber } from '../db/users';
+import { query } from '../db/client';
+import { broadcastExamEvent } from '../ws/events';
 import { createSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth, requireRole } from '../middleware';
 
@@ -75,8 +84,20 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       }
     }
 
-    // Auto-create attempt for students once admin has started the exam, so the timer becomes visible
+    // Auto-create attempt for students once admin has started the exam, so the timer becomes visible.
+    // BUT: late joiners (who have a pending late_join request) must wait for admin approval.
     if (!attempt && user.role === 'student' && exam.status === 'active' && exam.exam_started_at) {
+      const pending = await listRequestsForUser(examId, user.id);
+      const hasPendingLateJoin = pending.some((r) => r.type === 'late_join' && r.status === 'pending');
+      if (hasPendingLateJoin) {
+        return res.json({
+          exam,
+          attempt: null,
+          questions: [],
+          savedAnswers: [],
+          pendingRequest: { type: 'late_join' },
+        });
+      }
       attempt = await startExamAttempt(examId, user.id, {
         ip_address: req.ip || undefined,
         user_agent: req.headers['user-agent'] || undefined,
@@ -512,6 +533,7 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
     const puppeteer = await import('puppeteer');
     const browser = await puppeteer.default.launch({
       headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
       args: ['--no-sandbox', '--disable-setuid-sandbox'],
     });
     try {
@@ -700,6 +722,19 @@ router.post('/join', async (req: Request, res: Response) => {
       path: '/',
     });
 
+    // Late-join detection: if the admin has already started the exam,
+    // submit a late_join request that the admin must approve.
+    let pendingRequestId: string | null = null;
+    const exam = await getCachedExam(examId);
+    if (exam && exam.exam_started_at && exam.status === 'active') {
+      const created = await createExamRequest({
+        examId,
+        userId: fullUser.id,
+        type: 'late_join',
+      });
+      if ('request' in created) pendingRequestId = created.request.id;
+    }
+
     return res.json({
       user: {
         id: result.user.id,
@@ -707,6 +742,8 @@ router.post('/join', async (req: Request, res: Response) => {
         index_number: result.user.index_number,
       },
       exam_id: examId,
+      pending_request_id: pendingRequestId,
+      late_join: !!pendingRequestId,
     });
   } catch (error) {
     console.error('Join error:', error);
@@ -727,10 +764,13 @@ router.get('/room-status', async (req: Request, res: Response) => {
     const { getTotalLockdownPauseSeconds } = await import('../db/settings');
     const paused_seconds = await getTotalLockdownPauseSeconds(examId);
 
+    const extraSec = Number((exam as unknown as { extra_seconds?: number }).extra_seconds ?? 0);
     return res.json({
       status: exam.status,
       exam_started_at: exam.exam_started_at,
       duration_minutes: exam.duration_minutes,
+      extra_seconds: extraSec,
+      effective_duration_seconds: Number(exam.duration_minutes) * 60 + extraSec,
       lockdown_active: !!lockdown,
       lockdown_message: lockdown?.message ?? null,
       paused_seconds,
@@ -762,6 +802,11 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
       return res.status(400).json({ error: 'Exam not found or not active' });
     }
     invalidateExamCache(examId);
+    broadcastExamEvent(examId, {
+      type: 'exam.started',
+      exam_started_at: exam.exam_started_at,
+      duration_minutes: exam.duration_minutes,
+    });
     return res.json({ exam });
   } catch (error) {
     console.error('Start exam error:', error);
@@ -776,9 +821,12 @@ router.get('/lockdown', async (req: Request, res: Response) => {
     const lockdown = await getActiveLockdown(examId);
     const { getTotalLockdownPauseSeconds } = await import('../db/settings');
     const paused_seconds = await getTotalLockdownPauseSeconds(examId);
+    const exam = await getCachedExam(examId);
+    const extra_seconds = Number((exam as unknown as { extra_seconds?: number } | null)?.extra_seconds ?? 0);
     return res.json({
       lockdown: lockdown ? { is_active: true, message: lockdown.message } : null,
       paused_seconds,
+      extra_seconds,
     });
   } catch (error) {
     console.error('Lockdown status error:', error);
@@ -794,9 +842,11 @@ router.post('/lockdown', requireAuth, requireRole(['admin', 'assistant']), async
 
     if (lock) {
       await createLockdown(examId, req.user!.id, message);
+      broadcastExamEvent(examId, { type: 'lockdown.changed', is_active: true, message: message ?? null });
       return res.json({ locked: true });
     } else {
       await endLockdown(examId);
+      broadcastExamEvent(examId, { type: 'lockdown.changed', is_active: false, message: null });
       return res.json({ locked: false });
     }
   } catch (error) {
@@ -829,6 +879,155 @@ router.post('/events', requireAuth, async (req: Request, res: Response) => {
     return res.json({ success: true });
   } catch (error) {
     console.error('Events error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ============================================================================
+// REQUEST QUEUE — admin approval for student-initiated actions
+// ============================================================================
+
+// POST /exams/:examId/requests — student creates a request (whitelist enforced server-side)
+router.post('/requests', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const user = req.user!;
+    const { type, payload } = req.body || {};
+
+    if (typeof type !== 'string' || !isSubmittableByStudent(type)) {
+      return res.status(400).json({ error: 'Invalid or unsupported request type' });
+    }
+
+    const result = await createExamRequest({
+      examId,
+      userId: user.id,
+      type,
+      payload: typeof payload === 'object' && payload ? payload : {},
+    });
+
+    if ('error' in result) return res.status(400).json({ error: result.error });
+    // Notify everyone subscribed (admin RoomPage refreshes the list).
+    broadcastExamEvent(examId, {
+      type: 'request.created',
+      request_id: result.request.id,
+      request_type: result.request.type,
+      user_id: result.request.user_id,
+    });
+    return res.json({ request: result.request });
+  } catch (error) {
+    console.error('Create request error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /exams/:examId/requests — admin/assistant: list pending requests for the exam
+router.get('/requests', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const requests = await listPendingRequestsForExam(examId);
+    return res.json({ requests });
+  } catch (error) {
+    console.error('List requests error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /exams/:examId/requests/mine — auth: caller's own requests for this exam
+router.get('/requests/mine', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const requests = await listRequestsForUser(examId, req.user!.id);
+    return res.json({ requests });
+  } catch (error) {
+    console.error('List my requests error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /exams/:examId/requests/:id/decide — admin/assistant: approve or deny
+router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const requestId = req.params.id;
+    const { decision, note } = req.body || {};
+
+    if (decision !== 'approved' && decision !== 'denied') {
+      return res.status(400).json({ error: 'decision must be "approved" or "denied"' });
+    }
+
+    const result = await decideExamRequest({
+      requestId,
+      examId,
+      decidedBy: req.user!.id,
+      decision,
+      note: typeof note === 'string' ? note : undefined,
+    });
+
+    if ('error' in result) return res.status(400).json({ error: result.error });
+    invalidateExamCache(examId);
+    broadcastExamEvent(examId, {
+      type: 'request.decided',
+      request_id: result.request.id,
+      request_type: result.request.type,
+      user_id: result.request.user_id,
+      status: result.request.status,
+    });
+    return res.json({ request: result.request });
+  } catch (error) {
+    console.error('Decide request error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ============================================================================
+// TIMER ADJUSTMENT — admin adds or removes seconds from the running clock
+// ============================================================================
+
+// POST /exams/:examId/adjust-timer — admin/assistant
+router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const { delta_seconds } = req.body || {};
+
+    const delta = Number(delta_seconds);
+    if (!Number.isFinite(delta) || delta === 0) {
+      return res.status(400).json({ error: 'delta_seconds must be a non-zero number' });
+    }
+    if (Math.abs(delta) > 6 * 3600) {
+      return res.status(400).json({ error: 'delta_seconds out of range' });
+    }
+
+    const exam = await getOtisakExamById(examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+
+    const baseDuration = Number(exam.duration_minutes) * 60;
+    const currentExtra = Number((exam as unknown as { extra_seconds?: number }).extra_seconds ?? 0);
+    let nextExtra = currentExtra + Math.round(delta);
+    // Don't let total effective duration go below 30 seconds — gives the timer time to settle.
+    if (baseDuration + nextExtra < 30) nextExtra = -baseDuration + 30;
+
+    const updated = await query<{ id: string; extra_seconds: number; duration_minutes: number }>(
+      `UPDATE otisak_exams SET extra_seconds = $1, updated_at = NOW() WHERE id = $2 RETURNING id, extra_seconds, duration_minutes`,
+      [nextExtra, examId]
+    );
+
+    invalidateExamCache(examId);
+
+    const newExtra = Number(updated.rows[0]?.extra_seconds ?? nextExtra);
+    broadcastExamEvent(examId, {
+      type: 'timer.adjusted',
+      extra_seconds: newExtra,
+      effective_duration_seconds: baseDuration + newExtra,
+      delta_seconds: Math.round(delta),
+    });
+
+    return res.json({
+      extra_seconds: newExtra,
+      duration_minutes: Number(updated.rows[0]?.duration_minutes ?? exam.duration_minutes),
+      effective_duration_seconds: baseDuration + newExtra,
+    });
+  } catch (error) {
+    console.error('Adjust timer error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

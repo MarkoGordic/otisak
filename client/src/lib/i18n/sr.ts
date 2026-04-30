@@ -286,6 +286,27 @@ const sr: Record<string, string> = {
   'join.joinFailed': 'Pristup neuspesan.',
   'join.networkError': 'Greska u mrezi. Pokusajte ponovo.',
 
+  // Awaiting approval (late join)
+  'exam.awaitingApproval.title': 'Cekanje odobrenja',
+  'exam.awaitingApproval.body': 'Zahtev za pristup je poslat asistentu. Bicete automatski preusmereni cim odobre vas zahtev.',
+  'exam.awaitingApproval.pill': 'Zahtev na cekanju',
+  'exam.awaitingApproval.dontClose': 'Ne zatvarajte ovaj prozor',
+
+  // Room (admin) — requests + timer adjust
+  'room.requests.title': 'Zahtevi za pristup',
+  'room.requests.empty': 'Nema zahteva na cekanju.',
+  'room.requests.late_join': 'Zakasneli pristup',
+  'room.requests.approve': 'Odobri',
+  'room.requests.deny': 'Odbij',
+  'room.timer.title': 'Podesavanje tajmera',
+  'room.timer.desc': 'Dodajte ili oduzmite vreme svim studentima u toku ispita.',
+  'room.timer.add': 'Dodaj',
+  'room.timer.subtract': 'Oduzmi',
+  'room.timer.minute': 'min',
+  'room.timer.adjusted': 'Tajmer podesen',
+  'room.timer.failed': 'Podesavanje tajmera nije uspelo.',
+  'room.timer.currentExtra': 'Trenutna razlika: {value}s',
+
   // Lockdown / pause
   'lockdown.title': 'PAUZA',
   'lockdown.body': 'Asistent je privremeno pauzirao rad. Sacekajte dalju instrukciju.',
@@ -312,6 +333,9 @@ const sr: Record<string, string> = {
   'home.minutes': 'minuta',
   'home.inProgress': 'U toku',
   'home.waiting': 'Cekanje',
+
+  // Footer
+  'footer.warning': 'Varanje je strogo zabranjeno. Sva aktivnost se prati i belezi. Krsenje rezultira disciplinskim postupkom.',
 
   // Common
   'common.cancel': 'Otkazi',

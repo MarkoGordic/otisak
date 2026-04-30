@@ -351,7 +351,8 @@ export async function autoFinishIfExpired(
   const startMs = exam.exam_started_at
     ? new Date(exam.exam_started_at).getTime()
     : new Date(attempt.started_at).getTime();
-  const durationMs = exam.duration_minutes * 60 * 1000;
+  const extraSec = Number(exam.extra_seconds ?? 0);
+  const durationMs = (exam.duration_minutes * 60 + extraSec) * 1000;
   const now = Date.now();
 
   // Discount any time the exam has spent in lockdown (paused)
@@ -359,7 +360,7 @@ export async function autoFinishIfExpired(
   const pauseMs = (await getTotalLockdownPauseSeconds(exam.id)) * 1000;
 
   if (now - pauseMs >= startMs + durationMs) {
-    return finishAttempt(attempt.id, exam.duration_minutes * 60);
+    return finishAttempt(attempt.id, exam.duration_minutes * 60 + extraSec);
   }
   return null;
 }

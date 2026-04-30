@@ -3,12 +3,33 @@ import { WebSocketServer, WebSocket } from 'ws';
 import { parseSessionCookie } from '../session';
 import { findUserById } from '../db/users';
 import { logEvents } from '../db/activity-log';
+import { query } from '../db/client';
 
-// Map of examId -> Set of WebSocket connections (for admin room broadcasts)
+// Map of examId -> Set of WebSocket connections (admin-only room broadcasts; legacy)
 const roomSubscriptions = new Map<string, Set<WebSocket>>();
+
+// Map of examId -> Set of WebSocket connections (any authenticated user; for admin command pushes)
+const examSubscriptions = new Map<string, Set<WebSocket>>();
 
 // Map of ws -> user info
 const wsUserMap = new WeakMap<WebSocket, { userId: string; role: string }>();
+
+async function isUserAllowedOnExam(examId: string, userId: string, role: string): Promise<boolean> {
+  // Privileged roles see every exam.
+  if (role === 'admin' || role === 'assistant') return true;
+  // Students must be linked to the exam in some legitimate way.
+  const result = await query<{ ok: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM otisak_enrollments WHERE exam_id = $1 AND user_id = $2
+     ) OR EXISTS (
+       SELECT 1 FROM otisak_attempts WHERE exam_id = $1 AND user_id = $2
+     ) OR EXISTS (
+       SELECT 1 FROM exam_requests WHERE exam_id = $1 AND user_id = $2 AND status = 'pending'
+     ) AS ok`,
+    [examId, userId]
+  );
+  return !!result.rows[0]?.ok;
+}
 
 function parseCookies(cookieHeader: string | undefined): Record<string, string> {
   const cookies: Record<string, string> = {};
@@ -30,6 +51,17 @@ export function broadcastToRoom(examId: string, data: unknown) {
     if (ws.readyState === WebSocket.OPEN) {
       ws.send(message);
     }
+  }
+}
+
+// Push to anyone (student or admin) subscribed to this exam.
+// Used for "everyone reacts" admin commands: start, lockdown, timer adjust, request decisions.
+export function broadcastExamEvent(examId: string, event: { type: string; [k: string]: unknown }) {
+  const subscribers = examSubscriptions.get(examId);
+  if (!subscribers) return;
+  const message = JSON.stringify(event);
+  for (const ws of subscribers) {
+    if (ws.readyState === WebSocket.OPEN) ws.send(message);
   }
 }
 
@@ -80,18 +112,34 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
               roomSubscriptions.get(examId)!.add(ws);
             }
           }
+
+          // Generic per-exam subscription used for admin-pushed events (start, lockdown, timer, request decisions).
+          // SECURITY: only allow subscription if the user is privileged OR has a legitimate connection to this exam
+          // (enrollment, active attempt, or pending request). Verified server-side every time — never trust the client.
+          if (data.type === 'subscribe_exam' && typeof data.exam_id === 'string') {
+            const examId = data.exam_id;
+            const allowed = await isUserAllowedOnExam(examId, user.id, user.role);
+            if (allowed) {
+              if (!examSubscriptions.has(examId)) examSubscriptions.set(examId, new Set());
+              examSubscriptions.get(examId)!.add(ws);
+              ws.send(JSON.stringify({ type: 'subscribed', exam_id: examId }));
+            } else {
+              ws.send(JSON.stringify({ type: 'subscribe_denied', exam_id: examId }));
+            }
+          }
         } catch (error) {
           console.error('WebSocket message error:', error);
         }
       });
 
       ws.on('close', () => {
-        // Clean up room subscriptions
         for (const [examId, subscribers] of roomSubscriptions.entries()) {
           subscribers.delete(ws);
-          if (subscribers.size === 0) {
-            roomSubscriptions.delete(examId);
-          }
+          if (subscribers.size === 0) roomSubscriptions.delete(examId);
+        }
+        for (const [examId, subscribers] of examSubscriptions.entries()) {
+          subscribers.delete(ws);
+          if (subscribers.size === 0) examSubscriptions.delete(examId);
         }
       });
 

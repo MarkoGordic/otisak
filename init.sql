@@ -83,7 +83,8 @@ CREATE TABLE otisak_exams (
   partial_scoring BOOLEAN NOT NULL DEFAULT FALSE,
   exam_started_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  extra_seconds INTEGER NOT NULL DEFAULT 0
 );
 
 CREATE INDEX idx_otisak_exams_status ON otisak_exams(status);
@@ -370,6 +371,31 @@ CREATE TABLE exam_lockdowns (
   started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ended_at TIMESTAMPTZ
 );
+
+-- ========================================
+-- EXAM REQUESTS
+-- Generic queue of student-submitted requests an admin must approve.
+-- Each `type` has a server-side handler that runs on approval.
+-- Currently supported types: 'late_join'.
+-- ========================================
+
+CREATE TABLE exam_requests (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  exam_id UUID NOT NULL REFERENCES otisak_exams(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','approved','denied','cancelled')),
+  decided_by UUID REFERENCES users(id),
+  decided_at TIMESTAMPTZ,
+  decision_note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_exam_requests_pending ON exam_requests(exam_id, status);
+CREATE INDEX idx_exam_requests_user ON exam_requests(user_id, status);
+-- A user can only have one pending request of a given type per exam.
+CREATE UNIQUE INDEX idx_exam_requests_one_pending ON exam_requests(exam_id, user_id, type) WHERE status = 'pending';
 
 -- ========================================
 -- SEED: Default admin user
