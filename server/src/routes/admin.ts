@@ -96,14 +96,15 @@ router.post('/users/import-csv', async (req: Request, res: Response) => {
   }
 });
 
-// Strict-but-forgiving CSV parser: comma-separated, optional quoted fields,
-// header row required, columns must be id, ime, prezime, indeks (any order).
+// Header-less CSV parser. Each row is positional:
+//   col 0 = id, col 1 = ime (first name), col 2 = prezime (last name), col 3 = indeks.
+// Extra columns after position 3 are ignored. Empty rows are skipped.
+// Quoted fields with doubled-quote escapes are supported.
 function parseStudentCsv(csv: string): { rows: Array<{ id: string; ime: string; prezime: string; indeks: string }> } | { error: string } {
-  const lines = csv.split(/\r?\n/).map((l) => l).filter((l) => l.trim().length > 0);
-  if (lines.length < 2) return { error: 'CSV must have a header row and at least one data row' };
+  const lines = csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
+  if (lines.length === 0) return { error: 'CSV is empty' };
 
   const splitRow = (line: string): string[] => {
-    // Minimal CSV parser: handles "quoted, fields" with escaped "" inside.
     const out: string[] = [];
     let cur = '';
     let inQuotes = false;
@@ -124,26 +125,18 @@ function parseStudentCsv(csv: string): { rows: Array<{ id: string; ime: string; 
     return out;
   };
 
-  const header = splitRow(lines[0]).map((h) => h.trim().toLowerCase());
-  const required = ['id', 'ime', 'prezime', 'indeks'];
-  for (const col of required) {
-    if (!header.includes(col)) return { error: `Missing required column: ${col}` };
-  }
-  const idIdx = header.indexOf('id');
-  const imeIdx = header.indexOf('ime');
-  const prezimeIdx = header.indexOf('prezime');
-  const indeksIdx = header.indexOf('indeks');
-
   const rows: Array<{ id: string; ime: string; prezime: string; indeks: string }> = [];
-  for (let i = 1; i < lines.length; i++) {
-    const cells = splitRow(lines[i]);
+  for (const line of lines) {
+    const cells = splitRow(line);
+    if (cells.length < 4) continue; // not enough columns — skip
     rows.push({
-      id: (cells[idIdx] || '').trim(),
-      ime: (cells[imeIdx] || '').trim(),
-      prezime: (cells[prezimeIdx] || '').trim(),
-      indeks: (cells[indeksIdx] || '').trim(),
+      id: (cells[0] || '').trim(),
+      ime: (cells[1] || '').trim(),
+      prezime: (cells[2] || '').trim(),
+      indeks: (cells[3] || '').trim(),
     });
   }
+  if (rows.length === 0) return { error: 'No valid rows (each row needs at least id, firstname, lastname, indeks)' };
   return { rows };
 }
 

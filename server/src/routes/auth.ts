@@ -36,9 +36,13 @@ router.post('/login', async (req: Request, res: Response) => {
       index_number: user.index_number || undefined,
     });
 
+    // Mark "Secure" only when the request was actually delivered over HTTPS
+    // (directly or via a TLS-terminating proxy). Hard-coding NODE_ENV breaks
+    // local prod-mode containers served on plain http://localhost.
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
     res.cookie(SESSION_COOKIE, cookie, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       maxAge: DEFAULT_TTL_MS,
       path: '/',

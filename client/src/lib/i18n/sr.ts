@@ -316,6 +316,7 @@ const sr: Record<string, string> = {
   'join.connectionError': 'Nije moguce povezivanje sa serverom.',
   'join.joinFailed': 'Pristup neuspesan.',
   'join.networkError': 'Greska u mrezi. Pokusajte ponovo.',
+  'join.indexInUse': 'Ovaj indeks je vec u upotrebi na drugom uredjaju za ovaj ispit.',
 
   // Awaiting approval (late join)
   'exam.awaitingApproval.title': 'Cekanje odobrenja',
