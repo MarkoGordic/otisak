@@ -286,6 +286,27 @@ const en: Record<string, string> = {
   'join.joinFailed': 'Failed to join.',
   'join.networkError': 'Network error. Please try again.',
 
+  // Awaiting approval (late join)
+  'exam.awaitingApproval.title': 'Awaiting approval',
+  'exam.awaitingApproval.body': 'Your request has been sent to the assistant. You will be redirected as soon as it is approved.',
+  'exam.awaitingApproval.pill': 'Pending request',
+  'exam.awaitingApproval.dontClose': 'Do not close this window',
+
+  // Room (admin) — requests + timer adjust
+  'room.requests.title': 'Join requests',
+  'room.requests.empty': 'No pending requests.',
+  'room.requests.late_join': 'Late join',
+  'room.requests.approve': 'Approve',
+  'room.requests.deny': 'Deny',
+  'room.timer.title': 'Timer adjustment',
+  'room.timer.desc': 'Add or subtract time for all students in the running exam.',
+  'room.timer.add': 'Add',
+  'room.timer.subtract': 'Subtract',
+  'room.timer.minute': 'min',
+  'room.timer.adjusted': 'Timer adjusted',
+  'room.timer.failed': 'Timer adjustment failed.',
+  'room.timer.currentExtra': 'Current adjustment: {value}s',
+
   // Lockdown / pause
   'lockdown.title': 'PAUSED',
   'lockdown.body': 'The assistant has temporarily paused work. Please wait for further instruction.',
@@ -312,6 +333,9 @@ const en: Record<string, string> = {
   'home.minutes': 'minutes',
   'home.inProgress': 'In progress',
   'home.waiting': 'Waiting',
+
+  // Footer
+  'footer.warning': 'Cheating is strictly prohibited. All activity is monitored and logged. Violations result in disciplinary action.',
 
   // Common
   'common.cancel': 'Cancel',

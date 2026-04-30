@@ -4,10 +4,12 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, Users, Play, Copy, Check, Clock, Link2, UserCheck, ArrowLeft,
   Fingerprint, AlertTriangle, Radio, ShieldOff, ShieldAlert, FileText,
+  Plus, Minus, X, UserPlus, Timer as TimerIcon,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useLang } from '../components/LangProvider';
+import { useExamSocket } from '../lib/useExamSocket';
 
 type Participant = {
   user_id: string;
@@ -41,6 +43,13 @@ export default function ExamRoomPage() {
   const [started, setStarted] = useState(false);
   const [locked, setLocked] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [requests, setRequests] = useState<Array<{
+    id: string; user_id: string; type: string; created_at: string;
+    user_name: string | null; user_email: string; user_index_number: string | null;
+  }>>([]);
+  const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [extraSeconds, setExtraSeconds] = useState(0);
+  const [adjusting, setAdjusting] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const joinLink = `${window.location.origin}/join/${examId}`;
@@ -53,16 +62,31 @@ export default function ExamRoomPage() {
       setExam(data.exam);
       setParticipants(data.participants || []);
       if (data.exam?.exam_started_at) setStarted(true);
-      // Check lockdown status
+      // Check lockdown status + room-status (extra_seconds)
       try {
-        const lockRes = await fetch(`/api/otisak/exams/${examId}/lockdown`);
+        const [lockRes, statusRes, reqRes] = await Promise.all([
+          fetch(`/api/otisak/exams/${examId}/lockdown`),
+          fetch(`/api/otisak/exams/${examId}/room-status`),
+          fetch(`/api/otisak/exams/${examId}/requests`, { credentials: 'include' }),
+        ]);
         if (lockRes.ok) { const ld = await lockRes.json(); setLocked(!!ld.lockdown?.is_active); }
+        if (statusRes.ok) { const st = await statusRes.json(); setExtraSeconds(Number(st.extra_seconds || 0)); }
+        if (reqRes.ok) { const rq = await reqRes.json(); setRequests(rq.requests || []); }
       } catch {}
     } catch { navigate('/manage'); }
     finally { setLoading(false); }
   }, [examId, navigate]);
 
   useEffect(() => { loadRoom(); }, [loadRoom]);
+
+  // Live push channel: instant refresh on student requests, lockdown, timer changes.
+  useExamSocket(examId, useCallback((evt) => {
+    if (evt.type === 'request.created' || evt.type === 'request.decided' || evt.type === 'lockdown.changed' || evt.type === 'exam.started') {
+      loadRoom();
+    } else if (evt.type === 'timer.adjusted') {
+      setExtraSeconds(Number(evt.extra_seconds || 0));
+    }
+  }, [loadRoom]));
 
   // Poll for new participants every 3 seconds
   useEffect(() => {
@@ -324,6 +348,139 @@ export default function ExamRoomPage() {
               {locked ? t('lockdown.button.resume') : t('lockdown.button.pause')}
             </Button>
           </motion.div>
+        )}
+
+        {/* Pending requests + timer adjust — only useful once exam has started */}
+        {started && (
+          <>
+            {/* REQUESTS */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.05 }}
+              className="mt-6 rounded-xl border border-blue-500/15 bg-[#131520]/80 p-5"
+            >
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <UserPlus size={16} className="text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-200">{t('room.requests.title')}</p>
+                  <p className="text-xs text-gray-500">{requests.length === 0 ? t('room.requests.empty') : `${requests.length}`}</p>
+                </div>
+              </div>
+
+              {requests.length > 0 && (
+                <div className="space-y-2">
+                  {requests.map((r) => (
+                    <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm text-white truncate">{r.user_name || r.user_email}</span>
+                          {r.user_index_number && (
+                            <span className="text-[11px] font-mono text-blue-300/80">{r.user_index_number}</span>
+                          )}
+                          <span className="text-[10px] uppercase tracking-widest text-amber-400/80 px-2 py-0.5 rounded-full bg-amber-500/[0.08] border border-amber-500/20">
+                            {t(`room.requests.${r.type}`) || r.type}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">{new Date(r.created_at).toLocaleTimeString('sr-RS')}</p>
+                      </div>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        loading={decidingId === r.id}
+                        leftIcon={<Check size={14} />}
+                        onClick={async () => {
+                          setDecidingId(r.id);
+                          try {
+                            const res = await fetch(`/api/otisak/exams/${examId}/requests/${r.id}/decide`, {
+                              method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                              body: JSON.stringify({ decision: 'approved' }),
+                            });
+                            if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
+                            else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); loadRoom(); }
+                          } finally { setDecidingId(null); }
+                        }}
+                      >
+                        {t('room.requests.approve')}
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        loading={decidingId === r.id}
+                        leftIcon={<X size={14} />}
+                        onClick={async () => {
+                          setDecidingId(r.id);
+                          try {
+                            const res = await fetch(`/api/otisak/exams/${examId}/requests/${r.id}/decide`, {
+                              method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                              body: JSON.stringify({ decision: 'denied' }),
+                            });
+                            if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
+                            else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); }
+                          } finally { setDecidingId(null); }
+                        }}
+                      >
+                        {t('room.requests.deny')}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* TIMER ADJUSTMENT */}
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="mt-4 rounded-xl border border-blue-500/15 bg-[#131520]/80 p-5"
+            >
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
+                  <TimerIcon size={16} className="text-blue-400" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-gray-200">{t('room.timer.title')}</p>
+                  <p className="text-xs text-gray-500">{t('room.timer.desc')}</p>
+                </div>
+                <span className="text-[11px] font-mono text-amber-300/80 whitespace-nowrap">
+                  {t('room.timer.currentExtra', { value: extraSeconds })}
+                </span>
+              </div>
+
+              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {[
+                  { label: '−5', delta: -5 * 60, variant: 'danger' as const, icon: <Minus size={14} /> },
+                  { label: '−1', delta: -1 * 60, variant: 'danger' as const, icon: <Minus size={14} /> },
+                  { label: '+1', delta: +1 * 60, variant: 'primary' as const, icon: <Plus size={14} /> },
+                  { label: '+5', delta: +5 * 60, variant: 'primary' as const, icon: <Plus size={14} /> },
+                ].map((b) => (
+                  <Button
+                    key={b.label}
+                    variant={b.variant}
+                    size="md"
+                    loading={adjusting}
+                    leftIcon={b.icon}
+                    onClick={async () => {
+                      setAdjusting(true);
+                      try {
+                        const res = await fetch(`/api/otisak/exams/${examId}/adjust-timer`, {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                          body: JSON.stringify({ delta_seconds: b.delta }),
+                        });
+                        if (!res.ok) { const d = await res.json(); alert(d.error || t('room.timer.failed')); }
+                        else { const d = await res.json(); setExtraSeconds(Number(d.extra_seconds || 0)); }
+                      } finally { setAdjusting(false); }
+                    }}
+                  >
+                    {b.label} {t('room.timer.minute')}
+                  </Button>
+                ))}
+              </div>
+            </motion.div>
+          </>
         )}
       </main>
     </div>
