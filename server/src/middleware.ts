@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { parseSessionCookie, SESSION_COOKIE } from './session';
 import { findUserById } from './db/users';
 import type { User } from './db/types';
+import { markSessionActive } from './session-tracker';
 
 declare global {
   namespace Express {
@@ -29,6 +30,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     }
 
     req.user = user;
+    // Keep the per-user session tracker warm so /join can detect another
+    // device trying to take over while this user is mid-exam.
+    markSessionActive(user.id, session.id);
     next();
   } catch (error) {
     console.error('Auth middleware error:', error);

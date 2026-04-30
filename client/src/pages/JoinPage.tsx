@@ -95,7 +95,11 @@ export default function JoinExamPage() {
       const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || t('join.joinFailed'));
+        if (data.code === 'INDEX_IN_USE') {
+          setError(t('join.indexInUse'));
+        } else {
+          setError(data.error || t('join.joinFailed'));
+        }
         setPhase('index-entry');
         return;
       }

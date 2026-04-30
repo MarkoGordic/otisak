@@ -316,6 +316,7 @@ const en: Record<string, string> = {
   'join.connectionError': 'Could not connect to exam server.',
   'join.joinFailed': 'Failed to join.',
   'join.networkError': 'Network error. Please try again.',
+  'join.indexInUse': 'This index is already in use on another device for this exam.',
 
   // Awaiting approval (late join)
   'exam.awaitingApproval.title': 'Awaiting approval',

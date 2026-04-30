@@ -33,7 +33,8 @@ import {
 import { findUserById, findUserByIndexNumber } from '../db/users';
 import { query } from '../db/client';
 import { broadcastExamEvent } from '../ws/events';
-import { createSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
+import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
+import { markSessionActive, isLockedByOtherSession } from '../session-tracker';
 import { requireAuth, requireRole } from '../middleware';
 
 const router = Router({ mergeParams: true });
@@ -734,6 +735,24 @@ router.post('/join', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'User not found' });
     }
 
+    // No-double-login enforcement, scoped to ACTIVE TEST RUNS only.
+    // If the student already has an unsubmitted attempt and another browser
+    // is currently driving it, reject the second /join. The lobby phase
+    // (no attempt yet) stays unrestricted so a student can switch devices
+    // before the exam starts.
+    const existingActive = await getActiveAttempt(examId, fullUser.id);
+    if (existingActive) {
+      const incomingCookie = req.cookies?.[SESSION_COOKIE];
+      const incomingSession = incomingCookie ? parseSessionCookie(incomingCookie) : null;
+      const incomingSessionId = incomingSession?.id ?? null;
+      if (isLockedByOtherSession(fullUser.id, incomingSessionId)) {
+        return res.status(409).json({
+          error: 'Index already in use on another device for this exam.',
+          code: 'INDEX_IN_USE',
+        });
+      }
+    }
+
     const cookie = createSessionCookie({
       id: fullUser.id,
       email: fullUser.email,
@@ -742,13 +761,19 @@ router.post('/join', async (req: Request, res: Response) => {
       index_number: fullUser.index_number || undefined,
     });
 
+    const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
     res.cookie(SESSION_COOKIE, cookie, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isHttps,
       sameSite: 'lax',
       maxAge: DEFAULT_TTL_MS,
       path: '/',
     });
+
+    // Mark this user's session active so the next /join from a different
+    // browser is blocked while this one is taking the exam.
+    const newSession = parseSessionCookie(cookie);
+    if (newSession) markSessionActive(fullUser.id, newSession.id);
 
     // Late-join detection: if the admin has already started the exam,
     // submit a late_join request that the admin must approve.
