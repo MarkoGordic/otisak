@@ -2,8 +2,9 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Loader2, Plus, Trash2, Search, BookOpen, Tag, FileText, Code, Image, MessageSquare,
+  Loader2, Plus, Trash2, Search, BookOpen, Tag, FileText, Code, Image, MessageSquare, Upload,
 } from 'lucide-react';
+import { CodeBlock } from '../components/otisak';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { Badge } from '../components/ui/Badge';
@@ -45,6 +46,7 @@ export default function QuestionBankPage() {
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
+  const [allTags, setAllTags] = useState<string[]>([]);
 
   // Create form
   const [showCreate, setShowCreate] = useState(false);
@@ -52,6 +54,10 @@ export default function QuestionBankPage() {
   const [newType, setNewType] = useState('text');
   const [newPoints, setNewPoints] = useState('1');
   const [newTags, setNewTags] = useState('');
+  const [newCodeSnippet, setNewCodeSnippet] = useState('');
+  const [newCodeLanguage, setNewCodeLanguage] = useState('python');
+  const [newImageUrl, setNewImageUrl] = useState(''); // either http(s) URL or data:image/...
+  const [imageError, setImageError] = useState('');
   const [newAnswers, setNewAnswers] = useState([
     { text: '', is_correct: true },
     { text: '', is_correct: false },
@@ -92,13 +98,42 @@ export default function QuestionBankPage() {
       const d = await res.json();
       setQuestions(d.questions || []);
       setTotal(d.total || 0);
+      // Refresh global tag list when no tag filter is applied so chips don't collapse mid-filter.
+      if (!tagFilter) {
+        const seen = new Set<string>();
+        for (const q of d.questions || []) for (const tag of (q.tags as string[] | undefined) || []) seen.add(tag);
+        setAllTags(Array.from(seen).sort());
+      }
     }
   }, [selectedSubject, search, typeFilter, tagFilter]);
 
   useEffect(() => { loadQuestions(); }, [loadQuestions]);
 
+  const resetForm = () => {
+    setNewText('');
+    setNewTags('');
+    setNewCodeSnippet('');
+    setNewCodeLanguage('python');
+    setNewImageUrl('');
+    setImageError('');
+    setNewAnswers([
+      { text: '', is_correct: true },
+      { text: '', is_correct: false },
+      { text: '', is_correct: false },
+      { text: '', is_correct: false },
+    ]);
+  };
+
   const handleCreate = async () => {
     if (!newText.trim() || !selectedSubject) return;
+    if (newType === 'code' && !newCodeSnippet.trim()) {
+      alert(t('questions.codeRequired'));
+      return;
+    }
+    if (newType === 'image' && !newImageUrl.trim()) {
+      alert(t('questions.imageRequired'));
+      return;
+    }
     setCreating(true);
     try {
       const res = await fetch('/api/otisak/questions', {
@@ -111,14 +146,15 @@ export default function QuestionBankPage() {
           text: newText,
           points: parseInt(newPoints) || 1,
           tags: newTags.split(',').map(t => t.trim()).filter(Boolean),
+          code_snippet: newType === 'code' ? newCodeSnippet : null,
+          code_language: newType === 'code' ? (newCodeLanguage || null) : null,
+          image_url: newType === 'image' ? newImageUrl : null,
           answers: newType === 'open_text' ? [] : newAnswers.filter(a => a.text.trim()),
         }),
       });
       if (res.ok) {
         setShowCreate(false);
-        setNewText('');
-        setNewTags('');
-        setNewAnswers([{ text: '', is_correct: true }, { text: '', is_correct: false }, { text: '', is_correct: false }, { text: '', is_correct: false }]);
+        resetForm();
         loadQuestions();
       } else {
         const d = await res.json();
@@ -126,6 +162,26 @@ export default function QuestionBankPage() {
       }
     } catch { alert('Error'); }
     finally { setCreating(false); }
+  };
+
+  const handleImageFile = (file: File | null) => {
+    setImageError('');
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setImageError(t('questions.imageInvalidType'));
+      return;
+    }
+    if (file.size > 4 * 1024 * 1024) { // 4 MB cap — fits within the server's 5 MB JSON limit with overhead
+      setImageError(t('questions.imageTooBig'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result === 'string') setNewImageUrl(result);
+    };
+    reader.onerror = () => setImageError(t('questions.imageReadFailed'));
+    reader.readAsDataURL(file);
   };
 
   const handleDelete = async (id: string) => {
@@ -196,6 +252,51 @@ export default function QuestionBankPage() {
               </div>
             </div>
 
+            {/* Tag chips — clickable filter, derived from full subject tag set */}
+            {(() => {
+              const tags = allTags;
+              if (tags.length === 0 && !tagFilter) return null;
+              return (
+                <div className="flex flex-wrap items-center gap-2 mb-6">
+                  <Tag size={12} className="text-[var(--text-muted)]" />
+                  <button
+                    type="button"
+                    onClick={() => setTagFilter('')}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                      tagFilter === ''
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-default)] hover:border-[var(--text-muted)]'
+                    }`}
+                  >
+                    {t('questions.allTags')}
+                  </button>
+                  {tags.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
+                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                        tagFilter === tag
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-default)] hover:border-[var(--text-muted)]'
+                      }`}
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                  {tagFilter && !tags.includes(tagFilter) && (
+                    <button
+                      type="button"
+                      onClick={() => setTagFilter('')}
+                      className="text-xs px-2.5 py-1 rounded-full bg-accent text-white border border-accent"
+                    >
+                      {tagFilter} <span aria-hidden>×</span>
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
+
             {/* Questions List */}
             {subjects.length === 0 ? (
               <EmptyState icon={<BookOpen size={32} strokeWidth={1.5} />} title={t('questions.noSubjects')} description={t('questions.noSubjectsDesc')} />
@@ -241,7 +342,7 @@ export default function QuestionBankPage() {
       {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+          <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('questions.addTitle')}</h2>
             <div className="space-y-4">
               <div>
@@ -258,6 +359,97 @@ export default function QuestionBankPage() {
                 <textarea value={newText} onChange={(e) => setNewText(e.target.value)}
                   className="w-full h-24 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none" placeholder="Enter question..." />
               </div>
+
+              {/* Code question: snippet + language picker + live highlight preview */}
+              {newType === 'code' && (
+                <>
+                  <div className="grid grid-cols-3 gap-3 items-end">
+                    <div className="col-span-2">
+                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('questions.codeSnippet')}</label>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">{t('questions.codeLanguage')}</label>
+                      <Dropdown
+                        options={[
+                          { value: 'python', label: 'Python' },
+                          { value: 'javascript', label: 'JavaScript' },
+                          { value: 'typescript', label: 'TypeScript' },
+                          { value: 'java', label: 'Java' },
+                          { value: 'csharp', label: 'C#' },
+                          { value: 'cpp', label: 'C++' },
+                          { value: 'c', label: 'C' },
+                          { value: 'sql', label: 'SQL' },
+                          { value: 'bash', label: 'Bash' },
+                          { value: 'go', label: 'Go' },
+                          { value: 'rust', label: 'Rust' },
+                          { value: 'php', label: 'PHP' },
+                          { value: 'ruby', label: 'Ruby' },
+                          { value: 'html', label: 'HTML' },
+                          { value: 'css', label: 'CSS' },
+                          { value: 'json', label: 'JSON' },
+                          { value: 'xml', label: 'XML' },
+                          { value: 'yaml', label: 'YAML' },
+                          { value: '', label: t('questions.codeLanguageAuto') },
+                        ]}
+                        value={newCodeLanguage}
+                        onChange={setNewCodeLanguage}
+                      />
+                    </div>
+                  </div>
+                  <textarea
+                    value={newCodeSnippet}
+                    onChange={(e) => setNewCodeSnippet(e.target.value)}
+                    spellCheck={false}
+                    className="w-full h-44 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[#0d1117] text-gray-200 text-xs font-mono resize-y"
+                    placeholder={'def add(a, b):\n    return a + b'}
+                  />
+                  {newCodeSnippet.trim() && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">{t('questions.codePreview')}</p>
+                      <CodeBlock code={newCodeSnippet} language={newCodeLanguage || undefined} />
+                    </div>
+                  )}
+                </>
+              )}
+
+              {/* Image question: file upload OR pasted URL + preview */}
+              {newType === 'image' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-[var(--text-secondary)]">{t('questions.imageSection')}</label>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 h-10 px-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors">
+                      <Upload size={14} />
+                      {t('questions.imageUpload')}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageFile(e.target.files?.[0] || null)}
+                      />
+                    </label>
+                    <input
+                      value={newImageUrl.startsWith('data:') ? '' : newImageUrl}
+                      onChange={(e) => { setImageError(''); setNewImageUrl(e.target.value); }}
+                      className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                      placeholder={t('questions.imageUrlPlaceholder')}
+                    />
+                  </div>
+                  {imageError && <p className="text-xs text-danger">{imageError}</p>}
+                  {newImageUrl && (
+                    <div className="mt-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] p-2">
+                      <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">{t('questions.imagePreview')}</p>
+                      <img
+                        src={newImageUrl}
+                        alt="Preview"
+                        className="max-h-60 max-w-full rounded-md mx-auto block"
+                        onError={() => setImageError(t('questions.imageInvalidUrl'))}
+                      />
+                      <button type="button" onClick={() => { setNewImageUrl(''); setImageError(''); }} className="mt-2 text-xs text-danger hover:underline">{t('questions.imageClear')}</button>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Points</label>

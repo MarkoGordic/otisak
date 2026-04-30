@@ -36,6 +36,22 @@ export default function HomePage() {
     }
   }, []);
 
+  // Admin/assistant: this isn't a meaningful screen — push them to the dashboard.
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (mounted && data.authenticated && (data.user?.role === 'admin' || data.user?.role === 'assistant')) {
+          navigate('/dashboard', { replace: true });
+        }
+      } catch { /* student or unauthenticated — stay on the picker */ }
+    })();
+    return () => { mounted = false; };
+  }, [navigate]);
+
   useEffect(() => {
     load();
     const interval = setInterval(() => load(), 5000);

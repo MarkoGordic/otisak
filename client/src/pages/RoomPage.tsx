@@ -126,41 +126,45 @@ export default function ExamRoomPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] flex flex-col relative overflow-hidden">
-      {/* Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_0%_50%,_rgba(59,130,246,0.1),_transparent_50%)] blur-[120px]" />
-        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_100%_50%,_rgba(59,130,246,0.1),_transparent_50%)] blur-[120px]" />
-      </div>
-
+    <div className="min-h-screen bg-[var(--bg-secondary)] flex flex-col">
       {/* Header */}
-      <header className="w-full bg-gradient-to-b from-[#0d0f1a] to-[#0a0c16] border-b border-blue-500/10 px-4 sm:px-6 py-4 z-20">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button onClick={() => navigate('/manage')} className="p-2 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition-colors">
+      <header className="w-full bg-[var(--bg-elevated)] border-b border-[var(--border-default)] px-4 sm:px-6 py-4 z-20 sticky top-0">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <button
+              onClick={() => navigate('/manage')}
+              className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+              aria-label="Back"
+            >
               <ArrowLeft size={20} />
             </button>
-            <div className="flex items-center gap-3">
-              <Fingerprint className="w-8 h-8 text-blue-500" strokeWidth={1.5} />
-              <div>
-                <h1 className="text-lg font-semibold text-white">{exam?.title || t('room.title')}</h1>
-                <div className="flex items-center gap-2 text-xs text-gray-500">
-                  {exam?.subject_name && <span>{exam.subject_name}</span>}
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
+                <Fingerprint className="w-5 h-5 text-accent" strokeWidth={1.75} />
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-lg font-display font-bold text-[var(--text-primary)] truncate">
+                  {exam?.title || t('room.title')}
+                </h1>
+                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] truncate">
+                  {exam?.subject_name && <span className="truncate">{exam.subject_name}</span>}
+                  <span>·</span>
                   <span>{exam?.duration_minutes}min</span>
-                  <span>{exam?.question_count} questions</span>
+                  <span>·</span>
+                  <span>{exam?.question_count} {t('questions.title').toLowerCase()}</span>
                 </div>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-shrink-0">
             {started ? (
               <Badge variant="success" size="md" dot>{t('room.running')}</Badge>
             ) : (
@@ -170,44 +174,47 @@ export default function ExamRoomPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 z-10">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 z-10 w-full">
         {/* Join Link Card */}
         {!started && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="bg-[#131520]/80 border border-blue-500/20 rounded-xl p-5 mb-6 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-5 mb-6"
+          >
             <div className="flex items-center gap-2 mb-3">
-              <Link2 size={16} className="text-blue-400" />
-              <span className="text-sm font-medium text-white">{t('room.joinLink')}</span>
+              <Link2 size={16} className="text-accent" />
+              <span className="text-sm font-medium text-[var(--text-primary)]">{t('room.joinLink')}</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex-1 bg-[#0a0c10]/80 border border-gray-700/50 rounded-lg px-4 py-3 font-mono text-sm text-blue-300 truncate">
+              <div className="flex-1 bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] rounded-lg px-4 py-3 font-mono text-sm text-accent truncate">
                 {joinLink}
               </div>
               <button
                 onClick={handleCopyLink}
-                className={`px-4 py-3 rounded-lg font-medium text-sm transition-all flex items-center gap-2 ${
+                className={`px-4 py-3 rounded-lg font-medium text-sm transition-all flex items-center gap-2 border ${
                   copied
-                    ? 'bg-green-500/20 border border-green-500/30 text-green-400'
-                    : 'bg-blue-600 hover:bg-blue-500 text-white'
+                    ? 'bg-success-light border-[var(--border-default)] text-success'
+                    : 'bg-accent border-accent hover:bg-accent-hover text-white'
                 }`}
               >
                 {copied ? <><Check size={16} />{t('room.copied')}</> : <><Copy size={16} />{t('room.copy')}</>}
               </button>
             </div>
-            <p className="text-[11px] text-gray-500 mt-2">{t('room.joinLinkDesc')}</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-2">{t('room.joinLinkDesc')}</p>
           </motion.div>
         )}
 
         {/* Stats + Start */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 px-4 py-2 bg-[#131520]/80 border border-blue-500/10 rounded-lg">
-              <Users size={16} className="text-blue-400" />
-              <span className="text-white font-mono text-lg font-bold">{participants.length}</span>
-              <span className="text-gray-500 text-sm">{t('room.joined')}</span>
+        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg">
+              <Users size={16} className="text-accent" />
+              <span className="text-[var(--text-primary)] font-mono text-lg font-bold">{participants.length}</span>
+              <span className="text-[var(--text-muted)] text-sm">{t('room.joined')}</span>
             </div>
             {!started && (
-              <div className="flex items-center gap-2 text-xs text-gray-500">
-                <Radio size={12} className="text-green-400 animate-pulse" />
+              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                <Radio size={12} className="text-success animate-pulse" />
                 {t('room.liveRefresh')}
               </div>
             )}
@@ -220,7 +227,6 @@ export default function ExamRoomPage() {
               leftIcon={<Play size={18} className="fill-current" />}
               loading={starting}
               onClick={handleStartExam}
-              className="shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)]"
             >
               {t('room.startExam')}
             </Button>
@@ -228,20 +234,21 @@ export default function ExamRoomPage() {
         </div>
 
         {/* Participants List */}
-        <div className="bg-[#131520]/80 border border-blue-500/10 rounded-xl overflow-hidden backdrop-blur-sm">
-          <div className="flex items-center px-5 py-3 bg-[#0d0f1a] border-b border-blue-500/10 text-xs font-semibold uppercase tracking-wider text-gray-500">
+        <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl overflow-hidden">
+          <div className="flex items-center px-5 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
             <div className="w-8">#</div>
             <div className="flex-1">{t('room.student')}</div>
             <div className="w-40 hidden sm:block">{t('room.indexNumber')}</div>
             <div className="w-32 hidden md:block">{t('room.joinedAt')}</div>
             <div className="w-20 text-center">{t('room.status')}</div>
+            {started && <div className="w-10" />}
           </div>
 
           {participants.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Users className="w-12 h-12 text-gray-700 mb-3" />
-              <p className="text-gray-500 text-sm mb-1">{t('room.noStudents')}</p>
-              <p className="text-gray-600 text-xs">{t('room.noStudentsDesc')}</p>
+              <Users className="w-12 h-12 text-[var(--text-muted)] mb-3" />
+              <p className="text-[var(--text-secondary)] text-sm mb-1">{t('room.noStudents')}</p>
+              <p className="text-[var(--text-muted)] text-xs">{t('room.noStudentsDesc')}</p>
             </div>
           ) : (
             <AnimatePresence>
@@ -251,29 +258,32 @@ export default function ExamRoomPage() {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: idx * 0.03 }}
-                  className="flex items-center px-5 py-3 border-b border-white/[0.03] last:border-0 hover:bg-white/[0.02] transition-colors"
+                  className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
                 >
-                  <div className="w-8 text-gray-600 font-mono text-xs">{idx + 1}</div>
+                  <div className="w-8 text-[var(--text-muted)] font-mono text-xs">{idx + 1}</div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-white truncate block">{p.name || p.email}</span>
-                    {p.name && <span className="text-[11px] text-gray-500 block">{p.email}</span>}
+                    <span className="text-sm text-[var(--text-primary)] truncate block">{p.name || p.email}</span>
+                    {p.name && <span className="text-[11px] text-[var(--text-muted)] block">{p.email}</span>}
                   </div>
                   <div className="w-40 hidden sm:block">
-                    <span className="font-mono text-xs text-blue-300">{p.index_number || '-'}</span>
+                    <span className="font-mono text-xs text-accent">{p.index_number || '-'}</span>
                   </div>
-                  <div className="w-32 hidden md:block text-[11px] text-gray-500">
+                  <div className="w-32 hidden md:block text-[11px] text-[var(--text-muted)]">
                     {new Date(p.enrolled_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </div>
                   <div className="w-20 flex justify-center">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-                      <span className="text-[10px] text-green-400/80 uppercase font-medium">{t('room.ready')}</span>
+                      <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                      <span className="text-[10px] text-success uppercase font-medium">{t('room.ready')}</span>
                     </div>
                   </div>
                   {started && (
                     <div className="w-10 flex justify-center">
-                      <button onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
-                        className="p-1.5 rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors" title="Izvestaj">
+                      <button
+                        onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
+                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent hover:bg-accent-light transition-colors"
+                        title={t('room.requests.title')}
+                      >
                         <FileText size={14} />
                       </button>
                     </div>
@@ -286,13 +296,18 @@ export default function ExamRoomPage() {
 
         {/* Started notice */}
         {started && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-6 bg-green-500/10 border border-green-500/20 rounded-xl p-5 flex items-center gap-4">
-            <div className="w-10 h-10 rounded-full bg-green-500/20 flex items-center justify-center flex-shrink-0">
-              <Play size={20} className="text-green-400 fill-current" />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="mt-6 bg-success-light border border-[var(--border-default)] rounded-xl p-5 flex items-center gap-4"
+          >
+            <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center flex-shrink-0">
+              <Play size={20} className="text-success fill-current" />
             </div>
             <div className="flex-1">
-              <p className="text-green-300 font-medium">{t('room.examRunning')}</p>
-              <p className="text-green-400/60 text-xs">Started at {exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : 'now'}. Timer is active for all students.</p>
+              <p className="text-success font-medium">{t('room.examRunning')}</p>
+              <p className="text-[var(--text-secondary)] text-xs">
+                {t('room.startedAt', { time: exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : '—' })}
+              </p>
             </div>
           </motion.div>
         )}
@@ -302,24 +317,24 @@ export default function ExamRoomPage() {
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
             className={`mt-4 rounded-xl border p-5 flex items-center justify-between ${
               locked
-                ? 'bg-amber-500/[0.08] border-amber-500/25'
-                : 'bg-[#131520]/80 border-blue-500/10'
+                ? 'bg-accent-light border-[var(--border-default)]'
+                : 'bg-[var(--bg-elevated)] border-[var(--border-default)]'
             }`}
           >
             <div className="flex items-center gap-4">
               <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                locked ? 'bg-amber-500/15' : 'bg-gray-700/50'
+                locked ? 'bg-accent/15' : 'bg-[var(--bg-tertiary)]'
               }`}>
                 {locked
-                  ? <ShieldAlert size={20} className="text-amber-400" />
-                  : <ShieldOff size={20} className="text-gray-400" />
+                  ? <ShieldAlert size={20} className="text-accent" />
+                  : <ShieldOff size={20} className="text-[var(--text-muted)]" />
                 }
               </div>
               <div>
-                <p className={`font-medium ${locked ? 'text-amber-200' : 'text-gray-300'}`}>
+                <p className={`font-medium ${locked ? 'text-accent' : 'text-[var(--text-primary)]'}`}>
                   {t('lockdown.title.short')}
                 </p>
-                <p className={`text-xs ${locked ? 'text-amber-300/70' : 'text-gray-500'}`}>
+                <p className={`text-xs ${locked ? 'text-accent-muted' : 'text-[var(--text-muted)]'}`}>
                   {locked ? t('lockdown.desc.active') : t('lockdown.desc.idle')}
                 </p>
               </div>
@@ -358,33 +373,33 @@ export default function ExamRoomPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.05 }}
-              className="mt-6 rounded-xl border border-blue-500/15 bg-[#131520]/80 p-5"
+              className="mt-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
             >
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <UserPlus size={16} className="text-blue-400" />
+                <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
+                  <UserPlus size={16} className="text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-200">{t('room.requests.title')}</p>
-                  <p className="text-xs text-gray-500">{requests.length === 0 ? t('room.requests.empty') : `${requests.length}`}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{t('room.requests.title')}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{requests.length === 0 ? t('room.requests.empty') : `${requests.length}`}</p>
                 </div>
               </div>
 
               {requests.length > 0 && (
                 <div className="space-y-2">
                   {requests.map((r) => (
-                    <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
+                    <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm text-white truncate">{r.user_name || r.user_email}</span>
+                          <span className="text-sm text-[var(--text-primary)] truncate">{r.user_name || r.user_email}</span>
                           {r.user_index_number && (
-                            <span className="text-[11px] font-mono text-blue-300/80">{r.user_index_number}</span>
+                            <span className="text-[11px] font-mono text-accent">{r.user_index_number}</span>
                           )}
-                          <span className="text-[10px] uppercase tracking-widest text-amber-400/80 px-2 py-0.5 rounded-full bg-amber-500/[0.08] border border-amber-500/20">
+                          <span className="text-[10px] uppercase tracking-widest text-accent px-2 py-0.5 rounded-full bg-accent-light border border-[var(--border-default)]">
                             {t(`room.requests.${r.type}`) || r.type}
                           </span>
                         </div>
-                        <p className="text-[11px] text-gray-500 mt-0.5">{new Date(r.created_at).toLocaleTimeString('sr-RS')}</p>
+                        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{new Date(r.created_at).toLocaleTimeString('sr-RS')}</p>
                       </div>
                       <Button
                         variant="primary"
@@ -435,17 +450,17 @@ export default function ExamRoomPage() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.1 }}
-              className="mt-4 rounded-xl border border-blue-500/15 bg-[#131520]/80 p-5"
+              className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
             >
               <div className="flex items-center gap-3 mb-1">
-                <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center">
-                  <TimerIcon size={16} className="text-blue-400" />
+                <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
+                  <TimerIcon size={16} className="text-accent" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-gray-200">{t('room.timer.title')}</p>
-                  <p className="text-xs text-gray-500">{t('room.timer.desc')}</p>
+                  <p className="text-sm font-medium text-[var(--text-primary)]">{t('room.timer.title')}</p>
+                  <p className="text-xs text-[var(--text-muted)]">{t('room.timer.desc')}</p>
                 </div>
-                <span className="text-[11px] font-mono text-amber-300/80 whitespace-nowrap">
+                <span className={`text-[11px] font-mono whitespace-nowrap ${extraSeconds === 0 ? 'text-[var(--text-muted)]' : extraSeconds > 0 ? 'text-success' : 'text-danger'}`}>
                   {t('room.timer.currentExtra', { value: extraSeconds })}
                 </span>
               </div>
