@@ -103,8 +103,45 @@ HOST=$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'localhost')
 echo "App running at: http://${HOST}:3000"
 echo "WebSocket at:   ws://${HOST}:3000/ws"
 echo ""
-if [ "$CLEAN" = true ]; then
-  echo "First-time admin password is printed in the container logs:"
-  echo "  docker compose logs app | grep -A 3 'admin account bootstrapped'"
+
+# Wait for the app to finish booting and run ensureBootstrapAdmin(). If a fresh
+# admin was created we extract the generated password from the banner and print
+# it here so the operator does not have to grep logs by hand.
+echo "Waiting for app to finish bootstrap..."
+ADMIN_EMAIL=""
+ADMIN_PASSWORD=""
+BOOTSTRAP_SEEN=false
+for i in {1..60}; do
+  LOGS=$(docker compose logs app 2>/dev/null || true)
+  if echo "$LOGS" | grep -q 'OTISAK server running'; then
+    if echo "$LOGS" | grep -q 'admin account bootstrapped'; then
+      BOOTSTRAP_SEEN=true
+      ADMIN_EMAIL=$(echo "$LOGS"    | grep -A 3 'admin account bootstrapped' | grep 'email:'    | tail -1 | sed -E 's/.*email:[[:space:]]+//' | tr -d '\r')
+      ADMIN_PASSWORD=$(echo "$LOGS" | grep -A 3 'admin account bootstrapped' | grep 'password:' | tail -1 | sed -E 's/.*password:[[:space:]]+//' | tr -d '\r')
+      [ -n "$ADMIN_PASSWORD" ] && break
+    fi
+    # Server is up but no bootstrap banner — admin already exists. Give it
+    # one more second in case logs are still flushing, then stop waiting.
+    sleep 1
+    LOGS=$(docker compose logs app 2>/dev/null || true)
+    if ! echo "$LOGS" | grep -q 'admin account bootstrapped'; then
+      break
+    fi
+  fi
+  sleep 1
+done
+
+LINE=$(printf '=%.0s' {1..72})
+echo ""
+echo "$LINE"
+if [ "$BOOTSTRAP_SEEN" = true ] && [ -n "$ADMIN_PASSWORD" ]; then
+  echo "ADMIN ACCOUNT (newly bootstrapped — save this NOW):"
+  echo "  email:    ${ADMIN_EMAIL:-admin@otisak.local}"
+  echo "  password: ${ADMIN_PASSWORD}"
+  echo "  This password is not stored in plaintext anywhere else."
+else
+  echo "ADMIN ACCOUNT: existing admin preserved (password unchanged)."
+  echo "  To force a new password, re-run with --clean (wipes the DB)."
 fi
+echo "$LINE"
 echo ""
