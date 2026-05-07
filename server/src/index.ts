@@ -14,13 +14,27 @@ import questionsRoutes from './routes/questions';
 import historyRoutes from './routes/history';
 import { setupWebSocket } from './ws/events';
 import { ensureBootstrapAdmin } from './bootstrap';
+import { assertSessionSecretIsSafe } from './session';
+
+// Refuse to boot with an empty / known-default / too-short SESSION_SECRET.
+// Forged session cookies would otherwise let anyone impersonate an admin.
+try {
+  assertSessionSecretIsSafe();
+} catch (e) {
+  console.error('FATAL:', (e as Error).message);
+  process.exit(1);
+}
 
 const app = express();
 
 // Middleware
 app.use(cookieParser());
+// CORS: deployments run on local networks where the server IP varies. Echoing
+// the request origin (with credentials enabled) is the only way to keep both
+// the bundled SPA at the same host AND remote LAN access from any device
+// working without CLIENT_URL having to be reconfigured every time.
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:5173',
+  origin: (origin, cb) => cb(null, origin || true),
   credentials: true,
 }));
 app.use(express.json({ limit: '5mb' }));
@@ -43,6 +57,13 @@ app.get('/api/health', (_req, res) => {
 // Serve static client files in production
 const clientDist = process.env.CLIENT_DIST_PATH || path.join(__dirname, '../../client/dist');
 app.use(express.static(clientDist));
+
+// Unknown /api/* routes must be a JSON 404, not the SPA. Without this the
+// SPA fallback below would happily return index.html (HTML 200) for typo'd
+// API paths, which masks bugs and confuses programmatic clients.
+app.all('/api/*', (_req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
 
 // SPA fallback - serve index.html for all non-API routes
 app.get('*', (_req, res) => {

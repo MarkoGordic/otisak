@@ -387,16 +387,36 @@ export async function submitAttemptAnswers(
   attemptId: string,
   answers: SubmitAttemptAnswerInput[]
 ): Promise<void> {
-  const examCheck = await query<{ partial_scoring: boolean }>(
-    `SELECT e.partial_scoring
+  const examCheck = await query<{ partial_scoring: boolean; exam_id: string }>(
+    `SELECT e.partial_scoring, a.exam_id
      FROM otisak_attempts a
      JOIN otisak_exams e ON e.id = a.exam_id
      WHERE a.id = $1`,
     [attemptId]
   );
   const partialScoring = examCheck.rows[0]?.partial_scoring ?? false;
+  const attemptExamId = examCheck.rows[0]?.exam_id;
+  if (!attemptExamId) return;
 
-  for (const ans of answers) {
+  // Drop any answer whose question_id does not belong to this attempt's exam.
+  // Without this, a student could POST answers referencing a question_id from
+  // a different exam — the row would still get inserted and counted toward
+  // their score.
+  let safeAnswers = answers;
+  if (answers.length > 0) {
+    const ids = answers.map((a) => a.question_id).filter(Boolean);
+    if (ids.length > 0) {
+      const valid = await query<{ id: string }>(
+        `SELECT id FROM otisak_questions WHERE exam_id = $1 AND id = ANY($2::uuid[])`,
+        [attemptExamId, ids],
+      );
+      const validSet = new Set(valid.rows.map((r) => r.id));
+      safeAnswers = answers.filter((a) => validSet.has(a.question_id));
+      if (safeAnswers.length === 0) return;
+    }
+  }
+
+  for (const ans of safeAnswers) {
     if (ans.text_answer !== undefined && ans.text_answer !== null) {
       const qInfo = await query<{ type: string; content: string | null; points: number }>(
         `SELECT type, content, points FROM otisak_questions WHERE id = $1`,
@@ -615,15 +635,20 @@ export async function finishAttempt(
   );
   const hasAiPending = (pendingAiCheck.rows[0]?.pending_count ?? 0) > 0;
 
+  // Guard against concurrent finish (manual submit + timer expiry firing
+  // simultaneously). Only the first writer wins; the second one finds the
+  // row already submitted and returns the existing snapshot.
   const result = await query<OtisakAttempt>(
     `UPDATE otisak_attempts
      SET submitted = TRUE, finished_at = NOW(),
          total_points = $2, max_points = $3, time_spent_seconds = $4, xp_earned = 0,
          ai_grading_status = $5
-     WHERE id = $1 RETURNING *`,
+     WHERE id = $1 AND submitted = FALSE RETURNING *`,
     [attemptId, total, max, timeSpentSeconds, hasAiPending ? 'pending' : null]
   );
-  return result.rows[0];
+  if (result.rows[0]) return result.rows[0];
+  const existing = await query<OtisakAttempt>('SELECT * FROM otisak_attempts WHERE id = $1', [attemptId]);
+  return existing.rows[0];
 }
 
 export async function forceFinishAttemptById(attemptId: string): Promise<OtisakAttempt | null> {

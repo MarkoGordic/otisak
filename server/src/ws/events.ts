@@ -66,6 +66,11 @@ export function broadcastExamEvent(examId: string, event: { type: string; [k: st
 }
 
 export function setupWebSocket(server: http.Server): WebSocketServer {
+  // No origin allow-list: this app is deployed on local networks where the
+  // server's IP is whatever the host machine has, and a strict allow-list
+  // would lock out students on the LAN. The connection is still
+  // authenticated via the signed session cookie inside the upgrade request,
+  // so an attacker who can't forge a cookie can't open a session.
   const wss = new WebSocketServer({ server, path: '/ws' });
 
   wss.on('connection', async (ws, req) => {

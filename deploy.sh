@@ -66,6 +66,25 @@ echo "=== OTISAK Deploy Script ==="
 [ "$PULL"  = false ] && echo "  pull: OFF"
 echo ""
 
+# Make sure SESSION_SECRET exists in .env so docker-compose can read it.
+# The server refuses to start without a non-default 16+ character secret.
+# We generate a fresh one on first run; subsequent runs reuse the same value
+# so existing session cookies stay valid across redeploys.
+if [ ! -f .env ] || ! grep -q '^SESSION_SECRET=' .env 2>/dev/null; then
+  if command -v openssl >/dev/null 2>&1; then
+    NEW_SECRET=$(openssl rand -hex 32)
+  else
+    NEW_SECRET=$(head -c 64 /dev/urandom | od -An -tx1 | tr -d ' \n' | head -c 64)
+  fi
+  touch .env
+  if grep -q '^SESSION_SECRET=' .env 2>/dev/null; then
+    sed -i.bak '/^SESSION_SECRET=/d' .env && rm -f .env.bak
+  fi
+  echo "SESSION_SECRET=${NEW_SECRET}" >> .env
+  echo "Generated SESSION_SECRET in .env (64 hex chars)."
+fi
+
+
 # 1) Stop containers. Volume / image removal is gated on --clean.
 if [ "$CLEAN" = true ]; then
   echo "[1/6] Stopping containers AND removing volumes + images..."

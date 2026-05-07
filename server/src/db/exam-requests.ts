@@ -4,7 +4,7 @@
 
 import { query, transaction } from './client';
 import type { PoolClient } from 'pg';
-import { getOtisakExamById, enrollUserInExam, startExamAttempt, getActiveAttempt } from './otisak';
+import { getOtisakExamById, getActiveAttempt } from './otisak';
 
 export type ExamRequestType = 'late_join';
 export type ExamRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
@@ -62,14 +62,39 @@ type HandlerContext = {
 };
 
 const REQUEST_HANDLERS: Record<ExamRequestType, (ctx: HandlerContext) => Promise<void>> = {
-  late_join: async ({ request }) => {
-    const exam = await getOtisakExamById(request.exam_id);
+  late_join: async ({ client, request }) => {
+    // We MUST use the transaction's client here, not the pool. If any later
+    // step in decideExamRequest rolls back, the enroll + attempt rows must
+    // roll back together with the request status update.
+    const examRow = await client.query<{ id: string; status: string }>(
+      'SELECT id, status FROM otisak_exams WHERE id = $1 LIMIT 1',
+      [request.exam_id],
+    );
+    const exam = examRow.rows[0];
     if (!exam) throw new Error('Exam no longer exists');
     if (exam.status !== 'active') throw new Error('Exam is no longer active');
-    await enrollUserInExam(request.exam_id, request.user_id);
-    const existing = await getActiveAttempt(request.exam_id, request.user_id);
-    if (!existing) {
-      await startExamAttempt(request.exam_id, request.user_id, {});
+
+    // Enrollment is idempotent.
+    await client.query(
+      `INSERT INTO otisak_enrollments (exam_id, user_id) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [request.exam_id, request.user_id],
+    );
+
+    // Only create an attempt if the student doesn't already have a live one.
+    const existing = await client.query<{ id: string }>(
+      `SELECT id FROM otisak_attempts
+       WHERE exam_id = $1 AND user_id = $2 AND submitted = FALSE
+       ORDER BY started_at DESC LIMIT 1`,
+      [request.exam_id, request.user_id],
+    );
+    if (!existing.rows[0]) {
+      const seed = Math.floor(Math.random() * 2147483647);
+      await client.query(
+        `INSERT INTO otisak_attempts (exam_id, user_id, ip_address, user_agent, is_practice, shuffle_seed)
+         VALUES ($1, $2, NULL, NULL, FALSE, $3)`,
+        [request.exam_id, request.user_id, seed],
+      );
     }
   },
 };
