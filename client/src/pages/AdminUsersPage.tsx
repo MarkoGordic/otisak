@@ -1,14 +1,12 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
 import {
-  Loader2, Plus, Users, Shield, GraduationCap, UserCircle2, Upload,
+  Loader2, Plus, Users, Upload, Search,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { Dropdown } from '../components/ui/Dropdown';
 
 type UserData = {
   id: string;
@@ -22,12 +20,6 @@ type UserData = {
 };
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
-
-const roleIcon: Record<string, React.ReactNode> = {
-  admin: <Shield size={14} />,
-  assistant: <UserCircle2 size={14} />,
-  student: <GraduationCap size={14} />,
-};
 
 export default function AdminUsersPage() {
   const navigate = useNavigate();
@@ -43,7 +35,12 @@ export default function AdminUsersPage() {
   const [newIndex, setNewIndex] = useState('');
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(null);
   const [importSummary, setImportSummary] = useState<{ created: number; skipped: number; total: number; items?: { skipped: Array<{ index_number: string; reason: string }> } } | null>(null);
+  const [search, setSearch] = useState('');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'assistant' | 'admin'>('all');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 50;
 
   useEffect(() => {
     (async () => {
@@ -99,25 +96,51 @@ export default function AdminUsersPage() {
     if (!file) return;
     setImportSummary(null);
     setImporting(true);
+    setImportProgress(null);
     try {
-      const csv = await file.text();
-      const res = await fetch('/api/admin/users/import-csv', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ csv }),
-      });
-      const d = await res.json();
-      if (!res.ok) {
-        alert(d.error || t('users.importFailed'));
+      const text = await file.text();
+      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      const total = lines.length;
+      if (total === 0) {
+        alert(t('users.importFailed'));
         return;
       }
-      setImportSummary(d);
+      setImportProgress({ processed: 0, total });
+
+      const CHUNK = 25; // rows per request
+      const allCreated: Array<{ index_number: string; email: string }> = [];
+      const allSkipped: Array<{ index_number: string; reason: string }> = [];
+
+      for (let i = 0; i < total; i += CHUNK) {
+        const chunk = lines.slice(i, i + CHUNK).join('\n');
+        const res = await fetch('/api/admin/users/import-csv', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ csv: chunk }),
+        });
+        const d = await res.json();
+        if (!res.ok) {
+          alert(d.error || t('users.importFailed'));
+          break;
+        }
+        if (d.items?.created) allCreated.push(...d.items.created);
+        if (d.items?.skipped) allSkipped.push(...d.items.skipped);
+        setImportProgress({ processed: Math.min(i + CHUNK, total), total });
+      }
+
+      setImportSummary({
+        created: allCreated.length,
+        skipped: allSkipped.length,
+        total,
+        items: { skipped: allSkipped },
+      });
       loadUsers();
     } catch (e) {
       alert((e as Error).message || t('users.importFailed'));
     } finally {
       setImporting(false);
+      setImportProgress(null);
     }
   };
 
@@ -173,6 +196,26 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
+            {importing && importProgress && (
+              <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4">
+                <div className="flex items-center justify-between text-sm mb-2">
+                  <span className="text-[var(--text-primary)] font-medium flex items-center gap-2">
+                    <Loader2 size={14} className="animate-spin text-accent" />
+                    {t('users.importProcessing')}
+                  </span>
+                  <span className="text-[var(--text-muted)] font-mono">
+                    {importProgress.processed} / {importProgress.total}
+                  </span>
+                </div>
+                <div className="h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+                  <div
+                    className="h-full bg-accent transition-[width] duration-200 ease-out"
+                    style={{ width: `${Math.round((importProgress.processed / Math.max(1, importProgress.total)) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
             {importSummary && (
               <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-sm">
                 <div className="flex items-center justify-between gap-3">
@@ -202,42 +245,44 @@ export default function AdminUsersPage() {
               </div>
             )}
 
+            {/* Search + role filter \u2014 keeps the list snappy at scale by trimming what we render */}
+            {!loading && (
+              <div className="flex flex-wrap items-center gap-2 mb-3">
+                <div className="relative flex-1 min-w-[220px] max-w-[420px]">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <input
+                    value={search}
+                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    placeholder={t('users.searchPlaceholder')}
+                    className="w-full h-9 pl-8 pr-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm focus:border-accent focus:ring-0"
+                  />
+                </div>
+                <select
+                  value={roleFilter}
+                  onChange={(e) => { setRoleFilter(e.target.value as typeof roleFilter); setPage(1); }}
+                  className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
+                >
+                  <option value="all">{t('users.allRoles')}</option>
+                  <option value="student">{t('users.student')}</option>
+                  <option value="assistant">{t('users.assistant')}</option>
+                  <option value="admin">{t('users.admin')}</option>
+                </select>
+              </div>
+            )}
+
             {loading ? (
               <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>
             ) : (
-              <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] overflow-hidden">
-                <div className="hidden sm:flex items-center px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-                  <div className="flex-1">{t('users.user')}</div>
-                  <div className="w-32">{t('users.index')}</div>
-                  <div className="w-36">{t('users.role')}</div>
-                  <div className="w-32">{t('users.lastLogin')}</div>
-                </div>
-                {users.map((u, idx) => (
-                  <motion.div key={u.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: idx * 0.02 }}
-                    className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[var(--text-primary)] truncate">{u.name || u.email}</div>
-                      <div className="text-[11px] text-[var(--text-muted)]">{u.email}</div>
-                    </div>
-                    <div className="w-32 text-xs text-[var(--text-muted)] font-mono">{u.index_number || '\u2014'}</div>
-                    <div className="w-36">
-                      <Dropdown
-                        options={[
-                          { value: 'student', label: t('users.student') },
-                          { value: 'assistant', label: t('users.assistant') },
-                          { value: 'admin', label: t('users.admin') },
-                        ]}
-                        value={u.role}
-                        onChange={(v) => handleRoleChange(u.id, v)}
-                      />
-                    </div>
-                    <div className="w-32 text-xs text-[var(--text-muted)]">
-                      {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString() : t('users.never')}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
+              <UserList
+                users={users}
+                search={search}
+                roleFilter={roleFilter}
+                page={page}
+                pageSize={PAGE_SIZE}
+                onPageChange={setPage}
+                onRoleChange={handleRoleChange}
+                t={t}
+              />
             )}
           </div>
         </main>
@@ -253,7 +298,11 @@ export default function AdminUsersPage() {
               <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="password" className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.password')} />
               <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.name')} />
               <input value={newIndex} onChange={(e) => setNewIndex(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.indexNumber')} />
-              <Dropdown options={[{ value: 'student', label: t('users.student') }, { value: 'assistant', label: t('users.assistant') }, { value: 'admin', label: t('users.admin') }]} value={newRole} onChange={setNewRole} />
+              <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
+                <option value="student">{t('users.student')}</option>
+                <option value="assistant">{t('users.assistant')}</option>
+                <option value="admin">{t('users.admin')}</option>
+              </select>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
               <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('users.cancel')}</Button>
@@ -265,3 +314,113 @@ export default function AdminUsersPage() {
     </div>
   );
 }
+
+// ----- list + row components, kept outside the page so they don't re-create on every parent render -----
+
+type UserListProps = {
+  users: UserData[];
+  search: string;
+  roleFilter: 'all' | 'student' | 'assistant' | 'admin';
+  page: number;
+  pageSize: number;
+  onPageChange: (p: number) => void;
+  onRoleChange: (id: string, role: string) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+};
+
+function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange, onRoleChange, t }: UserListProps) {
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return users.filter((u) => {
+      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      if (!q) return true;
+      return (
+        u.email.toLowerCase().includes(q) ||
+        (u.name?.toLowerCase().includes(q) ?? false) ||
+        (u.index_number?.toLowerCase().includes(q) ?? false)
+      );
+    });
+  }, [users, search, roleFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(page, totalPages);
+  const start = (safePage - 1) * pageSize;
+  const slice = filtered.slice(start, start + pageSize);
+
+  return (
+    <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] overflow-hidden">
+      <div className="hidden sm:flex items-center px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+        <div className="flex-1">{t('users.user')}</div>
+        <div className="w-32">{t('users.index')}</div>
+        <div className="w-36">{t('users.role')}</div>
+        <div className="w-32">{t('users.lastLogin')}</div>
+      </div>
+      {slice.length === 0 ? (
+        <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('users.noResults')}</div>
+      ) : (
+        slice.map((u) => <UserRow key={u.id} user={u} onRoleChange={onRoleChange} t={t} />)
+      )}
+
+      {filtered.length > pageSize && (
+        <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border-default)] text-xs text-[var(--text-muted)]">
+          <span>
+            {start + 1}-{Math.min(start + pageSize, filtered.length)} / {filtered.length}
+          </span>
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onPageChange(Math.max(1, safePage - 1))}
+              disabled={safePage <= 1}
+              className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft size={14} />
+            </button>
+            <span className="font-mono">{safePage} / {totalPages}</span>
+            <button
+              type="button"
+              onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
+              disabled={safePage >= totalPages}
+              className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+const UserList = React.memo(UserListImpl);
+
+type UserRowProps = {
+  user: UserData;
+  onRoleChange: (id: string, role: string) => void;
+  t: (key: string, params?: Record<string, string | number>) => string;
+};
+
+function UserRowImpl({ user, onRoleChange, t }: UserRowProps) {
+  return (
+    <div className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
+      <div className="flex-1 min-w-0">
+        <div className="text-sm font-medium text-[var(--text-primary)] truncate">{user.name || user.email}</div>
+        <div className="text-[11px] text-[var(--text-muted)] truncate">{user.email}</div>
+      </div>
+      <div className="w-32 text-xs text-[var(--text-muted)] font-mono truncate">{user.index_number || '—'}</div>
+      <div className="w-36">
+        <select
+          value={user.role}
+          onChange={(e) => onRoleChange(user.id, e.target.value)}
+          className="h-9 px-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
+        >
+          <option value="student">{t('users.student')}</option>
+          <option value="assistant">{t('users.assistant')}</option>
+          <option value="admin">{t('users.admin')}</option>
+        </select>
+      </div>
+      <div className="w-32 text-xs text-[var(--text-muted)]">
+        {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : t('users.never')}
+      </div>
+    </div>
+  );
+}
+const UserRow = React.memo(UserRowImpl);

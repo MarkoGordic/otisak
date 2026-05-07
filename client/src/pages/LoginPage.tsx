@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, Sun, Moon } from 'lucide-react';
+import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, Sun, Moon, ArrowLeft } from 'lucide-react';
 import { useTheme } from '../components/ThemeProvider';
 import { useLang } from '../components/LangProvider';
 
@@ -74,6 +74,17 @@ export default function LoginPage() {
           ))}
         </div>
       </div>
+
+      {/* Back to student picker — mirrors the "Admin login" pill on the home page */}
+      <button
+        type="button"
+        onClick={() => navigate('/')}
+        className={`fixed top-4 left-4 z-10 flex items-center gap-2 px-3 py-2 rounded-xl border backdrop-blur-sm transition-colors text-xs uppercase tracking-widest ${isDark ? 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 shadow-sm'}`}
+        title={t('login.backToHome')}
+      >
+        <ArrowLeft size={14} />
+        {t('login.backToHome')}
+      </button>
 
       {/* Theme & Language toggles */}
       <div className="fixed top-4 right-4 z-10 flex items-center gap-2">

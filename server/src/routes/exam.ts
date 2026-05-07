@@ -635,6 +635,60 @@ router.get('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (r
   }
 });
 
+// GET /exams/:examId/export-json - admin/assistant, dump exam config + questions
+// Used to back up an exam or move it between environments. The shape mirrors
+// the body accepted by /api/otisak/exams/import-json.
+router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const exam = await getOtisakExamById(examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    const questions = await getOtisakQuestions(examId);
+
+    const payload = {
+      version: 1,
+      exam: {
+        title: exam.title,
+        description: exam.description,
+        duration_minutes: Number(exam.duration_minutes),
+        pass_threshold: Number(exam.pass_threshold),
+        exam_mode: exam.exam_mode,
+        allow_review: exam.allow_review,
+        shuffle_questions: exam.shuffle_questions,
+        shuffle_answers: exam.shuffle_answers,
+        partial_scoring: exam.partial_scoring,
+        negative_points_enabled: exam.negative_points_enabled,
+        negative_points_value: Number(exam.negative_points_value),
+        negative_points_threshold: Number(exam.negative_points_threshold),
+        subject_name: exam.subject_name,
+        subject_code: exam.subject_code,
+      },
+      questions: questions.map((q) => ({
+        type: q.type,
+        text: q.text,
+        content: q.content,
+        points: Number(q.points),
+        position: q.position,
+        explanation: q.explanation,
+        ai_grading_instructions: q.ai_grading_instructions,
+        answers: q.answers.map((a) => ({
+          text: a.text,
+          is_correct: a.is_correct,
+          position: a.position,
+        })),
+      })),
+    };
+
+    const safeName = exam.title.replace(/[^a-z0-9._-]+/gi, '_');
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="otisak-${safeName}.json"`);
+    return res.send(JSON.stringify(payload, null, 2));
+  } catch (error) {
+    console.error('Export exam JSON error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /exams/:examId/questions - admin/assistant, get questions
 router.get('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {

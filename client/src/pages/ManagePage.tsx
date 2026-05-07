@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Loader2, Plus, Settings, Trash2, Users, Play, Pause, Archive, Eye,
   Fingerprint, FileText, Clock, CalendarIcon, Radio, Link2, Copy,
+  Download, Upload, Pencil,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -154,9 +155,44 @@ export default function ManagePage() {
                   <p className="text-sm text-[var(--text-secondary)]">{t('manage.subtitle')}</p>
                 </div>
               </div>
-              <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreateModal(true)}>
-                {t('manage.newExam')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <label className="cursor-pointer">
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      e.target.value = '';
+                      if (!f) return;
+                      try {
+                        const text = await f.text();
+                        const json = JSON.parse(text);
+                        const res = await fetch('/api/otisak/exams/import-json', {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          credentials: 'include',
+                          body: JSON.stringify(json),
+                        });
+                        if (!res.ok) {
+                          const d = await res.json().catch(() => ({}));
+                          alert(d.error || t('manage.importFailed'));
+                          return;
+                        }
+                        loadData();
+                      } catch (err) {
+                        alert((err as Error).message || t('manage.importFailed'));
+                      }
+                    }}
+                  />
+                  <span className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors">
+                    <Upload size={14} />{t('manage.importJson')}
+                  </span>
+                </label>
+                <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreateModal(true)}>
+                  {t('manage.newExam')}
+                </Button>
+              </div>
             </div>
 
             {/* Filters */}
@@ -207,6 +243,16 @@ export default function ManagePage() {
                             {t('manage.room')}
                           </Button>
                         )}
+                        <Button variant="secondary" size="sm" leftIcon={<Pencil size={14} />} onClick={() => navigate(`/manage/${exam.id}/edit`)}>
+                          {t('manage.edit')}
+                        </Button>
+                        <a
+                          href={`/api/otisak/exams/${exam.id}/export-json`}
+                          className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                          title={t('manage.exportJson')}
+                        >
+                          <Download size={14} />
+                        </a>
                         {statusActions[exam.status]?.map((action) => (
                           <Button key={action.status} variant="secondary" size="sm" leftIcon={action.icon} onClick={() => handleStatusChange(exam.id, action.status)}>
                             {action.label}

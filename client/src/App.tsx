@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ManagePage from './pages/ManagePage';
+import ExamEditPage from './pages/ExamEditPage';
 import RoomPage from './pages/RoomPage';
 import ReportPage from './pages/ReportPage';
 import SubjectsPage from './pages/SubjectsPage';
@@ -21,6 +22,7 @@ export default function App() {
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/manage" element={<ManagePage />} />
       <Route path="/manage/:examId" element={<RoomPage />} />
+      <Route path="/manage/:examId/edit" element={<ExamEditPage />} />
       <Route path="/manage/:examId/report/:userId" element={<ReportPage />} />
       <Route path="/subjects" element={<SubjectsPage />} />
       <Route path="/questions" element={<QuestionsPage />} />
