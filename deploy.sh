@@ -13,14 +13,50 @@ set -e
 #                      is ever repopulated.
 #   --no-pull          Skip "git pull" (useful for testing local changes).
 
+show_help() {
+  cat <<'EOF'
+OTISAK deploy script
+
+Usage: ./deploy.sh [flags]
+
+Flags:
+  -h, --help        Show this help message and exit.
+  --clean, -clean   Wipe volumes + images (full reset). DESTRUCTIVE: deletes
+                    the postgres volume, so the admin gets re-bootstrapped
+                    with a brand-new random password and you lose all data.
+                    Without this flag we keep the DB, just rebuild the app.
+  --seed, -seed     After bring-up, run seed.sql against the DB. Currently
+                    a no-op (the file is empty by design — admin comes from
+                    the server bootstrap, students from the CSV importer).
+  --no-pull         Skip "git pull" (useful for testing local changes).
+
+Examples:
+  ./deploy.sh                    Standard deploy (keeps DB, pulls latest).
+  ./deploy.sh --clean            Full reset: wipe DB, rebuild from scratch,
+                                 print the new bootstrap admin password.
+  ./deploy.sh --no-pull          Deploy local changes without git pull.
+  ./deploy.sh --clean --no-pull  Reset DB using current local code.
+
+After a successful deploy the script prints the bootstrapped admin
+credentials (email + password) if a fresh admin was created, or a
+"existing admin preserved" notice otherwise.
+EOF
+}
+
 CLEAN=false
 SEED=false
 PULL=true
 for arg in "$@"; do
   case $arg in
+    -h|--help)      show_help; exit 0 ;;
     -clean|--clean) CLEAN=true ;;
     -seed|--seed)   SEED=true  ;;
     --no-pull)      PULL=false ;;
+    *)
+      echo "Unknown flag: $arg" >&2
+      echo "Run './deploy.sh --help' for usage." >&2
+      exit 1
+      ;;
   esac
 done
 
