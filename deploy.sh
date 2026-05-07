@@ -21,6 +21,14 @@ set -e
 #                      iptables, nftables, Docker Desktop on macOS, etc.).
 #                      Without this flag we still auto-skip if `ufw` isn't
 #                      on PATH — the flag suppresses the attempt entirely.
+#   --set-admin-password [pwd]
+#                      Standalone mode. Updates the admin's bcrypt hash in
+#                      the running DB and exits — NO compose down, NO
+#                      rebuild, NO restart. Requires the app + db
+#                      containers to already be up. If the password is
+#                      omitted, the script prompts for it (hidden input)
+#                      and asks for confirmation. Mutually exclusive with
+#                      every deploy-related flag.
 
 show_help() {
   cat <<'EOF'
@@ -45,6 +53,13 @@ Flags:
                     without ufw or sudo. Without the flag, ufw is auto-
                     skipped when not on PATH; the flag also skips when
                     ufw IS installed but you don't want to touch it.
+  --set-admin-password [pwd]
+                    STANDALONE MODE. Updates the admin's bcrypt hash in
+                    the live DB and exits — no rebuild, no restart, no
+                    git pull. App + db containers MUST already be up.
+                    If 'pwd' is omitted the script prompts (hidden) and
+                    asks for confirmation. Cannot combine with deploy
+                    flags (--clean, --port, etc.).
 
 Examples:
   ./deploy.sh                    Standard deploy (keeps DB, pulls latest).
@@ -54,6 +69,11 @@ Examples:
                                  print the new bootstrap admin password.
   ./deploy.sh --no-pull          Deploy local changes without git pull.
   ./deploy.sh --clean --no-pull  Reset DB using current local code.
+  ./deploy.sh --set-admin-password
+                                 Prompt for a new admin password and
+                                 update it in-place (no redeploy).
+  ./deploy.sh --set-admin-password 'My$ecret!23'
+                                 Same, but pass the password inline.
 
 After a successful deploy the script prints the bootstrapped admin
 credentials (email + password) if a fresh admin was created, or a
@@ -66,6 +86,8 @@ SEED=false
 PULL=true
 FIREWALL=true
 PORT_OVERRIDE=""
+SET_ADMIN_PWD_MODE=false
+NEW_ADMIN_PWD=""
 
 # Manual parser so we can support both "--port 8080" and "--port=8080"
 # without dragging in getopt (BSD/GNU getopt are incompatible).
@@ -93,6 +115,23 @@ while [ $# -gt 0 ]; do
       PORT_OVERRIDE="${1#-p=}"
       shift
       ;;
+    --set-admin-password|--reset-admin-password)
+      SET_ADMIN_PWD_MODE=true
+      # Optional inline password: only consume $2 if it's present and not
+      # itself another flag. This lets `--set-admin-password` (no arg)
+      # fall through to the prompt path below.
+      if [ -n "${2:-}" ] && [ "${2#-}" = "$2" ]; then
+        NEW_ADMIN_PWD="$2"
+        shift 2
+      else
+        shift
+      fi
+      ;;
+    --set-admin-password=*)
+      SET_ADMIN_PWD_MODE=true
+      NEW_ADMIN_PWD="${1#--set-admin-password=}"
+      shift
+      ;;
     *)
       echo "Unknown flag: $1" >&2
       echo "Run './deploy.sh --help' for usage." >&2
@@ -100,6 +139,18 @@ while [ $# -gt 0 ]; do
       ;;
   esac
 done
+
+# --set-admin-password is a standalone mode — refuse to combine it with
+# any flag that would alter the deploy. The user explicitly wants "just
+# change the password, nothing else".
+if [ "$SET_ADMIN_PWD_MODE" = true ]; then
+  if [ "$CLEAN" = true ] || [ "$SEED" = true ] || [ "$PULL" = false ] \
+     || [ "$FIREWALL" = false ] || [ -n "$PORT_OVERRIDE" ]; then
+    echo "Error: --set-admin-password cannot be combined with deploy flags." >&2
+    echo "Run it on its own: './deploy.sh --set-admin-password [pwd]'." >&2
+    exit 1
+  fi
+fi
 
 # Validate port override (integer, 1024-65535 — privileged ports require root
 # binding inside the host network namespace, which docker desktop won't grant).
@@ -127,6 +178,108 @@ else
   echo "Error: neither 'docker compose' nor 'docker-compose' is available." >&2
   echo "Install Docker Engine + the compose plugin, or 'pip install docker-compose'." >&2
   exit 1
+fi
+
+# ===========================================================================
+# Standalone mode: --set-admin-password
+#
+# Touches NOTHING except the admin row in postgres. No compose down, no
+# rebuild, no restart, no git pull, no firewall, no .env writes. App + db
+# containers must already be running. We exit at the end of this block —
+# the deploy flow below is never reached.
+# ===========================================================================
+if [ "$SET_ADMIN_PWD_MODE" = true ]; then
+  echo "=== OTISAK admin password update (no redeploy) ==="
+
+  # Both containers must be up and the app reachable for the bcrypt hash
+  # call. We check them via compose ps to handle either v1 or v2 output.
+  if ! $DC ps --status running 2>/dev/null | grep -q '\bapp\b' \
+     && ! $DC ps 2>/dev/null | awk '$1 ~ /-app-/ {print $0}' | grep -qi 'up'; then
+    echo "Error: 'app' container is not running. Start it with './deploy.sh' first." >&2
+    exit 1
+  fi
+  if ! $DC ps --status running 2>/dev/null | grep -q '\bdb\b' \
+     && ! $DC ps 2>/dev/null | awk '$1 ~ /-db-/ {print $0}' | grep -qi 'up'; then
+    echo "Error: 'db' container is not running. Start it with './deploy.sh' first." >&2
+    exit 1
+  fi
+
+  # If no inline password was passed, prompt twice (hidden input). We do
+  # this AFTER the container check so the user doesn't waste time typing
+  # a password into a dead environment.
+  if [ -z "$NEW_ADMIN_PWD" ]; then
+    if [ ! -t 0 ]; then
+      echo "Error: no password supplied and stdin is not a TTY (cannot prompt)." >&2
+      echo "Run interactively or pass the password inline: --set-admin-password 'pwd'." >&2
+      exit 1
+    fi
+    printf "New admin password: "
+    stty -echo
+    read NEW_ADMIN_PWD
+    stty echo
+    printf "\n"
+    printf "Confirm password:   "
+    stty -echo
+    read CONFIRM_PWD
+    stty echo
+    printf "\n"
+    if [ "$NEW_ADMIN_PWD" != "$CONFIRM_PWD" ]; then
+      echo "Error: passwords do not match." >&2
+      exit 1
+    fi
+  fi
+
+  # Minimum length matches what a sensible policy enforces — short enough
+  # not to annoy admins, long enough that a leak isn't an instant win.
+  if [ ${#NEW_ADMIN_PWD} -lt 8 ]; then
+    echo "Error: password must be at least 8 characters." >&2
+    exit 1
+  fi
+
+  ADMIN_EMAIL="${BOOTSTRAP_ADMIN_EMAIL:-admin@otisak.local}"
+
+  # Hash inside the app container so we use the exact same bcryptjs
+  # version the server uses for verification. Password goes via stdin so
+  # it never appears in `ps` output or shell history files.
+  HASH=$(printf %s "$NEW_ADMIN_PWD" | $DC exec -T app node -e '
+    const bcrypt = require("bcryptjs");
+    let pw = "";
+    process.stdin.on("data", c => pw += c);
+    process.stdin.on("end", async () => {
+      const h = await bcrypt.hash(pw, 10);
+      process.stdout.write(h);
+    });
+  ' 2>/dev/null)
+
+  if [ -z "$HASH" ]; then
+    echo "Error: failed to hash password inside the app container." >&2
+    exit 1
+  fi
+
+  # UPSERT so this also works if for some reason the admin row was
+  # deleted manually. role gets forced back to admin and is_active TRUE
+  # so a half-disabled admin can't lock themselves out.
+  if ! $DC exec -T db psql -U otisak -d otisak -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<SQL
+INSERT INTO users (email, password_hash, name, role)
+VALUES ('${ADMIN_EMAIL}', '${HASH}', 'Administrator', 'admin')
+ON CONFLICT (email) DO UPDATE
+  SET password_hash = EXCLUDED.password_hash,
+      role          = 'admin',
+      is_active     = TRUE;
+SQL
+  then
+    echo "Error: SQL update failed. Check './deploy.sh --help' or DB logs." >&2
+    exit 1
+  fi
+
+  LINE=$(printf '=%.0s' $(seq 1 72))
+  echo ""
+  echo "$LINE"
+  echo "Admin password updated. The app was NOT restarted — existing"
+  echo "session cookies stay valid until they expire on their own."
+  echo "  email: ${ADMIN_EMAIL}"
+  echo "$LINE"
+  exit 0
 fi
 
 # Resolve the host port we'll publish the app on. Precedence:
