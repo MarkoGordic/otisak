@@ -153,7 +153,7 @@ export default function ResultsPage() {
                   <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium truncate">{results.exam.title}</span>
                   <span className="text-gray-500 text-[10px] sm:text-xs">
                     {percentage}% &#8226; {passed ? t('results.passedLabel') : t('results.notPassed')}
-                    {Number(results.exam.pass_threshold) > 0 && <span className="text-gray-600"> (Threshold {results.exam.pass_threshold}%)</span>}
+                    {Number(results.exam.pass_threshold) > 0 && <span className="text-gray-600"> ({t('results.thresholdLabel', { value: results.exam.pass_threshold })})</span>}
                   </span>
                 </div>
                 <div className={`text-3xl sm:text-5xl font-mono tracking-wider font-bold drop-shadow-lg flex-shrink-0 ${

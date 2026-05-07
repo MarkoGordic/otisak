@@ -31,7 +31,9 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
   const isStaff = userRole === 'admin' || userRole === 'assistant';
 
   const navItems = [
-    { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, href: '/dashboard' },
+    isStaff
+      ? { id: 'admin-home', label: t('nav.adminHome'), icon: LayoutDashboard, href: '/admin/home' }
+      : { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, href: '/dashboard' },
     ...(isStaff ? [
       { id: 'manage', label: t('nav.manage'), icon: Settings, href: '/manage' },
       { id: 'subjects', label: t('nav.subjects'), icon: BookMarked, href: '/subjects' },
@@ -132,7 +134,9 @@ export function MobileNav({ userName, userRole }: SidebarProps) {
   const isStaff = userRole === 'admin' || userRole === 'assistant';
 
   const navItems = [
-    { id: 'dashboard', label: t('nav.home'), icon: LayoutDashboard, href: '/dashboard' },
+    isStaff
+      ? { id: 'admin-home', label: t('nav.home'), icon: LayoutDashboard, href: '/admin/home' }
+      : { id: 'dashboard', label: t('nav.home'), icon: LayoutDashboard, href: '/dashboard' },
     ...(isStaff ? [
       { id: 'manage', label: t('nav.manage.short'), icon: Settings, href: '/manage' },
     ] : []),

@@ -13,6 +13,7 @@ import practiceRoutes from './routes/practice';
 import questionsRoutes from './routes/questions';
 import historyRoutes from './routes/history';
 import { setupWebSocket } from './ws/events';
+import { ensureBootstrapAdmin } from './bootstrap';
 
 const app = express();
 
@@ -53,9 +54,10 @@ const server = http.createServer(app);
 setupWebSocket(server);
 
 const PORT = process.env.PORT || 3001;
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`OTISAK server running on port ${PORT}`);
   console.log(`Client served from: ${clientDist}`);
+  await ensureBootstrapAdmin();
 });
 
 export default app;

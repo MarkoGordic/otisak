@@ -32,8 +32,11 @@ export default function LoginPage() {
         setError(data.error || t('login.error.failed'));
         return;
       }
-
-      navigate('/dashboard');
+      const data = await res.json().catch(() => null);
+      const role = data?.user?.role;
+      // Admin/assistant land on the dedicated admin home; everyone else
+      // (legacy student logins, future roles) goes to the student dashboard.
+      navigate(role === 'admin' || role === 'assistant' ? '/admin/home' : '/dashboard');
     } catch {
       setError(t('login.error.network'));
     } finally {

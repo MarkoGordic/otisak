@@ -115,6 +115,11 @@ export default function DashboardPage() {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         const data = await res.json();
         if (!data.authenticated) { navigate('/admin', { replace: true }); return; }
+        // Staff don't take exams — bounce them to the admin home.
+        if (data.user?.role === 'admin' || data.user?.role === 'assistant') {
+          navigate('/admin/home', { replace: true });
+          return;
+        }
         if (mounted) {
           setUser({
             name: data.user?.name,

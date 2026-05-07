@@ -210,7 +210,7 @@ export default function QuestionBankPage() {
                 </div>
                 <div>
                   <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('questions.title')}</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">{total} questions across {subjects.length} subjects</p>
+                  <p className="text-sm text-[var(--text-secondary)]">{t('questions.subtitle', { total, subjects: subjects.length })}</p>
                 </div>
               </div>
               <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>
@@ -225,7 +225,7 @@ export default function QuestionBankPage() {
                   options={subjects.map(s => ({ value: s.id, label: s.name }))}
                   value={selectedSubject}
                   onChange={setSelectedSubject}
-                  placeholder="Select subject"
+                  placeholder={t('questions.selectSubject')}
                 />
               </div>
               <div className="w-[140px]">
@@ -308,7 +308,7 @@ export default function QuestionBankPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="neutral" size="sm">{typeIcons[q.type]} {q.type}</Badge>
+                          <Badge variant="neutral" size="sm">{typeIcons[q.type]} {t(`questions.${q.type === 'open_text' ? 'openText' : q.type === 'text' ? 'multipleChoice' : q.type}`) || q.type}</Badge>
                           <Badge variant="accent" size="sm">{q.points} {t('questions.pts')}</Badge>
                           {q.tags.map(tag => (
                             <Badge key={tag} variant="info" size="sm"><Tag size={10} className="mr-0.5" />{tag}</Badge>
@@ -357,7 +357,7 @@ export default function QuestionBankPage() {
               <div>
                 <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('questions.questionText')}</label>
                 <textarea value={newText} onChange={(e) => setNewText(e.target.value)}
-                  className="w-full h-24 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none" placeholder="Enter question..." />
+                  className="w-full h-24 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none" placeholder={t('questions.questionPlaceholder')} />
               </div>
 
               {/* Code question: snippet + language picker + live highlight preview */}
@@ -452,12 +452,12 @@ export default function QuestionBankPage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Points</label>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('questions.points')}</label>
                   <input type="number" value={newPoints} onChange={(e) => setNewPoints(e.target.value)}
                     className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">Tags (comma-separated)</label>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('questions.tagsLabel')}</label>
                   <input value={newTags} onChange={(e) => setNewTags(e.target.value)}
                     className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder="tag1, tag2" />
                 </div>
@@ -465,7 +465,7 @@ export default function QuestionBankPage() {
 
               {newType !== 'open_text' && (
                 <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">Answers</label>
+                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">{t('examEdit.answers')}</label>
                   <div className="space-y-2">
                     {newAnswers.map((a, i) => (
                       <div key={i} className="flex items-center gap-2">
@@ -477,11 +477,11 @@ export default function QuestionBankPage() {
                         <input value={a.text} onChange={(e) => {
                           setNewAnswers(prev => prev.map((ans, j) => j === i ? { ...ans, text: e.target.value } : ans));
                         }} className="flex-1 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                          placeholder={`Answer ${String.fromCharCode(65 + i)}`} />
+                          placeholder={`${t('examEdit.answer')} ${String.fromCharCode(65 + i)}`} />
                       </div>
                     ))}
                     <button type="button" onClick={() => setNewAnswers(prev => [...prev, { text: '', is_correct: false }])}
-                      className="text-xs text-accent hover:text-accent-hover">+ Add answer</button>
+                      className="text-xs text-accent hover:text-accent-hover">+ {t('examEdit.addAnswer')}</button>
                   </div>
                 </div>
               )}

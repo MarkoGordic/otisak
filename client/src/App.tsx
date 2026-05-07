@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import ManagePage from './pages/ManagePage';
 import ExamEditPage from './pages/ExamEditPage';
+import AdminHomePage from './pages/AdminHomePage';
 import RoomPage from './pages/RoomPage';
 import ReportPage from './pages/ReportPage';
 import SubjectsPage from './pages/SubjectsPage';
@@ -19,6 +20,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<HomePage />} />
       <Route path="/admin" element={<LoginPage />} />
+      <Route path="/admin/home" element={<AdminHomePage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/manage" element={<ManagePage />} />
       <Route path="/manage/:examId" element={<RoomPage />} />

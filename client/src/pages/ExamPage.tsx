@@ -452,7 +452,7 @@ export default function ExamPage() {
     if (phase !== 'exam') return;
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
       e.preventDefault();
-      e.returnValue = 'The exam is in progress. Are you sure you want to leave?';
+      e.returnValue = t('exam.leaveWarning');
       saveAnswersNow();
       return e.returnValue;
     };
@@ -689,11 +689,11 @@ export default function ExamPage() {
                   <div className="p-1.5 rounded-lg bg-red-500/10 mt-0.5"><AlertTriangle className="w-3.5 h-3.5 text-red-400/80" /></div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[11px] font-semibold text-red-300/90 uppercase tracking-wider mb-1.5">{t('exam.negativePoints')}</p>
-                    <p className="text-[12px] text-gray-400/80 leading-relaxed">After {exam.negative_points_threshold} wrong answer(s), each additional wrong answer deducts {exam.negative_points_value} point(s).</p>
+                    <p className="text-[12px] text-gray-400/80 leading-relaxed">{t('exam.negativePointsDesc', { threshold: exam.negative_points_threshold, value: exam.negative_points_value })}</p>
                     <div className="flex items-center gap-3 mt-3 pt-3 border-t border-red-500/10">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">Threshold: {exam.negative_points_threshold}</span>
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">{t('exam.threshold', { value: exam.negative_points_threshold })}</span>
                       <div className="w-px h-3 bg-red-400/15" />
-                      <span className="text-xs font-bold text-red-400/70 font-mono">-{exam.negative_points_value} pts</span>
+                      <span className="text-xs font-bold text-red-400/70 font-mono">-{exam.negative_points_value} {t('questions.pts')}</span>
                     </div>
                   </div>
                 </div>
@@ -761,7 +761,7 @@ export default function ExamPage() {
               </div>
               <div className="w-px h-3 bg-red-400/15" />
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-gray-500">Threshold: {exam.negative_points_threshold}</span>
+                <span className="text-[10px] text-gray-500">{t('exam.threshold', { value: exam.negative_points_threshold })}</span>
                 <span className="text-[11px] font-bold text-red-400/60 font-mono">-{exam.negative_points_value}</span>
               </div>
             </div>

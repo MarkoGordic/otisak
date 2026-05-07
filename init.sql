@@ -397,25 +397,7 @@ CREATE INDEX idx_exam_requests_user ON exam_requests(user_id, status);
 -- A user can only have one pending request of a given type per exam.
 CREATE UNIQUE INDEX idx_exam_requests_one_pending ON exam_requests(exam_id, user_id, type) WHERE status = 'pending';
 
--- ========================================
--- SEED: Default admin user
--- Password: admin123 (bcrypt hash)
--- ========================================
-
--- Default admin: admin@otisak.local / admin123
--- All student passwords: student123
--- Generate new hash: node -e "require('bcryptjs').hash('password',10).then(console.log)"
-INSERT INTO users (email, password_hash, name, role) VALUES
-  ('admin@otisak.local', '$2a$10$O0OB15ON/cB19RiHEC/SXOTs/Zz4gc6WANwYaDz.zCFuTlBuOBz7.', 'Admin', 'admin');
-
-INSERT INTO users (email, password_hash, name, role, index_number) VALUES
-  ('student1@example.edu', '$2a$10$dXLy0hp2af3rYXjhyj3Wge6hAjmv87sikD7/UloyZnWBHuoJWsdJK', 'Marko Petrovic', 'student', 'IN 1/2024'),
-  ('student2@example.edu', '$2a$10$Jnclx1d9XgVj1H2cBybbneTJSmK.etFnEsrftKEf/ve01MwlCDRP6', 'Ana Jovanovic', 'student', 'IN 2/2024'),
-  ('student3@example.edu', '$2a$10$NDGO226XqHHgvDh4eAYfcOXPzbhGAhqdDcaX3ikZjhOO3EI7qlBzC', 'Stefan Nikolic', 'student', 'IN 3/2024'),
-  ('student4@example.edu', '$2a$10$hiUU.U8F6QPA0FYGtRlQg.hv9AInpof9/80XqNHNnIAvZehNw6rPC', 'Jelena Djordjevic', 'student', 'IN 4/2024'),
-  ('student5@example.edu', '$2a$10$.xihQr/6WcT2ewAlvRMNZOPdkJLMTaBdsQHrLaaejy1WjzvDKwP7S', 'Nikola Stojanovic', 'student', 'IN 5/2024'),
-  ('student6@example.edu', '$2a$10$8r70/VQwxDa79FCGXgW2Zu6d5rfFEuZD8WO7b9ybwAkS95NxfVSn6', 'Milica Ilic', 'student', 'IN 6/2024'),
-  ('student7@example.edu', '$2a$10$b5htCKYWsOu0rivJda1utuog7VIYkohqCJVjJlFtPjgNZG9SOXv76', 'Lazar Markovic', 'student', 'IN 7/2024'),
-  ('student8@example.edu', '$2a$10$cmgqFUMFpZYfJwOkvOnvHutJ6oQGKBwwIKkRNhWNp2h/E2yYnZx26', 'Tamara Pavlovic', 'student', 'IN 8/2024'),
-  ('student9@example.edu', '$2a$10$lMO/JOyOTLG9al56nmHV8Os.UrJqhz9okQY4i24mN/igmyQfUjLP2', 'Dusan Milosevic', 'student', 'SW 1/2024'),
-  ('student10@example.edu', '$2a$10$xOS3DHeg7vw0wPNIr1OOdeXE91wgFRcM0I9cdiCnzQM9Tec6EwHae', 'Maja Kovacevic', 'student', 'SW 2/2024');
+-- No user seeds: the server bootstraps a single admin account on first
+-- start with a randomly generated 10-character alphanumeric password
+-- (printed to the container logs). Student accounts are created via the
+-- CSV import endpoint at POST /api/admin/users/import-csv.

@@ -66,8 +66,8 @@ router.post('/users/import-csv', async (req: Request, res: Response) => {
         const indexRaw = row.indeks.trim();
         const indexNorm = indexRaw.toLowerCase().replace(/\s+/g, '');
         if (!indexNorm) { skipped.push({ index_number: indexRaw, reason: 'empty index' }); continue; }
-        const email = `${indexNorm}@example.edu`;
         const name = `${row.ime.trim()} ${row.prezime.trim()}`.trim() || null;
+        const email = synthesiseStudentEmail(row.prezime, indexNorm);
 
         // Skip if same index or email already exists.
         const existing = await query<{ id: string }>(
@@ -95,6 +95,44 @@ router.post('/users/import-csv', async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Compose the student e-mail.
+//
+// Index format we expect: "xxNNN-YYYY" — two-letter smer + index number + dash
+// + 4-digit year (e.g. "ra1-2025"). When the format matches we synthesise:
+//   <prezime>.<smer><number>.<year>@example.edu   e.g. petrovic.ra1.2025@example.edu
+// If the format does NOT match (or anything else goes sideways) we fall back
+// to "<index>@example.edu" so the row never fails the import. Never throws.
+function synthesiseStudentEmail(prezimeRaw: string, indexNorm: string): string {
+  const fallback = `${indexNorm}@example.edu`;
+  try {
+    const m = indexNorm.match(/^([a-z]{2})(\d+)-(\d{4})$/);
+    const cleanedSurname = stripDiacritics(prezimeRaw)
+      .toLowerCase()
+      .replace(/[^a-z]/g, '');
+    if (!m || !cleanedSurname) return fallback;
+    const [, smer, num, year] = m;
+    return `${cleanedSurname}.${smer}${num}.${year}@example.edu`;
+  } catch {
+    return fallback;
+  }
+}
+
+// Map common Serbian Latin diacritics to ASCII so e-mail addresses stay
+// well-formed. Anything unexpected falls through unchanged and is later
+// stripped to letters by the caller.
+function stripDiacritics(s: string): string {
+  if (!s) return '';
+  const map: Record<string, string> = {
+    'č': 'c', 'Č': 'C', 'ć': 'c', 'Ć': 'C',
+    'š': 's', 'Š': 'S', 'ž': 'z', 'Ž': 'Z',
+    'đ': 'dj', 'Đ': 'Dj', 'ǆ': 'dz',
+  };
+  return s
+    .replace(/[čČćĆšŠžŽđĐǆ]/g, (ch) => map[ch] ?? ch)
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '');
+}
 
 // Header-less CSV parser. Each row is positional:
 //   col 0 = id, col 1 = ime (first name), col 2 = prezime (last name), col 3 = indeks.

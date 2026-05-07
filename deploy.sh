@@ -1,30 +1,58 @@
 #!/bin/bash
 set -e
 
+# Flags:
+#   --clean / -clean   Wipe volumes + images (full reset). DESTRUCTIVE: deletes
+#                      the postgres volume, so the admin gets re-bootstrapped
+#                      with a brand-new random password and you lose all data.
+#                      Without this flag we keep the DB, just rebuild the app.
+#   --seed             After bring-up, run seed.sql against the DB. Currently
+#                      a no-op (the file is empty by design — admin comes from
+#                      the server bootstrap, students from the CSV importer).
+#                      The flag is kept so the entry point survives if seed.sql
+#                      is ever repopulated.
+#   --no-pull          Skip "git pull" (useful for testing local changes).
+
+CLEAN=false
 SEED=false
+PULL=true
 for arg in "$@"; do
   case $arg in
-    -seed|--seed) SEED=true ;;
+    -clean|--clean) CLEAN=true ;;
+    -seed|--seed)   SEED=true  ;;
+    --no-pull)      PULL=false ;;
   esac
 done
 
 echo "=== OTISAK Deploy Script ==="
+[ "$CLEAN" = true ] && echo "  mode: CLEAN (volumes will be wiped)" || echo "  mode: keep volumes (data preserved)"
+[ "$SEED"  = true ] && echo "  seed: ON"
+[ "$PULL"  = false ] && echo "  pull: OFF"
 echo ""
 
-# Stop and remove everything
-echo "[1/6] Stopping and removing old containers, volumes, and images..."
-docker compose down -v --rmi all 2>/dev/null || true
-docker builder prune -f 2>/dev/null || true
+# 1) Stop containers. Volume / image removal is gated on --clean.
+if [ "$CLEAN" = true ]; then
+  echo "[1/6] Stopping containers AND removing volumes + images..."
+  docker compose down -v --rmi all 2>/dev/null || true
+  docker builder prune -f 2>/dev/null || true
+else
+  echo "[1/6] Stopping containers (keeping volumes + images)..."
+  docker compose down 2>/dev/null || true
+fi
 echo "Done."
 echo ""
 
-# Pull latest code
-echo "[2/6] Pulling latest code from GitHub..."
-git pull origin main
-echo "Done."
+# 2) Pull latest code
+if [ "$PULL" = true ]; then
+  echo "[2/6] Pulling latest code from GitHub..."
+  git pull origin main
+  echo "Done."
+else
+  echo "[2/6] Skipping git pull."
+fi
 echo ""
 
-# Open firewall port
+# 3) Firewall
 echo "[3/6] Configuring firewall (ufw)..."
 if command -v ufw &> /dev/null; then
   sudo ufw allow 3000/tcp 2>/dev/null || echo "ufw rule may already exist or ufw not active"
@@ -34,38 +62,49 @@ else
 fi
 echo ""
 
-# Build fresh
-echo "[4/6] Building fresh Docker images (no cache)..."
-docker compose build --no-cache
+# 4) Build. --no-cache only when CLEAN, otherwise let BuildKit cache mounts work.
+echo "[4/6] Building Docker images..."
+if [ "$CLEAN" = true ]; then
+  docker compose build --no-cache
+else
+  docker compose build
+fi
 echo "Done."
 echo ""
 
-# Start
+# 5) Start
 echo "[5/6] Starting containers..."
 docker compose up -d
 echo ""
 
 # Wait for DB
 echo "Waiting for database to be ready..."
-sleep 8
+for i in {1..30}; do
+  if docker compose exec -T db pg_isready -U otisak >/dev/null 2>&1; then
+    echo "Database ready."
+    break
+  fi
+  sleep 1
+done
 
-# Seed data if requested
+# 6) Optional seed
 if [ "$SEED" = true ]; then
-  echo "[6/6] Seeding database with test data..."
+  echo "[6/6] Seeding database (subject + question bank)..."
   CONTAINER=$(docker compose ps -q db)
   docker exec -i "$CONTAINER" psql -U otisak -d otisak < seed.sql 2>&1
-  echo "Seed complete: Arhitektura racunara + 15 pitanja + 15 studenata (IN 1-15/2025) + ispit"
+  echo "Seed complete."
 else
-  echo "[6/6] Skipping seed (use -seed flag to seed test data)"
+  echo "[6/6] Skipping seed (file is empty by design — nothing to load)."
 fi
 
 echo ""
 echo "=== Deploy complete ==="
-echo "App running at: http://$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'localhost'):3000"
-echo "WebSocket at:   ws://$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'localhost'):3000/ws"
+HOST=$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'localhost')
+echo "App running at: http://${HOST}:3000"
+echo "WebSocket at:   ws://${HOST}:3000/ws"
 echo ""
-echo "Default admin:  admin@otisak.local / admin123"
-if [ "$SEED" = true ]; then
-  echo "Test students:  IN 1/2025 - IN 15/2025 (password: student123)"
+if [ "$CLEAN" = true ]; then
+  echo "First-time admin password is printed in the container logs:"
+  echo "  docker compose logs app | grep -A 3 'admin account bootstrapped'"
 fi
 echo ""

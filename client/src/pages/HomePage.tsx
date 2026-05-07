@@ -1,9 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, RefreshCw, Clock, BookOpen, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Loader2, RefreshCw, Clock, BookOpen, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { OtisakLogo, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
+import { useTheme } from '../components/ThemeProvider';
 
 type ActiveExam = {
   id: string;
@@ -16,7 +17,9 @@ type ActiveExam = {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { t } = useLang();
+  const { t, locale, setLocale } = useLang();
+  const { theme, toggle } = useTheme();
+  const isDark = theme === 'dark';
   const [exams, setExams] = useState<ActiveExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -45,7 +48,7 @@ export default function HomePage() {
         if (!res.ok) return;
         const data = await res.json();
         if (mounted && data.authenticated && (data.user?.role === 'admin' || data.user?.role === 'assistant')) {
-          navigate('/dashboard', { replace: true });
+          navigate('/admin/home', { replace: true });
         }
       } catch { /* student or unauthenticated — stay on the picker */ }
     })();
@@ -58,22 +61,64 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [load]);
 
+  // Theme-aware palette helpers — keeps the JSX readable.
+  const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
+  const titleClass = isDark ? 'text-white drop-shadow-lg' : 'text-slate-900';
+  const subtitleClass = isDark ? 'text-gray-400' : 'text-slate-600';
+  const versionClass = isDark ? 'text-blue-400/80' : 'text-blue-600/70';
+  const sectionTitleClass = isDark ? 'text-white' : 'text-slate-900';
+  const togglePillClass = isDark
+    ? 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+    : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 shadow-sm';
+  const cardEmptyBg = isDark
+    ? 'bg-[#131520]/60 border-blue-500/10'
+    : 'bg-white border-slate-200 shadow-sm';
+  const cardItemBg = isDark
+    ? 'bg-[#131520]/80 hover:bg-[#1a1d2e]/80 border-blue-500/20 hover:border-blue-500/50 hover:shadow-[0_0_25px_rgba(59,130,246,0.15)]'
+    : 'bg-white hover:bg-blue-50 border-slate-200 hover:border-blue-400 shadow-sm hover:shadow-md';
+  const examTitleClass = isDark ? 'text-white' : 'text-slate-900';
+  const examMetaClass = isDark ? 'text-gray-500' : 'text-slate-500';
+  const subjectChipClass = isDark ? 'text-blue-400/70' : 'text-blue-600';
+  const arrowClass = isDark
+    ? 'text-blue-400/50 group-hover:text-blue-400'
+    : 'text-blue-500 group-hover:text-blue-700';
+  const emptyIconClass = isDark ? 'text-gray-600' : 'text-slate-400';
+  const emptyTextClass = isDark ? 'text-gray-400' : 'text-slate-500';
+
   return (
-    <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center relative overflow-hidden">
-      {/* Background glows */}
+    <div className={`min-h-screen w-full ${pageBg} flex flex-col items-center relative overflow-hidden transition-colors`}>
+      {/* Background glows — softer in light mode so they don't blow out the page */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
-        <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/15 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
+        <div className={`absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/20' : 'bg-blue-400/30'}`} />
+        <div className={`absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/15' : 'bg-indigo-300/30'}`} style={{ animationDelay: '1s' }} />
       </div>
 
-      {/* Admin login link */}
-      <button
-        onClick={() => navigate('/admin')}
-        className="absolute top-4 right-4 z-20 flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all backdrop-blur-sm text-xs uppercase tracking-widest"
-      >
-        <ShieldCheck size={14} />
-        {t('home.adminLogin')}
-      </button>
+      {/* Top-right cluster: theme toggle, language toggle, admin login */}
+      <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
+        <button
+          onClick={toggle}
+          className={`p-2.5 rounded-xl border backdrop-blur-sm transition-colors ${togglePillClass}`}
+          title={isDark ? t('login.switchLight') : t('login.switchDark')}
+          aria-label={isDark ? t('login.switchLight') : t('login.switchDark')}
+        >
+          {isDark ? <Sun size={16} /> : <Moon size={16} />}
+        </button>
+        <button
+          onClick={() => setLocale(locale === 'sr' ? 'en' : 'sr')}
+          className={`p-2.5 rounded-xl border backdrop-blur-sm transition-colors ${togglePillClass}`}
+          title={locale === 'sr' ? 'English' : 'Srpski'}
+          aria-label={locale === 'sr' ? 'English' : 'Srpski'}
+        >
+          <span className="text-sm">{locale === 'sr' ? '\u{1F1EC}\u{1F1E7}' : '\u{1F1F7}\u{1F1F8}'}</span>
+        </button>
+        <button
+          onClick={() => navigate('/admin')}
+          className={`flex items-center gap-2 px-3 py-2 rounded-xl border backdrop-blur-sm transition-colors text-xs uppercase tracking-widest ${togglePillClass}`}
+        >
+          <ShieldCheck size={14} />
+          {t('home.adminLogin')}
+        </button>
+      </div>
 
       <div className="z-10 w-full max-w-3xl px-4 sm:px-6 pt-16 sm:pt-24 pb-12 flex flex-col items-center text-center">
         {/* Logo */}
@@ -82,20 +127,20 @@ export default function HomePage() {
         </motion.div>
 
         <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.2 }} className="mb-10">
-          <h1 className="text-3xl sm:text-4xl font-light text-white mb-2 tracking-[0.2em] drop-shadow-lg">OTISAK</h1>
-          <span className="text-xs text-blue-400/80 tracking-[0.4em] uppercase font-medium">v 2.0</span>
+          <h1 className={`text-3xl sm:text-4xl font-light mb-2 tracking-[0.2em] ${titleClass}`}>OTISAK</h1>
+          <span className={`text-xs tracking-[0.4em] uppercase font-medium ${versionClass}`}>v 2.0</span>
         </motion.div>
 
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mb-8">
-          <h2 className="text-xl sm:text-2xl text-white font-light tracking-wide mb-2">{t('home.title')}</h2>
-          <p className="text-sm text-gray-400">{t('home.subtitle')}</p>
+          <h2 className={`text-xl sm:text-2xl font-light tracking-wide mb-2 ${sectionTitleClass}`}>{t('home.title')}</h2>
+          <p className={`text-sm ${subtitleClass}`}>{t('home.subtitle')}</p>
         </motion.div>
 
         <div className="w-full flex items-center justify-end mb-3">
           <button
             onClick={() => load(true)}
             disabled={refreshing}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-gray-400 hover:text-white hover:border-white/20 transition-all text-xs uppercase tracking-widest disabled:opacity-50"
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border backdrop-blur-sm transition-all text-xs uppercase tracking-widest disabled:opacity-50 ${togglePillClass}`}
           >
             <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
             {t('home.refresh')}
@@ -104,16 +149,16 @@ export default function HomePage() {
 
         {loading ? (
           <div className="w-full py-20 flex justify-center">
-            <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
+            <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
           </div>
         ) : exams.length === 0 ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            className="w-full py-16 px-6 bg-[#131520]/60 border border-blue-500/10 rounded-xl text-center"
+            className={`w-full py-16 px-6 rounded-xl text-center border ${cardEmptyBg}`}
           >
-            <BookOpen className="w-12 h-12 text-gray-600 mx-auto mb-4" strokeWidth={1.5} />
-            <p className="text-gray-400 text-sm">{t('home.noActive')}</p>
+            <BookOpen className={`w-12 h-12 mx-auto mb-4 ${emptyIconClass}`} strokeWidth={1.5} />
+            <p className={`text-sm ${emptyTextClass}`}>{t('home.noActive')}</p>
           </motion.div>
         ) : (
           <div className="w-full space-y-3">
@@ -126,34 +171,38 @@ export default function HomePage() {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.05 * idx }}
                   onClick={() => navigate(`/join/${exam.id}`)}
-                  className="w-full group bg-[#131520]/80 hover:bg-[#1a1d2e]/80 border border-blue-500/20 hover:border-blue-500/50 rounded-xl px-5 py-4 backdrop-blur-sm transition-all text-left flex items-center gap-4 hover:shadow-[0_0_25px_rgba(59,130,246,0.15)]"
+                  className={`w-full group rounded-xl px-5 py-4 backdrop-blur-sm transition-all text-left flex items-center gap-4 border ${cardItemBg}`}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <span
                         className={`text-[10px] uppercase tracking-widest font-semibold px-2 py-0.5 rounded-full border ${
                           started
-                            ? 'bg-green-500/10 border-green-500/30 text-green-400'
-                            : 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
+                            ? isDark
+                              ? 'bg-green-500/10 border-green-500/30 text-green-400'
+                              : 'bg-green-50 border-green-300 text-green-700'
+                            : isDark
+                              ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400'
+                              : 'bg-amber-50 border-amber-300 text-amber-700'
                         }`}
                       >
                         {started ? t('home.inProgress') : t('home.waiting')}
                       </span>
                       {exam.subject_name && (
-                        <span className="text-[10px] text-blue-400/70 uppercase tracking-widest">
+                        <span className={`text-[10px] uppercase tracking-widest ${subjectChipClass}`}>
                           {exam.subject_name}
                         </span>
                       )}
                     </div>
-                    <div className="text-base sm:text-lg text-white font-light truncate">{exam.title}</div>
-                    <div className="flex items-center gap-1.5 mt-1.5 text-xs text-gray-500">
+                    <div className={`text-base sm:text-lg font-light truncate ${examTitleClass}`}>{exam.title}</div>
+                    <div className={`flex items-center gap-1.5 mt-1.5 text-xs ${examMetaClass}`}>
                       <Clock size={12} />
                       <span>{exam.duration_minutes} {t('home.minutes')}</span>
                     </div>
                   </div>
                   <ArrowRight
                     size={18}
-                    className="text-blue-400/50 group-hover:text-blue-400 group-hover:translate-x-1 transition-all flex-shrink-0"
+                    className={`group-hover:translate-x-1 transition-all flex-shrink-0 ${arrowClass}`}
                   />
                 </motion.button>
               );

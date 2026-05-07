@@ -43,11 +43,12 @@ type Question = {
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
 
-const TYPE_LABELS: Record<string, { label: string; icon: React.ReactNode }> = {
-  text: { label: 'Multiple choice', icon: <FileText size={14} /> },
-  code: { label: 'Code', icon: <Code size={14} /> },
-  image: { label: 'Image', icon: <ImageIcon size={14} /> },
-  open_text: { label: 'Open text', icon: <MessageSquare size={14} /> },
+// Map from question type -> i18n key + icon (label is resolved through `t()` at render time).
+const TYPE_LABELS: Record<string, { labelKey: string; icon: React.ReactNode }> = {
+  text: { labelKey: 'questions.multipleChoice', icon: <FileText size={14} /> },
+  code: { labelKey: 'questions.code', icon: <Code size={14} /> },
+  image: { labelKey: 'questions.image', icon: <ImageIcon size={14} /> },
+  open_text: { labelKey: 'questions.openText', icon: <MessageSquare size={14} /> },
 };
 
 export default function ExamEditPage() {
@@ -294,8 +295,8 @@ export default function ExamEditPage() {
                   </Field>
                   <Field label={t('examEdit.examMode')}>
                     <select value={exam.exam_mode} onChange={(e) => setExam({ ...exam, exam_mode: e.target.value as Exam['exam_mode'] })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
-                      <option value="real">real</option>
-                      <option value="practice">practice</option>
+                      <option value="real">{t('examEdit.modeReal')}</option>
+                      <option value="practice">{t('examEdit.modePractice')}</option>
                     </select>
                   </Field>
                   <div className="grid grid-cols-2 gap-2 col-span-1 sm:col-span-2">
@@ -420,14 +421,15 @@ export default function ExamEditPage() {
                 <div className="space-y-2">
                   {questions.map((q, idx) => {
                     const isOpen = expanded.has(q.id);
-                    const typeInfo = TYPE_LABELS[q.type] || { label: q.type, icon: <FileText size={14} /> };
+                    const typeInfo = TYPE_LABELS[q.type] || { labelKey: '', icon: <FileText size={14} /> };
+                    const typeLabel = typeInfo.labelKey ? t(typeInfo.labelKey) : q.type;
                     return (
                       <div key={q.id} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)]">
                         <button type="button" onClick={() => toggleExpand(q.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                           <span className="text-xs font-mono text-[var(--text-muted)] w-6 flex-shrink-0">{idx + 1}.</span>
                           <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-accent bg-accent-light px-2 py-0.5 rounded-full">
                             {typeInfo.icon}
-                            {typeInfo.label}
+                            {typeLabel}
                           </span>
                           <span className="flex-1 text-sm text-[var(--text-primary)] truncate">{q.text}</span>
                           <span className="text-xs font-mono text-[var(--text-secondary)]">{Number(q.points)} {t('questions.pts')}</span>

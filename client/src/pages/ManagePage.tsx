@@ -226,14 +226,14 @@ export default function ManagePage() {
                             exam.status === 'scheduled' ? 'warning' :
                             exam.status === 'completed' ? 'info' : 'neutral'
                           } size="sm">
-                            {exam.status}
+                            {t(`manage.${exam.status}`) || exam.status}
                           </Badge>
-                          {exam.exam_mode === 'practice' && <Badge variant="accent" size="sm">Practice</Badge>}
+                          {exam.exam_mode === 'practice' && <Badge variant="accent" size="sm">{t('manage.practice')}</Badge>}
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
                           {exam.subject_name && <span>{exam.subject_name}</span>}
-                          <span className="flex items-center gap-1"><Clock size={12} />{exam.duration_minutes}min</span>
-                          <span className="flex items-center gap-1"><FileText size={12} />{exam.question_count} questions</span>
+                          <span className="flex items-center gap-1"><Clock size={12} />{exam.duration_minutes} {t('manage.minShort')}</span>
+                          <span className="flex items-center gap-1"><FileText size={12} />{exam.question_count} {t('manage.questionsShort')}</span>
                         </div>
                       </div>
 
