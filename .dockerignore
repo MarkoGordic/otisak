@@ -1,8 +1,45 @@
-node_modules
-dist
+# Build artifacts and deps — re-installed inside the build stages
+**/node_modules
+**/dist
+**/.vite
+**/.turbo
+**/coverage
+
+# Version control
 .git
-.env
-.env.local
-*.md
 .gitignore
+.github
+
+# Local env / secrets — server reads these from compose, never from build context
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Editor / OS junk
+.vscode
+.idea
+**/.DS_Store
+**/Thumbs.db
+**/*.swp
+
+# Docs and meta — not needed at runtime
+*.md
+**/*.md
+DEPLOYMENT.md
+README.md
+
+# Docker / deploy meta — not needed inside the image
+Dockerfile
+docker-compose.yml
 .dockerignore
+deploy.sh
+
+# Logs and tmp scratch
+**/*.log
+**/tmp
+**/temp
+
+# Sample / fixture data the build doesn't need
+PrimerPI*.json
+seed.sql

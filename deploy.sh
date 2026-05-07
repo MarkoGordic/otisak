@@ -12,6 +12,15 @@ set -e
 #                      The flag is kept so the entry point survives if seed.sql
 #                      is ever repopulated.
 #   --no-pull          Skip "git pull" (useful for testing local changes).
+#   --port N / -p N    Host port the app listens on (1024–65535). Persisted
+#                      to .env as HOST_PORT so subsequent runs reuse it.
+#                      Default on first run: 3000.
+#   --no-firewall      Skip the ufw step entirely. Useful on hosts where
+#                      ufw isn't installed, where sudo isn't available, or
+#                      where firewall is managed elsewhere (cloud SG,
+#                      iptables, nftables, Docker Desktop on macOS, etc.).
+#                      Without this flag we still auto-skip if `ufw` isn't
+#                      on PATH — the flag suppresses the attempt entirely.
 
 show_help() {
   cat <<'EOF'
@@ -29,9 +38,18 @@ Flags:
                     a no-op (the file is empty by design — admin comes from
                     the server bootstrap, students from the CSV importer).
   --no-pull         Skip "git pull" (useful for testing local changes).
+  -p N, --port N    Host port the app listens on (1024–65535). Value is
+                    persisted to .env as HOST_PORT so future runs reuse it.
+                    Default on first run: 3000.
+  --no-firewall     Skip the ufw step entirely. Useful on macOS / hosts
+                    without ufw or sudo. Without the flag, ufw is auto-
+                    skipped when not on PATH; the flag also skips when
+                    ufw IS installed but you don't want to touch it.
 
 Examples:
   ./deploy.sh                    Standard deploy (keeps DB, pulls latest).
+  ./deploy.sh --port 8080        Deploy and publish app on host port 8080.
+  ./deploy.sh --no-firewall      Deploy without touching ufw rules.
   ./deploy.sh --clean            Full reset: wipe DB, rebuild from scratch,
                                  print the new bootstrap admin password.
   ./deploy.sh --no-pull          Deploy local changes without git pull.
@@ -46,24 +64,88 @@ EOF
 CLEAN=false
 SEED=false
 PULL=true
-for arg in "$@"; do
-  case $arg in
-    -h|--help)      show_help; exit 0 ;;
-    -clean|--clean) CLEAN=true ;;
-    -seed|--seed)   SEED=true  ;;
-    --no-pull)      PULL=false ;;
+FIREWALL=true
+PORT_OVERRIDE=""
+
+# Manual parser so we can support both "--port 8080" and "--port=8080"
+# without dragging in getopt (BSD/GNU getopt are incompatible).
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -h|--help)       show_help; exit 0 ;;
+    -clean|--clean)  CLEAN=true; shift ;;
+    -seed|--seed)    SEED=true;  shift ;;
+    --no-pull)       PULL=false; shift ;;
+    --no-firewall|--no-ufw)
+      FIREWALL=false; shift ;;
+    -p|--port)
+      if [ -z "${2:-}" ]; then
+        echo "Error: $1 requires a port number." >&2
+        exit 1
+      fi
+      PORT_OVERRIDE="$2"
+      shift 2
+      ;;
+    --port=*)
+      PORT_OVERRIDE="${1#--port=}"
+      shift
+      ;;
+    -p=*)
+      PORT_OVERRIDE="${1#-p=}"
+      shift
+      ;;
     *)
-      echo "Unknown flag: $arg" >&2
+      echo "Unknown flag: $1" >&2
       echo "Run './deploy.sh --help' for usage." >&2
       exit 1
       ;;
   esac
 done
 
+# Validate port override (integer, 1024-65535 — privileged ports require root
+# binding inside the host network namespace, which docker desktop won't grant).
+if [ -n "$PORT_OVERRIDE" ]; then
+  if ! [[ "$PORT_OVERRIDE" =~ ^[0-9]+$ ]] || [ "$PORT_OVERRIDE" -lt 1024 ] || [ "$PORT_OVERRIDE" -gt 65535 ]; then
+    echo "Error: --port must be an integer between 1024 and 65535 (got: $PORT_OVERRIDE)." >&2
+    exit 1
+  fi
+fi
+
+# Pick a compose runner. Modern docker bundles "docker compose" (v2 plugin).
+# Older / minimalist installs only ship the standalone "docker-compose" (v1)
+# binary. Prefer v2 when both exist; fall back to v1; bail out with a clear
+# message if neither is present. We also nudge BuildKit on for v1 — without
+# it, the Dockerfile's `--mount=type=cache` lines fail to parse.
+if docker compose version >/dev/null 2>&1; then
+  DC="docker compose"
+  COMPOSE_VARIANT="v2 (plugin)"
+elif command -v docker-compose >/dev/null 2>&1; then
+  DC="docker-compose"
+  COMPOSE_VARIANT="v1 (legacy standalone)"
+  export DOCKER_BUILDKIT=1
+  export COMPOSE_DOCKER_CLI_BUILD=1
+else
+  echo "Error: neither 'docker compose' nor 'docker-compose' is available." >&2
+  echo "Install Docker Engine + the compose plugin, or 'pip install docker-compose'." >&2
+  exit 1
+fi
+
+# Resolve the host port we'll publish the app on. Precedence:
+#   1. --port flag override (just validated above)
+#   2. existing HOST_PORT in .env (persisted from a previous run)
+#   3. fall back to 3000
+EXISTING_PORT=""
+if [ -f .env ] && grep -q '^HOST_PORT=' .env 2>/dev/null; then
+  EXISTING_PORT=$(grep '^HOST_PORT=' .env | tail -1 | cut -d= -f2- | tr -d '\r"')
+fi
+HOST_PORT="${PORT_OVERRIDE:-${EXISTING_PORT:-3000}}"
+
 echo "=== OTISAK Deploy Script ==="
-[ "$CLEAN" = true ] && echo "  mode: CLEAN (volumes will be wiped)" || echo "  mode: keep volumes (data preserved)"
-[ "$SEED"  = true ] && echo "  seed: ON"
-[ "$PULL"  = false ] && echo "  pull: OFF"
+[ "$CLEAN"    = true  ] && echo "  mode: CLEAN (volumes will be wiped)" || echo "  mode: keep volumes (data preserved)"
+[ "$SEED"     = true  ] && echo "  seed: ON"
+[ "$PULL"     = false ] && echo "  pull: OFF"
+[ "$FIREWALL" = false ] && echo "  firewall: SKIP (--no-firewall)"
+echo "  port:    ${HOST_PORT}"
+echo "  compose: ${COMPOSE_VARIANT}"
 echo ""
 
 # Make sure SESSION_SECRET exists in .env so docker-compose can read it.
@@ -84,15 +166,25 @@ if [ ! -f .env ] || ! grep -q '^SESSION_SECRET=' .env 2>/dev/null; then
   echo "Generated SESSION_SECRET in .env (64 hex chars)."
 fi
 
+# Persist HOST_PORT to .env so subsequent runs (and docker compose, which
+# reads .env automatically) pick up the same value without --port being
+# repeated. Always rewrite the line so an explicit --port override actually
+# sticks.
+touch .env
+if grep -q '^HOST_PORT=' .env 2>/dev/null; then
+  sed -i.bak '/^HOST_PORT=/d' .env && rm -f .env.bak
+fi
+echo "HOST_PORT=${HOST_PORT}" >> .env
+
 
 # 1) Stop containers. Volume / image removal is gated on --clean.
 if [ "$CLEAN" = true ]; then
   echo "[1/6] Stopping containers AND removing volumes + images..."
-  docker compose down -v --rmi all 2>/dev/null || true
+  $DC down -v --rmi all 2>/dev/null || true
   docker builder prune -f 2>/dev/null || true
 else
   echo "[1/6] Stopping containers (keeping volumes + images)..."
-  docker compose down 2>/dev/null || true
+  $DC down 2>/dev/null || true
 fi
 echo "Done."
 echo ""
@@ -107,35 +199,46 @@ else
 fi
 echo ""
 
-# 3) Firewall
-echo "[3/6] Configuring firewall (ufw)..."
-if command -v ufw &> /dev/null; then
-  sudo ufw allow 3000/tcp 2>/dev/null || echo "ufw rule may already exist or ufw not active"
-  echo "Firewall port 3000 opened."
+# 3) Firewall — opens the chosen host port. Old rules from previous ports
+# stay (ufw doesn't track them per-deploy); clean those up manually with
+# `sudo ufw status numbered` + `sudo ufw delete N` if you care.
+# Skipped entirely when --no-firewall is set, or when ufw isn't on PATH
+# (e.g. macOS, Alpine, distroless containers, cloud images).
+if [ "$FIREWALL" = false ]; then
+  echo "[3/6] Skipping firewall (--no-firewall)."
+elif ! command -v ufw >/dev/null 2>&1; then
+  echo "[3/6] Skipping firewall: 'ufw' not on PATH (manage it elsewhere)."
+elif ! command -v sudo >/dev/null 2>&1; then
+  echo "[3/6] Skipping firewall: 'sudo' not available."
 else
-  echo "ufw not found, skipping firewall configuration."
+  echo "[3/6] Configuring firewall (ufw)..."
+  if sudo ufw allow "${HOST_PORT}/tcp" >/dev/null 2>&1; then
+    echo "Firewall port ${HOST_PORT} opened (or already allowed)."
+  else
+    echo "Skipping firewall: ufw not active or sudo declined."
+  fi
 fi
 echo ""
 
 # 4) Build. --no-cache only when CLEAN, otherwise let BuildKit cache mounts work.
 echo "[4/6] Building Docker images..."
 if [ "$CLEAN" = true ]; then
-  docker compose build --no-cache
+  $DC build --no-cache
 else
-  docker compose build
+  $DC build
 fi
 echo "Done."
 echo ""
 
 # 5) Start
 echo "[5/6] Starting containers..."
-docker compose up -d
+$DC up -d
 echo ""
 
 # Wait for DB
 echo "Waiting for database to be ready..."
-for i in {1..30}; do
-  if docker compose exec -T db pg_isready -U otisak >/dev/null 2>&1; then
+for i in $(seq 1 30); do
+  if $DC exec -T db pg_isready -U otisak >/dev/null 2>&1; then
     echo "Database ready."
     break
   fi
@@ -145,7 +248,7 @@ done
 # 6) Optional seed
 if [ "$SEED" = true ]; then
   echo "[6/6] Seeding database (subject + question bank)..."
-  CONTAINER=$(docker compose ps -q db)
+  CONTAINER=$($DC ps -q db)
   docker exec -i "$CONTAINER" psql -U otisak -d otisak < seed.sql 2>&1
   echo "Seed complete."
 else
@@ -154,16 +257,31 @@ fi
 
 echo ""
 echo "=== Deploy complete ==="
-HOST=$(hostname -I 2>/dev/null | awk '{print $1}' || echo 'localhost')
-echo "App running at: http://${HOST}:3000"
-echo "WebSocket at:   ws://${HOST}:3000/ws"
+# Resolve a useful host string. `hostname -I` only exists on Linux; macOS,
+# BSDs and minimal images don't have it, so fall back to the first non-loopback
+# IPv4 we can find via ifconfig/ip, then to "localhost".
+HOST=""
+if command -v hostname >/dev/null 2>&1; then
+  HOST=$(hostname -I 2>/dev/null | awk '{print $1}')
+fi
+if [ -z "$HOST" ] && command -v ip >/dev/null 2>&1; then
+  HOST=$(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1 | head -n1)
+fi
+if [ -z "$HOST" ] && command -v ifconfig >/dev/null 2>&1; then
+  # Skip the whole 127.0.0.0/8 loopback range (some macs put VPN/tunnel IPs
+  # in there) and pick the first plain IPv4.
+  HOST=$(ifconfig 2>/dev/null | awk '/inet / && $2 !~ /^127\./ {print $2; exit}')
+fi
+[ -z "$HOST" ] && HOST="localhost"
+echo "App running at: http://${HOST}:${HOST_PORT}"
+echo "WebSocket at:   ws://${HOST}:${HOST_PORT}/ws"
 echo ""
 
 # Wait for the app to finish booting (the WebSocket / bootstrap admin run
 # inside the listen callback, so we have to poll until the banner shows up).
 echo "Waiting for app to finish bootstrap..."
-for i in {1..60}; do
-  if docker compose logs app 2>/dev/null | grep -q 'OTISAK server running'; then
+for i in $(seq 1 60); do
+  if $DC logs app 2>/dev/null | grep -q 'OTISAK server running'; then
     break
   fi
   sleep 1
@@ -193,7 +311,7 @@ if [ "$CLEAN" = true ]; then
   # Compute the bcrypt hash inside the app container so we can use the same
   # bcryptjs install the server uses. Write the password to stdin so it
   # never appears as a process argument.
-  HASH=$(printf %s "$ADMIN_PASSWORD" | docker compose exec -T app node -e '
+  HASH=$(printf %s "$ADMIN_PASSWORD" | $DC exec -T app node -e '
     const bcrypt = require("bcryptjs");
     let pw = "";
     process.stdin.on("data", c => pw += c);
@@ -205,7 +323,7 @@ if [ "$CLEAN" = true ]; then
 
   if [ -n "$HASH" ]; then
     # UPSERT so this works whether or not bootstrap already created the row.
-    if docker compose exec -T db psql -U otisak -d otisak -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<SQL
+    if $DC exec -T db psql -U otisak -d otisak -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<SQL
 INSERT INTO users (email, password_hash, name, role)
 VALUES ('${ADMIN_EMAIL}', '${HASH}', 'Administrator', 'admin')
 ON CONFLICT (email) DO UPDATE
@@ -225,7 +343,7 @@ fi
 # the password from the bootstrap banner in app logs. If admin already
 # existed (volume preserved), no banner = no rotation, password unchanged.
 if [ -z "$ADMIN_PASSWORD" ]; then
-  LOGS=$(docker compose logs app 2>/dev/null || true)
+  LOGS=$($DC logs app 2>/dev/null || true)
   if echo "$LOGS" | grep -q 'admin account bootstrapped'; then
     BOOTSTRAP_SEEN=true
     LINE_EMAIL=$(echo "$LOGS"    | grep -A 3 'admin account bootstrapped' | grep 'email:'    | tail -1 | sed -E 's/.*email:[[:space:]]+//' | tr -d '\r')
