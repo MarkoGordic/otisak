@@ -159,44 +159,97 @@ echo "App running at: http://${HOST}:3000"
 echo "WebSocket at:   ws://${HOST}:3000/ws"
 echo ""
 
-# Wait for the app to finish booting and run ensureBootstrapAdmin(). If a fresh
-# admin was created we extract the generated password from the banner and print
-# it here so the operator does not have to grep logs by hand.
+# Wait for the app to finish booting (the WebSocket / bootstrap admin run
+# inside the listen callback, so we have to poll until the banner shows up).
 echo "Waiting for app to finish bootstrap..."
-ADMIN_EMAIL=""
-ADMIN_PASSWORD=""
-BOOTSTRAP_SEEN=false
 for i in {1..60}; do
-  LOGS=$(docker compose logs app 2>/dev/null || true)
-  if echo "$LOGS" | grep -q 'OTISAK server running'; then
-    if echo "$LOGS" | grep -q 'admin account bootstrapped'; then
-      BOOTSTRAP_SEEN=true
-      ADMIN_EMAIL=$(echo "$LOGS"    | grep -A 3 'admin account bootstrapped' | grep 'email:'    | tail -1 | sed -E 's/.*email:[[:space:]]+//' | tr -d '\r')
-      ADMIN_PASSWORD=$(echo "$LOGS" | grep -A 3 'admin account bootstrapped' | grep 'password:' | tail -1 | sed -E 's/.*password:[[:space:]]+//' | tr -d '\r')
-      [ -n "$ADMIN_PASSWORD" ] && break
-    fi
-    # Server is up but no bootstrap banner — admin already exists. Give it
-    # one more second in case logs are still flushing, then stop waiting.
-    sleep 1
-    LOGS=$(docker compose logs app 2>/dev/null || true)
-    if ! echo "$LOGS" | grep -q 'admin account bootstrapped'; then
-      break
-    fi
+  if docker compose logs app 2>/dev/null | grep -q 'OTISAK server running'; then
+    break
   fi
   sleep 1
 done
+# Give bootstrap one more second to flush its admin banner if it fired.
+sleep 1
+
+ADMIN_EMAIL="${BOOTSTRAP_ADMIN_EMAIL:-admin@otisak.local}"
+ADMIN_PASSWORD=""
+BOOTSTRAP_SEEN=false
+
+# --clean ALWAYS rotates the admin password and prints it. The volume was
+# wiped, so even though server-side bootstrap will already have set a random
+# password, we deterministically re-set it here so the script knows exactly
+# what it is — no log scraping, no race.
+if [ "$CLEAN" = true ]; then
+  echo "Forcing a fresh admin password..."
+
+  # 12 chars from a copy-friendly alphabet (no 0/O, 1/l/I, no slashes).
+  ALPHABET='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  ADMIN_PASSWORD=""
+  for _ in $(seq 1 12); do
+    R=$(( RANDOM % ${#ALPHABET} ))
+    ADMIN_PASSWORD="${ADMIN_PASSWORD}${ALPHABET:$R:1}"
+  done
+
+  # Compute the bcrypt hash inside the app container so we can use the same
+  # bcryptjs install the server uses. Write the password to stdin so it
+  # never appears as a process argument.
+  HASH=$(printf %s "$ADMIN_PASSWORD" | docker compose exec -T app node -e '
+    const bcrypt = require("bcryptjs");
+    let pw = "";
+    process.stdin.on("data", c => pw += c);
+    process.stdin.on("end", async () => {
+      const h = await bcrypt.hash(pw, 10);
+      process.stdout.write(h);
+    });
+  ' 2>/dev/null)
+
+  if [ -n "$HASH" ]; then
+    # UPSERT so this works whether or not bootstrap already created the row.
+    if docker compose exec -T db psql -U otisak -d otisak -v ON_ERROR_STOP=1 >/dev/null 2>&1 <<SQL
+INSERT INTO users (email, password_hash, name, role)
+VALUES ('${ADMIN_EMAIL}', '${HASH}', 'Administrator', 'admin')
+ON CONFLICT (email) DO UPDATE
+  SET password_hash = EXCLUDED.password_hash,
+      role          = 'admin',
+      is_active     = TRUE;
+SQL
+    then
+      BOOTSTRAP_SEEN=true
+    else
+      ADMIN_PASSWORD=""  # SQL failed — fall through to the log-scrape path
+    fi
+  fi
+fi
+
+# Non-clean path (or clean fallback if hashing/SQL above failed): try to read
+# the password from the bootstrap banner in app logs. If admin already
+# existed (volume preserved), no banner = no rotation, password unchanged.
+if [ -z "$ADMIN_PASSWORD" ]; then
+  LOGS=$(docker compose logs app 2>/dev/null || true)
+  if echo "$LOGS" | grep -q 'admin account bootstrapped'; then
+    BOOTSTRAP_SEEN=true
+    LINE_EMAIL=$(echo "$LOGS"    | grep -A 3 'admin account bootstrapped' | grep 'email:'    | tail -1 | sed -E 's/.*email:[[:space:]]+//' | tr -d '\r')
+    LINE_PWD=$(echo "$LOGS"      | grep -A 3 'admin account bootstrapped' | grep 'password:' | tail -1 | sed -E 's/.*password:[[:space:]]+//' | tr -d '\r')
+    [ -n "$LINE_EMAIL" ] && ADMIN_EMAIL="$LINE_EMAIL"
+    [ -n "$LINE_PWD" ]   && ADMIN_PASSWORD="$LINE_PWD"
+  fi
+fi
 
 LINE=$(printf '=%.0s' {1..72})
 echo ""
 echo "$LINE"
 if [ "$BOOTSTRAP_SEEN" = true ] && [ -n "$ADMIN_PASSWORD" ]; then
-  echo "ADMIN ACCOUNT (newly bootstrapped — save this NOW):"
-  echo "  email:    ${ADMIN_EMAIL:-admin@otisak.local}"
+  if [ "$CLEAN" = true ]; then
+    echo "ADMIN ACCOUNT (forced new password — save this NOW):"
+  else
+    echo "ADMIN ACCOUNT (newly bootstrapped — save this NOW):"
+  fi
+  echo "  email:    ${ADMIN_EMAIL}"
   echo "  password: ${ADMIN_PASSWORD}"
   echo "  This password is not stored in plaintext anywhere else."
 else
   echo "ADMIN ACCOUNT: existing admin preserved (password unchanged)."
-  echo "  To force a new password, re-run with --clean (wipes the DB)."
+  echo "  To force a new password, re-run with --clean."
 fi
 echo "$LINE"
 echo ""
