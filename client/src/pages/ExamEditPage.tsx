@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
+import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 import { CodeBlock } from '../components/otisak';
 
@@ -473,6 +474,7 @@ export default function ExamEditPage() {
               )}
             </section>
           </div>
+          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
         </main>
       </div>
     </div>

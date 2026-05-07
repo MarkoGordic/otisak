@@ -8,7 +8,8 @@ export type ExamWsEvent =
   | { type: 'lockdown.changed'; is_active: boolean; message: string | null }
   | { type: 'timer.adjusted'; extra_seconds: number; effective_duration_seconds: number; delta_seconds: number }
   | { type: 'request.created'; request_id: string; request_type: string; user_id: string }
-  | { type: 'request.decided'; request_id: string; request_type: string; user_id: string; status: 'approved' | 'denied' };
+  | { type: 'request.decided'; request_id: string; request_type: string; user_id: string; status: 'approved' | 'denied' }
+  | { type: 'exam.finished'; redirect: boolean; finished_count: number };
 
 // Shared WebSocket per (exam_id) so multiple components can subscribe without spawning extra sockets.
 // Clients install onEvent handlers; the hook automatically reconnects with backoff if the socket drops.

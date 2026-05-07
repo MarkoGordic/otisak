@@ -13,6 +13,7 @@ import {
 } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import { useExamSocket } from '../lib/useExamSocket';
+import { useToast } from '../components/Toast';
 import type {
   OtisakExamWithSubject,
   OtisakQuestionWithAnswers,
@@ -34,6 +35,7 @@ export default function ExamPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
   const { t } = useLang();
+  const toast = useToast();
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -409,6 +411,22 @@ export default function ExamPage() {
       if (evt.is_active && evt.message) setLockdownMessage(evt.message);
     } else if (evt.type === 'timer.adjusted') {
       setExam((prev) => (prev && prev.extra_seconds !== evt.extra_seconds ? { ...prev, extra_seconds: evt.extra_seconds } : prev));
+      const minutes = Math.round(Number(evt.delta_seconds || 0) / 60);
+      if (minutes !== 0) {
+        toast.info(t(minutes > 0 ? 'exam.toast.timerAdded' : 'exam.toast.timerRemoved', { minutes: Math.abs(minutes) }));
+      }
+    } else if (evt.type === 'exam.finished') {
+      // Admin closed the exam for everyone. If they asked us to redirect,
+      // bounce home; otherwise drop into the results screen which the
+      // server-side finishAllAttempts will have created.
+      const redirect = (evt as unknown as { redirect?: boolean }).redirect === true;
+      if (redirect) {
+        toast.warning(t('exam.toast.finishedRedirect'));
+        navigate('/', { replace: true });
+      } else {
+        toast.info(t('exam.toast.finishedByAdmin'));
+        navigate(`/exam/${examId}/results`, { replace: true });
+      }
     } else if (evt.type === 'exam.started' || evt.type === 'request.decided') {
       // Trigger a refetch of /exams/:id so the lobby/awaiting-approval flow advances immediately.
       // Done via a small ping flag so we don't duplicate the load logic here.
@@ -445,7 +463,7 @@ export default function ExamPage() {
         } catch { /* fallback to polling */ }
       })();
     }
-  }, [examId, navigate, phase]));
+  }, [examId, navigate, phase, t, toast]));
 
   // Warn before leaving + save on unload
   useEffect(() => {

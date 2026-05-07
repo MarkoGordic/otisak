@@ -20,6 +20,7 @@ import {
   joinExamByIndex,
   getExamRoomStatus,
   startExamTimer,
+  updateOtisakExamStatus,
 } from '../db/otisak';
 import { getActiveLockdown, createLockdown, endLockdown } from '../db/settings';
 import { logEvents, getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
@@ -940,6 +941,65 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
     return res.json({ exam });
   } catch (error) {
     console.error('Start exam error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /exams/:examId/finish-all  admin/assistant
+// One-shot exam termination:
+//   - mark every unsubmitted attempt as submitted (score is computed from
+//     whatever answers were saved before the cut-off)
+//   - close any open lockdown
+//   - flip exam.status to 'completed' (which is irreversible — the
+//     updateOtisakExamStatus DB layer refuses to flip back to 'active')
+//   - broadcast exam.finished so every connected student transitions out of
+//     the exam UI immediately. The optional `redirect` flag tells the client
+//     to bounce home instead of showing the results screen.
+router.post('/finish-all', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const redirectStudents = req.body?.redirect_students === true;
+
+    const exam = await getOtisakExamById(examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+
+    // 1) Finish each open attempt, computing per-attempt time from the timer
+    //    reference (exam_started_at if present, else attempt.started_at).
+    const openRows = await query<{ id: string; started_at: Date }>(
+      `SELECT id, started_at FROM otisak_attempts
+       WHERE exam_id = $1 AND submitted = FALSE`,
+      [examId],
+    );
+    const startMs = exam.exam_started_at ? new Date(exam.exam_started_at).getTime() : null;
+    let finishedCount = 0;
+    for (const row of openRows.rows) {
+      const refStart = startMs ?? new Date(row.started_at).getTime();
+      const elapsed = Math.max(1, Math.floor((Date.now() - refStart) / 1000));
+      try {
+        await finishAttempt(row.id, elapsed);
+        finishedCount++;
+      } catch (e) {
+        console.error('finish-all: per-attempt finish failed', row.id, e);
+      }
+    }
+
+    // 2) Close any active lockdown so the exam is fully released.
+    await endLockdown(examId);
+
+    // 3) Lock the exam down at the status layer.
+    await updateOtisakExamStatus(examId, 'completed');
+    invalidateExamCache(examId);
+
+    // 4) Push the event so connected students react instantly.
+    broadcastExamEvent(examId, {
+      type: 'exam.finished',
+      redirect: redirectStudents,
+      finished_count: finishedCount,
+    });
+
+    return res.json({ ok: true, finished_count: finishedCount, redirect_students: redirectStudents });
+  } catch (error) {
+    console.error('Finish-all error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

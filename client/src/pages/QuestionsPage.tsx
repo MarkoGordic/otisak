@@ -7,6 +7,7 @@ import {
 import { CodeBlock } from '../components/otisak';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
+import { AppCopyright } from '../components/AppCopyright';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Dropdown } from '../components/ui/Dropdown';
@@ -336,6 +337,7 @@ export default function QuestionBankPage() {
               <EmptyState icon={<FileText size={32} strokeWidth={1.5} />} title={t('questions.noQuestions')} description={t('questions.noQuestionsDesc')} actionLabel={t('questions.add')} onAction={() => setShowCreate(true)} />
             )}
           </div>
+          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
         </main>
       </div>
 

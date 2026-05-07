@@ -2,13 +2,14 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Loader2, Users, Play, Copy, Check, Clock, Link2, UserCheck, ArrowLeft,
+  Loader2, Users, Play, Pause, Copy, Check, Clock, Link2, UserCheck, ArrowLeft,
   Fingerprint, AlertTriangle, Radio, ShieldOff, ShieldAlert, FileText,
   Plus, Minus, X, UserPlus, Timer as TimerIcon,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useLang } from '../components/LangProvider';
+import { useToast } from '../components/Toast';
 import { useExamSocket } from '../lib/useExamSocket';
 
 type Participant = {
@@ -34,6 +35,7 @@ export default function ExamRoomPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
   const { t } = useLang();
+  const toast = useToast();
 
   const [loading, setLoading] = useState(true);
   const [exam, setExam] = useState<ExamData | null>(null);
@@ -43,6 +45,9 @@ export default function ExamRoomPage() {
   const [started, setStarted] = useState(false);
   const [locked, setLocked] = useState(false);
   const [locking, setLocking] = useState(false);
+  const [showFinishModal, setShowFinishModal] = useState(false);
+  const [finishRedirect, setFinishRedirect] = useState(false);
+  const [finishing, setFinishing] = useState(false);
   const [requests, setRequests] = useState<Array<{
     id: string; user_id: string; type: string; created_at: string;
     user_name: string | null; user_email: string; user_index_number: string | null;
@@ -100,6 +105,32 @@ export default function ExamRoomPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleFinishAll = async () => {
+    setFinishing(true);
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/finish-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ redirect_students: finishRedirect }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('room.toast.finishFailed'));
+        return;
+      }
+      const d = await res.json().catch(() => ({}));
+      toast.success(t('room.toast.finishedAll', { count: Number(d.finished_count ?? 0) }));
+      setShowFinishModal(false);
+      // Done — bounce admin back to the manage list since the exam is now closed.
+      navigate('/manage');
+    } catch {
+      toast.error(t('room.toast.finishFailed'));
+    } finally {
+      setFinishing(false);
+    }
+  };
+
   const handleStartExam = async () => {
     if (starting || started) return;
     if (!confirm(t('room.startConfirm', { count: participants.length }))) return;
@@ -113,12 +144,13 @@ export default function ExamRoomPage() {
       if (res.ok) {
         setStarted(true);
         loadRoom();
+        toast.success(t('room.toast.started'));
       } else {
-        const data = await res.json();
-        alert(data.error || t('room.startFailed'));
+        const data = await res.json().catch(() => ({}));
+        toast.error(data.error || t('room.startFailed'));
       }
     } catch {
-      alert(t('room.startFailed'));
+      toast.error(t('room.startFailed'));
     } finally {
       setStarting(false);
     }
@@ -294,23 +326,79 @@ export default function ExamRoomPage() {
           )}
         </div>
 
-        {/* Started notice */}
+        {/* Started notice + Finish-for-all action */}
         {started && (
           <motion.div
             initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="mt-6 bg-success-light border border-[var(--border-default)] rounded-xl p-5 flex items-center gap-4"
+            className="mt-6 bg-success-light border border-[var(--border-default)] rounded-xl p-5 flex items-center gap-4 flex-wrap"
           >
             <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center flex-shrink-0">
               <Play size={20} className="text-success fill-current" />
             </div>
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <p className="text-success font-medium">{t('room.examRunning')}</p>
               <p className="text-[var(--text-secondary)] text-xs">
                 {t('room.startedAt', { time: exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : '—' })}
               </p>
             </div>
+            <Button
+              variant="danger"
+              size="md"
+              leftIcon={<Pause size={16} />}
+              onClick={() => { setFinishRedirect(false); setShowFinishModal(true); }}
+            >
+              {t('room.finishAll')}
+            </Button>
           </motion.div>
         )}
+
+        {/* Finish-all confirmation modal */}
+        <AnimatePresence>
+          {showFinishModal && (
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+              onClick={() => !finishing && setShowFinishModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+                className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-2xl shadow-2xl max-w-md w-full p-6"
+              >
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-danger-light flex items-center justify-center">
+                    <Pause size={18} className="text-danger" />
+                  </div>
+                  <h3 className="text-lg font-display font-semibold text-[var(--text-primary)]">{t('room.finishAll.title')}</h3>
+                </div>
+                <p className="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">{t('room.finishAll.body')}</p>
+                <p className="text-xs text-warning mb-4 leading-relaxed">{t('room.finishAll.warning')}</p>
+
+                <label className="flex items-start gap-3 mb-5 p-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-tertiary)] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={finishRedirect}
+                    onChange={(e) => setFinishRedirect(e.target.checked)}
+                    className="mt-0.5 w-4 h-4 accent-[var(--accent)]"
+                  />
+                  <span className="text-sm text-[var(--text-primary)]">
+                    <span className="block font-medium">{t('room.finishAll.redirectLabel')}</span>
+                    <span className="block text-xs text-[var(--text-muted)] mt-0.5">{t('room.finishAll.redirectHint')}</span>
+                  </span>
+                </label>
+
+                <div className="flex items-center justify-end gap-3">
+                  <Button variant="secondary" onClick={() => setShowFinishModal(false)} disabled={finishing}>
+                    {t('common.cancel')}
+                  </Button>
+                  <Button variant="danger" loading={finishing} onClick={handleFinishAll}>
+                    {t('room.finishAll.confirm')}
+                  </Button>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Lockdown Controls */}
         {started && (
@@ -346,18 +434,27 @@ export default function ExamRoomPage() {
               leftIcon={locked ? <ShieldOff size={16} /> : <ShieldAlert size={16} />}
               onClick={async () => {
                 setLocking(true);
+                const next = !locked;
                 try {
-                  await fetch(`/api/otisak/exams/${examId}/lockdown`, {
+                  const res = await fetch(`/api/otisak/exams/${examId}/lockdown`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
                     body: JSON.stringify({
-                      lock: !locked,
+                      lock: next,
                       message: t('lockdown.adminMessage'),
                     }),
                   });
-                  setLocked(!locked);
-                } catch {} finally { setLocking(false); }
+                  if (!res.ok) {
+                    const d = await res.json().catch(() => ({}));
+                    toast.error(d.error || t('common.error'));
+                  } else {
+                    setLocked(next);
+                    toast.info(t(next ? 'room.toast.lockOn' : 'room.toast.lockOff'));
+                  }
+                } catch {
+                  toast.error(t('common.error'));
+                } finally { setLocking(false); }
               }}
             >
               {locked ? t('lockdown.button.resume') : t('lockdown.button.pause')}
@@ -485,8 +582,17 @@ export default function ExamRoomPage() {
                           method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                           body: JSON.stringify({ delta_seconds: b.delta }),
                         });
-                        if (!res.ok) { const d = await res.json(); alert(d.error || t('room.timer.failed')); }
-                        else { const d = await res.json(); setExtraSeconds(Number(d.extra_seconds || 0)); }
+                        if (!res.ok) {
+                          const d = await res.json().catch(() => ({}));
+                          toast.error(d.error || t('room.timer.failed'));
+                        } else {
+                          const d = await res.json();
+                          setExtraSeconds(Number(d.extra_seconds || 0));
+                          const minutes = b.delta / 60;
+                          toast.success(
+                            t(minutes > 0 ? 'room.timer.toast.added' : 'room.timer.toast.removed', { minutes: Math.abs(minutes) })
+                          );
+                        }
                       } finally { setAdjusting(false); }
                     }}
                   >

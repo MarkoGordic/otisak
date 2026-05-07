@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Loader2, Settings, Shield, BookOpen, Users } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
+import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 
 type UserInfo = { name?: string; role?: string };
@@ -137,6 +138,7 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </div>
+          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
         </main>
       </div>
     </div>
