@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, Sun, Moon, ArrowLeft } from 'lucide-react';
+import { AppCopyright } from '../components/AppCopyright';
 import { useTheme } from '../components/ThemeProvider';
 import { useLang } from '../components/LangProvider';
 
@@ -197,6 +198,7 @@ export default function LoginPage() {
         <p className={`text-center text-[10px] uppercase tracking-[0.3em] mt-6 ${isDark ? 'text-gray-600' : 'text-slate-400'}`}>
           {t('app.version')}
         </p>
+        <AppCopyright className="text-center mt-3" />
       </div>
 
       <style>{`

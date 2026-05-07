@@ -30,6 +30,8 @@ export default function ManagePage() {
     { value: 'archived', label: t('manage.archived') },
   ];
 
+  // Per-status admin actions. Completed and archived exams are read-only —
+  // they can be archived (housekeeping) but never reopened.
   const statusActions: Record<string, Array<{ label: string; status: string; icon: React.ReactNode }>> = {
     draft: [
       { label: t('manage.activate'), status: 'active', icon: <Play size={14} /> },
@@ -43,8 +45,8 @@ export default function ManagePage() {
     ],
     completed: [
       { label: t('manage.archive'), status: 'archived', icon: <Archive size={14} /> },
-      { label: t('manage.reactivate'), status: 'active', icon: <Play size={14} /> },
     ],
+    archived: [],
   };
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);

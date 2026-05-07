@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';
+import { AppCopyright } from './AppCopyright';
 
 type SidebarProps = {
   userName?: string;
@@ -121,6 +122,9 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
             <LogOut size={16} />
           </button>
         </div>
+
+        {/* Copyright line — small and unobtrusive */}
+        <AppCopyright className="text-center mt-2 leading-snug" />
       </div>
     </aside>
   );

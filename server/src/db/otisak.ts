@@ -160,8 +160,17 @@ export async function updateOtisakExamStatus(
   examId: string,
   status: OtisakExam['status']
 ): Promise<OtisakExam | null> {
+  // A finished exam stays finished. We block flips OUT of completed/archived
+  // here at the DB layer so no UI button (or stray API call) can reopen them.
+  // Allowed transitions: anything -> draft/scheduled/active/completed/archived
+  // EXCEPT (completed|archived) -> active.
+  if (status === 'active') {
+    const cur = await query<{ status: string }>('SELECT status FROM otisak_exams WHERE id = $1', [examId]);
+    const now = cur.rows[0]?.status;
+    if (now === 'completed' || now === 'archived') return null;
+  }
   const result = await query<OtisakExam>(
-    `UPDATE otisak_exams SET status = $2 WHERE id = $1 RETURNING *`,
+    `UPDATE otisak_exams SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
     [examId, status]
   );
   return result.rows[0] || null;
@@ -169,7 +178,7 @@ export async function updateOtisakExamStatus(
 
 export async function updateOtisakExam(
   examId: string,
-  data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'allow_review' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring'>>
+  data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'allow_review' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring' | 'exam_mode' | 'subject_id'>>
 ): Promise<OtisakExam | null> {
   const updates: string[] = [];
   const values: unknown[] = [];
@@ -190,6 +199,20 @@ export async function updateOtisakExam(
   if (data.negative_points_value !== undefined) { updates.push(`negative_points_value = $${idx++}`); values.push(data.negative_points_value); }
   if (data.negative_points_threshold !== undefined) { updates.push(`negative_points_threshold = $${idx++}`); values.push(data.negative_points_threshold); }
   if (data.partial_scoring !== undefined) { updates.push(`partial_scoring = $${idx++}`); values.push(data.partial_scoring); }
+  if (data.exam_mode !== undefined) {
+    // Only allow the two known modes; don't trust the client to send anything else.
+    const mode = data.exam_mode === 'practice' ? 'practice' : 'real';
+    updates.push(`exam_mode = $${idx++}`); values.push(mode);
+    // Keep the practice-side flags in sync — practice exams are self-service + public,
+    // real exams are not. Skips when the caller explicitly set those fields above.
+    if (data.self_service === undefined) {
+      updates.push(`self_service = $${idx++}`); values.push(mode === 'practice');
+    }
+    if (data.is_public === undefined) {
+      updates.push(`is_public = $${idx++}`); values.push(mode === 'practice');
+    }
+  }
+  if (data.subject_id !== undefined) { updates.push(`subject_id = $${idx++}`); values.push(data.subject_id); }
 
   if (updates.length === 0) return null;
   values.push(examId);
@@ -1142,8 +1165,11 @@ export async function getTagCountsForSubject(
 // ========================================
 
 export async function startExamTimer(examId: string): Promise<OtisakExam | null> {
-  // Auto-activate scheduled/draft exams when admin starts the timer.
-  // Idempotent: if exam_started_at is already set, leave it untouched.
+  // Auto-activate scheduled/draft exams when the admin clicks Start. Idempotent
+  // for already-active exams (COALESCE preserves an existing exam_started_at
+  // so a second click doesn't reset every student's timer).
+  // Completed and archived exams are intentionally NOT eligible — once an exam
+  // ends it stays ended.
   const result = await query<OtisakExam>(
     `UPDATE otisak_exams
      SET status = 'active',

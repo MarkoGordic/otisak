@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, RefreshCw, Clock, BookOpen, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
 import { OtisakLogo, OtisakFooter } from '../components/otisak';
+import { AppCopyright } from '../components/AppCopyright';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
 
@@ -211,7 +212,10 @@ export default function HomePage() {
         )}
       </div>
 
-      <div className="absolute bottom-0 w-full"><OtisakFooter /></div>
+      <div className="absolute bottom-0 w-full">
+        <OtisakFooter />
+        <AppCopyright className="text-center pb-3 -mt-1" />
+      </div>
     </div>
   );
 }
