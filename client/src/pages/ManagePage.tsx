@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Loader2, Plus, Settings, Trash2, Users, Play, Pause, Archive, Eye,
   Fingerprint, FileText, Clock, CalendarIcon, Radio, Link2, Copy,
-  Download, Upload, Pencil,
+  Download, Upload, Pencil, Package,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -256,6 +256,16 @@ export default function ManagePage() {
                         >
                           <Download size={14} />
                         </a>
+                        {exam.status === 'completed' && (
+                          <a
+                            href={`/api/otisak/exams/${exam.id}/export-results`}
+                            className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-accent bg-accent-light text-accent text-sm font-medium hover:bg-accent hover:text-white transition-colors"
+                            title={t('manage.exportResults')}
+                          >
+                            <Package size={14} />
+                            {t('manage.exportResults.label')}
+                          </a>
+                        )}
                         {statusActions[exam.status]?.map((action) => (
                           <Button key={action.status} variant="secondary" size="sm" leftIcon={action.icon} onClick={() => handleStatusChange(exam.id, action.status)}>
                             {action.label}

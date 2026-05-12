@@ -110,6 +110,8 @@ const srCyrl: Record<string, string> = {
   'manage.edit': 'Уреди',
   'manage.minShort': 'мин',
   'manage.questionsShort': 'питања',
+  'manage.exportResults': 'Преузми резултате (CSV, PDF табела и PDF извештаји у ZIP-у)',
+  'manage.exportResults.label': 'Резултати',
 
   // Admin home
   'nav.adminHome': 'Почетна',

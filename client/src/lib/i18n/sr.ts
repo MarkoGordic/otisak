@@ -109,6 +109,8 @@ const sr: Record<string, string> = {
   'manage.edit': 'Uredi',
   'manage.minShort': 'min',
   'manage.questionsShort': 'pitanja',
+  'manage.exportResults': 'Preuzmi rezultate (CSV, PDF tabela i PDF izveštaji u ZIP-u)',
+  'manage.exportResults.label': 'Rezultati',
 
   // Admin home
   'nav.adminHome': 'Početna',

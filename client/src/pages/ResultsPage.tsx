@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, Clock, Target } from 'lucide-react';
@@ -6,6 +6,7 @@ import { OtisakHeader, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
 import { ToggleCluster } from '../components/ToggleCluster';
+import { useExamSocket } from '../lib/useExamSocket';
 import type { OtisakExamResults } from '../lib/types';
 
 type UserInfo = {
@@ -79,6 +80,17 @@ export default function ResultsPage() {
     })();
     return () => { mounted = false; };
   }, [examId, navigate]);
+
+  // Even though the student is on the terminal "results" screen, admin's
+  // "finish for everyone + redirect home" must still pull them off this page.
+  // Without this subscription the redirect would silently fail for anyone who
+  // had already submitted on their own.
+  useExamSocket(examId, useCallback((evt) => {
+    if (evt.type === 'exam.finished') {
+      const redirect = (evt as unknown as { redirect?: boolean }).redirect === true;
+      if (redirect) navigate('/', { replace: true });
+    }
+  }, [navigate]));
 
   // Poll for AI grading
   useEffect(() => {

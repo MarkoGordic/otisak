@@ -180,12 +180,20 @@ export default function JoinExamPage() {
   }, [phase, pollForStart]);
 
   // Live push channel: when the assistant starts the exam, jump to /exam
-  // immediately instead of waiting for the next 2s poll.
+  // immediately instead of waiting for the next 2s poll. Also catches the
+  // admin's "finish for everyone + redirect" action so students stuck in the
+  // waiting lobby get bounced home like everyone else.
   useExamSocket(phase === 'waiting' ? examId : undefined, useCallback((evt) => {
     if (evt.type === 'exam.started') {
       setPhase('starting');
       if (pollRef.current) clearInterval(pollRef.current);
       setTimeout(() => navigate(`/exam/${examId}`), 800);
+    } else if (evt.type === 'exam.finished') {
+      const redirect = (evt as unknown as { redirect?: boolean }).redirect === true;
+      if (redirect) {
+        if (pollRef.current) clearInterval(pollRef.current);
+        navigate('/', { replace: true });
+      }
     }
   }, [examId, navigate]));
 

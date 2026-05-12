@@ -104,6 +104,8 @@ const en: Record<string, string> = {
   'manage.importJson': 'Import JSON',
   'manage.exportJson': 'Export JSON',
   'manage.importFailed': 'JSON import failed.',
+  'manage.exportResults': 'Download results (CSV, PDF table and PDF reports as a ZIP)',
+  'manage.exportResults.label': 'Results',
   'manage.edit': 'Edit',
   'manage.minShort': 'min',
   'manage.questionsShort': 'questions',
