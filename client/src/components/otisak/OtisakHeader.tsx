@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { OtisakLogo } from './OtisakLogo';
 import { motion } from 'framer-motion';
 import { useLang } from '../LangProvider';
@@ -16,9 +16,22 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
   const { t } = useLang();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
-  const displayDate = dateLabel || new Date().toLocaleDateString('sr-RS', {
+
+  // Live clock — ticks every second so the student always sees the current wall-clock
+  // time alongside the countdown. `dateLabel` overrides the date half when provided.
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    if (!showDate) return;
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, [showDate]);
+
+  const displayDate = dateLabel || now.toLocaleDateString('sr-RS', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   }).replace(/\//g, '.');
+  const displayTime = now.toLocaleTimeString('sr-RS', {
+    hour: '2-digit', minute: '2-digit', second: '2-digit',
+  });
 
   // Header was originally hard-coded dark gradient. Mirror it in light mode with a soft
   // white gradient and adjust every nested label/text/border so the contrast still works.
@@ -65,8 +78,10 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
         {/* Center */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center max-w-[55%] sm:max-w-none">
           {showDate && (
-            <span className={`hidden sm:inline text-xs mb-1 font-medium tracking-wide opacity-60 ${dateClass}`}>
-              {displayDate}
+            <span className={`hidden sm:flex items-center gap-2 text-xs mb-1 font-medium tracking-wide opacity-70 ${dateClass}`}>
+              <span>{displayDate}</span>
+              <span className="opacity-40">·</span>
+              <span className="font-mono tabular-nums">{displayTime}</span>
             </span>
           )}
           {centerContent}

@@ -37,6 +37,7 @@ import { query } from '../db/client';
 import { broadcastExamEvent } from '../ws/events';
 import { getCachedLiveStats, markExamMonitored, refreshLiveStatsNow } from '../ws/liveStatsAggregator';
 import { buildStudentReportHTML, buildResultsTableHTML, renderHtmlToPdf } from '../lib/studentReport';
+import { finishExamForEveryone } from '../lib/finishExam';
 import archiver from 'archiver';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { markSessionActive, isLockedByOtherSession } from '../session-tracker';
@@ -456,7 +457,12 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
     // Stream the ZIP directly to the response so a 200-student export doesn't have to
     // buffer in memory before the user starts downloading.
     const safeBase = (exam.title || 'otisak').replace(/[^a-z0-9._-]+/gi, '_');
-    const zipName = `${safeBase}-rezultati.zip`;
+    // Timestamp in the filename so the admin can re-download later (e.g. after AI
+    // re-grading) and not overwrite an earlier export. Format: 2026-05-12_14-32.
+    const now = new Date();
+    const pad = (n: number) => n.toString().padStart(2, '0');
+    const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+    const zipName = `${safeBase}-rezultati-${stamp}.zip`;
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);
 
@@ -903,45 +909,12 @@ router.post('/finish-all', requireAuth, requireRole(['admin', 'assistant']), asy
   try {
     const examId = getExamId(req);
     const redirectStudents = req.body?.redirect_students === true;
-
-    const exam = await getOtisakExamById(examId);
-    if (!exam) return res.status(404).json({ error: 'Exam not found' });
-
-    // 1) Finish each open attempt, computing per-attempt time from the timer
-    //    reference (exam_started_at if present, else attempt.started_at).
-    const openRows = await query<{ id: string; started_at: Date }>(
-      `SELECT id, started_at FROM otisak_attempts
-       WHERE exam_id = $1 AND submitted = FALSE`,
-      [examId],
-    );
-    const startMs = exam.exam_started_at ? new Date(exam.exam_started_at).getTime() : null;
-    let finishedCount = 0;
-    for (const row of openRows.rows) {
-      const refStart = startMs ?? new Date(row.started_at).getTime();
-      const elapsed = Math.max(1, Math.floor((Date.now() - refStart) / 1000));
-      try {
-        await finishAttempt(row.id, elapsed);
-        finishedCount++;
-      } catch (e) {
-        console.error('finish-all: per-attempt finish failed', row.id, e);
-      }
-    }
-
-    // 2) Close any active lockdown so the exam is fully released.
-    await endLockdown(examId);
-
-    // 3) Lock the exam down at the status layer.
-    await updateOtisakExamStatus(examId, 'completed');
-    invalidateExamCache(examId);
-
-    // 4) Push the event so connected students react instantly.
-    broadcastExamEvent(examId, {
-      type: 'exam.finished',
-      redirect: redirectStudents,
-      finished_count: finishedCount,
+    const result = await finishExamForEveryone(examId, {
+      redirectStudents,
+      invalidateCache: invalidateExamCache,
     });
-
-    return res.json({ ok: true, finished_count: finishedCount, redirect_students: redirectStudents });
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    return res.json({ ok: true, finished_count: result.finishedCount, redirect_students: redirectStudents });
   } catch (error) {
     console.error('Finish-all error:', error);
     return res.status(500).json({ error: 'Internal server error' });

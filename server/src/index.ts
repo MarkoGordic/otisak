@@ -14,6 +14,7 @@ import questionsRoutes from './routes/questions';
 import historyRoutes from './routes/history';
 import { setupWebSocket } from './ws/events';
 import { startLiveStatsAggregator } from './ws/liveStatsAggregator';
+import { startExamExpiryWatcher } from './jobs/examExpiryWatcher';
 import { ensureBootstrapAdmin } from './bootstrap';
 import { assertSessionSecretIsSafe } from './session';
 
@@ -78,6 +79,11 @@ setupWebSocket(server);
 // Background aggregator: every 5s, recompute live exam stats for monitored exams.
 // Admin RoomPage polls /live-stats and gets the cached result.
 startLiveStatsAggregator();
+
+// Background watcher: every 30s, find active exams whose timer has expired and
+// force-finish them server-side. Without this, students who closed their tab or
+// dropped offline would leave attempts open forever after the deadline.
+startExamExpiryWatcher();
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {
