@@ -3,3 +3,8 @@ dist/
 .env
 .env.local
 *.tsbuildinfo
+
+# Vite emits these next to the config when the user has `tsc -b` running in
+# their editor; they're build artefacts, not source.
+client/vite.config.d.ts
+client/vite.config.d.ts.map

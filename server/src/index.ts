@@ -4,6 +4,7 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
+import morgan from 'morgan';
 
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
@@ -57,6 +58,21 @@ function assertEnv(): void {
 }
 
 const app = express();
+
+// Trust the first hop in front of us (typical: nginx / Traefik / Caddy) so
+// req.ip reflects the real client address instead of the proxy's. Required
+// for the rate limiter to bucket per-client rather than per-proxy. When
+// running without a reverse proxy this is a no-op since the chain is empty.
+// Default 1; set TRUST_PROXY_HOPS to override (e.g. "2" for nested proxies).
+app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
+
+// HTTP access logger. Skipped for the health check so the noise doesn't
+// drown actual traffic. Format keeps the essentials: IP, verb, path, status,
+// response time — enough for an ad-hoc debug session without a full log
+// stack. Production deployments can pipe this into journald / loki.
+app.use(morgan(':remote-addr :method :url :status :response-time ms', {
+  skip: (req) => req.url === '/api/health',
+}));
 
 // Security headers (X-Content-Type-Options, X-Frame-Options, HSTS where TLS,
 // etc.). CSP is disabled because the Vite-built SPA loads inline styles +

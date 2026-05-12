@@ -102,7 +102,7 @@ ENV NODE_ENV=production \
 # In-image healthcheck mirrors the one in docker-compose.yml so the image
 # is also healthy under plain `docker run` / orchestrators that don't read
 # compose. Compose's healthcheck overrides this when present.
-HEALTHCHECK --interval=15s --timeout=5s --start-period=20s --retries=5 \
+HEALTHCHECK --interval=15s --timeout=5s --start-period=45s --retries=5 \
   CMD node -e "fetch('http://127.0.0.1:3001/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 
 WORKDIR /app/server
