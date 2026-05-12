@@ -138,8 +138,11 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// POST /exams/:examId/attempt - save/submit answers
-router.post('/attempt', requireAuth, async (req: Request, res: Response) => {
+// POST /exams/:examId/attempt - save/submit answers.
+// Student-only: admins/assistants writing into otisak_attempts as their own
+// user_id would corrupt live stats and audit trails (they'd show up as
+// participants). Force-finish flows go through /finish-all instead.
+router.post('/attempt', requireAuth, requireRole(['student']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     const user = req.user!;

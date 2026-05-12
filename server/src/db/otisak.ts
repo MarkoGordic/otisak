@@ -1,7 +1,7 @@
 // OTISAK Database Operations
 // ========================================
 
-import { query } from './client';
+import { query, transaction } from './client';
 import type {
   OtisakSubject,
   OtisakExam,
@@ -615,73 +615,98 @@ export async function finishAttempt(
   attemptId: string,
   timeSpentSeconds: number
 ): Promise<OtisakAttempt> {
-  const totalResult = await query<{ total: number; max: number }>(
-    `SELECT
-       COALESCE(SUM(aa.points_awarded), 0)::numeric as total,
-       COALESCE((SELECT SUM(q.points) FROM otisak_questions q
-                 WHERE q.exam_id = a.exam_id), 0)::numeric as max
-     FROM otisak_attempts a
-     LEFT JOIN otisak_attempt_answers aa ON aa.attempt_id = a.id
-     WHERE a.id = $1
-     GROUP BY a.exam_id`,
-    [attemptId]
-  );
-
-  let total = Number(totalResult.rows[0]?.total ?? 0);
-  const max = Number(totalResult.rows[0]?.max ?? 0);
-
-  // Apply negative points if enabled
-  const negCheck = await query<{
-    negative_points_enabled: boolean;
-    negative_points_value: number;
-    negative_points_threshold: number;
-  }>(
-    `SELECT e.negative_points_enabled, e.negative_points_value, e.negative_points_threshold
-     FROM otisak_attempts a
-     JOIN otisak_exams e ON e.id = a.exam_id
-     WHERE a.id = $1`,
-    [attemptId]
-  );
-
-  if (negCheck.rows[0]?.negative_points_enabled && negCheck.rows[0]?.negative_points_value > 0) {
-    const penaltyValue = Number(negCheck.rows[0].negative_points_value);
-    const threshold = negCheck.rows[0].negative_points_threshold || 1;
-    const wrongResult = await query<{ wrong_count: number }>(
-      `SELECT COUNT(*)::int as wrong_count
-       FROM otisak_attempt_answers aa
-       WHERE aa.attempt_id = $1 AND aa.points_awarded = 0
-         AND (aa.selected_answer_id IS NOT NULL OR array_length(aa.selected_answer_ids, 1) > 0)`,
+  // Atomic finish. Race conditions we are guarding against:
+  //   (1) Manual submit + timer expiry firing within the same tick.
+  //   (2) The expiry watcher background job + a slow user submit.
+  //   (3) Two browser tabs racing each other.
+  //
+  // The previous design read scores OUTSIDE the UPDATE and relied on the
+  // `WHERE submitted = FALSE` guard to make the UPDATE a no-op for the loser.
+  // That's enough to prevent double-submit, but not to prevent the loser from
+  // computing scores against stale rows and overwriting nothing — which still
+  // wastes a transaction-worth of work and could trigger the live-stats
+  // broadcast twice. Wrapping everything in one transaction with SELECT FOR
+  // UPDATE serialises the work and lets the loser early-out cheaply.
+  return transaction(async (client) => {
+    const lock = await client.query<{ id: string; submitted: boolean }>(
+      `SELECT id, submitted FROM otisak_attempts WHERE id = $1 FOR UPDATE`,
       [attemptId]
     );
-    const wrongCount = wrongResult.rows[0]?.wrong_count ?? 0;
-    const penalizableCount = Math.max(0, wrongCount - (threshold - 1));
-    if (penalizableCount > 0) {
-      total = Math.max(0, total - penalizableCount * penaltyValue);
+    const row = lock.rows[0];
+    if (!row) {
+      // No such attempt: surface the same error a caller would get if they
+      // passed a bogus id. Throwing inside transaction() triggers ROLLBACK.
+      throw new Error(`Attempt ${attemptId} not found`);
     }
-  }
+    if (row.submitted) {
+      const existing = await client.query<OtisakAttempt>(
+        'SELECT * FROM otisak_attempts WHERE id = $1',
+        [attemptId]
+      );
+      return existing.rows[0];
+    }
 
-  // Check AI pending
-  const pendingAiCheck = await query<{ pending_count: number }>(
-    `SELECT COUNT(*)::int as pending_count FROM otisak_attempt_answers
-     WHERE attempt_id = $1 AND ai_grading_status = 'pending'`,
-    [attemptId]
-  );
-  const hasAiPending = (pendingAiCheck.rows[0]?.pending_count ?? 0) > 0;
+    const totalResult = await client.query<{ total: number; max: number }>(
+      `SELECT
+         COALESCE(SUM(aa.points_awarded), 0)::numeric as total,
+         COALESCE((SELECT SUM(q.points) FROM otisak_questions q
+                   WHERE q.exam_id = a.exam_id), 0)::numeric as max
+       FROM otisak_attempts a
+       LEFT JOIN otisak_attempt_answers aa ON aa.attempt_id = a.id
+       WHERE a.id = $1
+       GROUP BY a.exam_id`,
+      [attemptId]
+    );
 
-  // Guard against concurrent finish (manual submit + timer expiry firing
-  // simultaneously). Only the first writer wins; the second one finds the
-  // row already submitted and returns the existing snapshot.
-  const result = await query<OtisakAttempt>(
-    `UPDATE otisak_attempts
-     SET submitted = TRUE, finished_at = NOW(),
-         total_points = $2, max_points = $3, time_spent_seconds = $4, xp_earned = 0,
-         ai_grading_status = $5
-     WHERE id = $1 AND submitted = FALSE RETURNING *`,
-    [attemptId, total, max, timeSpentSeconds, hasAiPending ? 'pending' : null]
-  );
-  if (result.rows[0]) return result.rows[0];
-  const existing = await query<OtisakAttempt>('SELECT * FROM otisak_attempts WHERE id = $1', [attemptId]);
-  return existing.rows[0];
+    let total = Number(totalResult.rows[0]?.total ?? 0);
+    const max = Number(totalResult.rows[0]?.max ?? 0);
+
+    const negCheck = await client.query<{
+      negative_points_enabled: boolean;
+      negative_points_value: number;
+      negative_points_threshold: number;
+    }>(
+      `SELECT e.negative_points_enabled, e.negative_points_value, e.negative_points_threshold
+       FROM otisak_attempts a
+       JOIN otisak_exams e ON e.id = a.exam_id
+       WHERE a.id = $1`,
+      [attemptId]
+    );
+
+    if (negCheck.rows[0]?.negative_points_enabled && negCheck.rows[0]?.negative_points_value > 0) {
+      const penaltyValue = Number(negCheck.rows[0].negative_points_value);
+      const threshold = negCheck.rows[0].negative_points_threshold || 1;
+      const wrongResult = await client.query<{ wrong_count: number }>(
+        `SELECT COUNT(*)::int as wrong_count
+         FROM otisak_attempt_answers aa
+         WHERE aa.attempt_id = $1 AND aa.points_awarded = 0
+           AND (aa.selected_answer_id IS NOT NULL OR array_length(aa.selected_answer_ids, 1) > 0)`,
+        [attemptId]
+      );
+      const wrongCount = wrongResult.rows[0]?.wrong_count ?? 0;
+      const penalizableCount = Math.max(0, wrongCount - (threshold - 1));
+      if (penalizableCount > 0) {
+        total = Math.max(0, total - penalizableCount * penaltyValue);
+      }
+    }
+
+    const pendingAiCheck = await client.query<{ pending_count: number }>(
+      `SELECT COUNT(*)::int as pending_count FROM otisak_attempt_answers
+       WHERE attempt_id = $1 AND ai_grading_status = 'pending'`,
+      [attemptId]
+    );
+    const hasAiPending = (pendingAiCheck.rows[0]?.pending_count ?? 0) > 0;
+
+    const result = await client.query<OtisakAttempt>(
+      `UPDATE otisak_attempts
+       SET submitted = TRUE, finished_at = NOW(),
+           total_points = $2, max_points = $3, time_spent_seconds = $4, xp_earned = 0,
+           ai_grading_status = $5
+       WHERE id = $1 RETURNING *`,
+      [attemptId, total, max, timeSpentSeconds, hasAiPending ? 'pending' : null]
+    );
+    return result.rows[0];
+  });
 }
 
 export async function forceFinishAttemptById(attemptId: string): Promise<OtisakAttempt | null> {

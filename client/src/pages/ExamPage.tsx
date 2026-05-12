@@ -70,6 +70,15 @@ export default function ExamPage() {
   const [pausedSeconds, setPausedSeconds] = useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
+  // Sync re-entry guard for handleFinish. The phase==='submitting' check is
+  // racy because setState lands a frame late: timer expiry + manual submit
+  // landing on the same tick can both pass it. Refs are read/written
+  // synchronously, so this catches the duplicate before the second POST.
+  const submittingRef = useRef(false);
+  // Tracks whether the component is still mounted. Used to skip setState
+  // calls in long-running async chains (submit retry, navigation races).
+  const mountedRef = useRef(true);
+  useEffect(() => () => { mountedRef.current = false; }, []);
 
   // ========================================
   // EVENT TRACKING SYSTEM
@@ -575,9 +584,12 @@ export default function ExamPage() {
     }
   };
 
-  // Submit exam
+  // Submit exam. Single source of truth for the final POST. Idempotent on
+  // both sides: re-entry guard on the client + transactional finishAttempt
+  // on the server (SELECT ... FOR UPDATE), so duplicate calls are harmless.
   const handleFinish = useCallback(async (method: 'manual' | 'timeout' = 'manual') => {
-    if (phase === 'submitting') return;
+    if (submittingRef.current) return;
+    submittingRef.current = true;
     trackEvent('exam_submit', { method, answered: Object.keys(answers).length + Object.keys(textAnswers).length });
     flushEvents();
     setPhase('submitting');
@@ -590,21 +602,47 @@ export default function ExamPage() {
       ...(['open_text', 'ordering', 'matching', 'fill_blank'].includes(q.type) ? { text_answer: textAnswers[q.id] || '' } : {}),
     }));
 
+    const body = JSON.stringify({ submit: true, answers: answerPayload, time_spent_seconds: timeSpent });
+    // keepalive: true lets the request complete even if the user navigates
+    // away (or the browser kills the tab) immediately after firing it. Combined
+    // with the retry below, the practical outcome is "always lands at least once".
+    const doPost = () => fetch(`/api/otisak/exams/${examId}/attempt`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body,
+      keepalive: true,
+    });
+
+    let res: Response | null = null;
     try {
-      const res = await fetch(`/api/otisak/exams/${examId}/attempt`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ submit: true, answers: answerPayload, time_spent_seconds: timeSpent }),
-      });
-      if (res.ok) navigate(`/exam/${examId}/results`);
-    } catch (e) {
-      console.error('Failed to submit:', e);
+      res = await doPost();
+    } catch (netErr) {
+      console.warn('Submit network error, retrying once:', netErr);
+      try {
+        await new Promise((r) => setTimeout(r, 1000));
+        res = await doPost();
+      } catch (e) {
+        console.error('Submit retry also failed:', e);
+      }
+    }
+
+    if (res && res.ok) {
+      navigate(`/exam/${examId}/results`);
+      return;
+    }
+
+    // Both attempts failed (network or non-2xx). Hand the user back to the
+    // exam UI so they can retry manually rather than getting stuck on a
+    // submitting spinner. Skip the setState if we've unmounted in the meantime.
+    if (mountedRef.current) {
+      submittingRef.current = false;
       setPhase('exam');
     }
-  }, [phase, questions, answers, textAnswers, examId, navigate]);
+  }, [questions, answers, textAnswers, examId, navigate, trackEvent, flushEvents]);
 
   const handleTimerExpire = useCallback(() => {
+    if (submittingRef.current) return;
     saveAnswersNow();
     handleFinish('timeout');
   }, [saveAnswersNow, handleFinish]);
