@@ -3,42 +3,117 @@ import { query } from './client';
 // Lightweight, idempotent schema migrations executed on every server start.
 // We deliberately don't pull in a full migration framework (knex, prisma-migrate,
 // ...): the project ships init.sql for fresh installs, and the only DB changes
-// after the initial cut are additive columns + backfills. ALTER TABLE ... ADD
-// COLUMN IF NOT EXISTS is available since PostgreSQL 9.6, so every step here
-// is safe to run on a fresh schema (no-op) or an existing one (apply once,
-// then no-op forever after).
+// after the initial cut are additive columns + backfills + new indexes.
 //
-// Add new steps at the bottom. Each step should be:
+// Add new steps at the bottom of the `steps` array. Each step must be:
 //   - Idempotent (re-running it doesn't break anything)
-//   - Safe on a fresh DB created from init.sql
-//   - Fast enough to run on every startup (no full table rewrites on hot
-//     paths — backfill UPDATE only touches rows that haven't been migrated
-//     yet via a WHERE guard).
+//   - Safe on a fresh DB created from init.sql (no-op if schema already matches)
+//   - Fast enough to run on every startup (use IF NOT EXISTS, gate backfills
+//     with a WHERE clause that excludes already-migrated rows)
+//
+// The `migrations` table is informational: every successful step is recorded
+// on first run with a timestamp, so ops can see "when did this index land?".
+// We do NOT gate execution on the table — steps are already idempotent and
+// gating would silently skip a step on a DB where the row was hand-removed.
+type Step = readonly [id: string, fn: () => Promise<void>];
+
+const steps: readonly Step[] = [
+  ['001_multi_answer_column', async () => {
+    // The column was added retroactively. Existing rows infer their value from
+    // the count of is_correct=true answers via step 002.
+    await query(`
+      ALTER TABLE otisak_questions
+      ADD COLUMN IF NOT EXISTS multi_answer BOOLEAN NOT NULL DEFAULT FALSE
+    `);
+  }],
+  ['002_multi_answer_backfill', async () => {
+    // Any question that currently has 2+ correct answers but multi_answer = FALSE
+    // was misclassified by old imports. The WHERE NOT multi_answer guard makes
+    // this a no-op on every subsequent boot.
+    await query(`
+      UPDATE otisak_questions q
+         SET multi_answer = TRUE
+       WHERE NOT q.multi_answer
+         AND (
+           SELECT COUNT(*) FROM otisak_answers a
+            WHERE a.question_id = q.id AND a.is_correct
+         ) > 1
+    `);
+  }],
+  ['003_idx_attempts_exam_started', async () => {
+    // Many admin queries fetch attempts for an exam in chronological order
+    // (live stats, results page, report exports). Composite index lets the
+    // planner skip a sort and avoid the table scan for completed exams.
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_otisak_attempts_exam_started
+        ON otisak_attempts (exam_id, started_at DESC)
+    `);
+  }],
+  ['004_idx_exam_tag_rules_exam', async () => {
+    // otisak_exam_tag_rules had no index at all on exam_id; question bank
+    // generation joins on it once per exam.
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_otisak_exam_tag_rules_exam
+        ON otisak_exam_tag_rules (exam_id)
+    `);
+  }],
+  ['005_check_negative_points_value', async () => {
+    // NOT VALID lets us add the constraint to future writes without forcing a
+    // full-table re-validation of existing rows. If any historic row violates
+    // (extremely unlikely — there's no UI path to a negative value), the
+    // constraint still rejects new violations.
+    await query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_negative_points_value') THEN
+          ALTER TABLE otisak_exams
+            ADD CONSTRAINT chk_negative_points_value
+            CHECK (negative_points_value >= 0) NOT VALID;
+        END IF;
+      END $$
+    `);
+  }],
+  ['006_check_negative_points_threshold', async () => {
+    await query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_negative_points_threshold') THEN
+          ALTER TABLE otisak_exams
+            ADD CONSTRAINT chk_negative_points_threshold
+            CHECK (negative_points_threshold >= 0) NOT VALID;
+        END IF;
+      END $$
+    `);
+  }],
+  ['007_check_question_points_nonneg', async () => {
+    await query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_question_points_nonneg') THEN
+          ALTER TABLE otisak_questions
+            ADD CONSTRAINT chk_question_points_nonneg
+            CHECK (points >= 0) NOT VALID;
+        END IF;
+      END $$
+    `);
+  }],
+];
+
 export async function runMigrations(): Promise<void> {
-  // ---------------------------------------------------------------------------
-  // 1. otisak_questions.multi_answer
-  // ---------------------------------------------------------------------------
-  // The column was added retroactively. Existing rows infer their value from
-  // the count of is_correct=true answers. New rows get explicit values from
-  // createOtisakQuestion / JSON import.
   await query(`
-    ALTER TABLE otisak_questions
-    ADD COLUMN IF NOT EXISTS multi_answer BOOLEAN NOT NULL DEFAULT FALSE
+    CREATE TABLE IF NOT EXISTS migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
   `);
 
-  // Backfill: any question that currently has 2+ correct answers but
-  // multi_answer = FALSE was misclassified by old imports. Flip it.
-  // We only touch rows that still need it (the WHERE NOT multi_answer guard),
-  // so this becomes a no-op on every subsequent boot.
-  await query(`
-    UPDATE otisak_questions q
-       SET multi_answer = TRUE
-     WHERE NOT q.multi_answer
-       AND (
-         SELECT COUNT(*) FROM otisak_answers a
-          WHERE a.question_id = q.id AND a.is_correct
-       ) > 1
-  `);
+  for (const [id, fn] of steps) {
+    await fn();
+    // Record the migration as applied. ON CONFLICT DO NOTHING preserves the
+    // original applied_at timestamp on subsequent boots (the step itself is a
+    // no-op the second time around, so this matches what actually happened).
+    await query(
+      `INSERT INTO migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`,
+      [id]
+    );
+  }
 
   console.log('Migrations: schema up to date.');
 }

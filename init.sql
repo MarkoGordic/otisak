@@ -78,8 +78,8 @@ CREATE TABLE otisak_exams (
   is_public BOOLEAN NOT NULL DEFAULT FALSE,
   parent_exam_id UUID REFERENCES otisak_exams(id) ON DELETE CASCADE,
   negative_points_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-  negative_points_value NUMERIC NOT NULL DEFAULT 0,
-  negative_points_threshold INTEGER NOT NULL DEFAULT 1,
+  negative_points_value NUMERIC NOT NULL DEFAULT 0 CONSTRAINT chk_negative_points_value CHECK (negative_points_value >= 0),
+  negative_points_threshold INTEGER NOT NULL DEFAULT 1 CONSTRAINT chk_negative_points_threshold CHECK (negative_points_threshold >= 0),
   partial_scoring BOOLEAN NOT NULL DEFAULT FALSE,
   exam_started_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -101,7 +101,7 @@ CREATE TABLE otisak_questions (
   type TEXT NOT NULL DEFAULT 'text' CHECK (type IN ('text', 'code', 'image', 'open_text', 'ordering', 'matching', 'fill_blank')),
   text TEXT NOT NULL,
   content TEXT,
-  points NUMERIC NOT NULL DEFAULT 2,
+  points NUMERIC NOT NULL DEFAULT 2 CONSTRAINT chk_question_points_nonneg CHECK (points >= 0),
   position INTEGER NOT NULL DEFAULT 0,
   explanation TEXT,
   ai_grading_instructions TEXT,
@@ -165,6 +165,8 @@ CREATE TABLE otisak_attempts (
 
 CREATE INDEX idx_otisak_attempts_exam ON otisak_attempts(exam_id);
 CREATE INDEX idx_otisak_attempts_user ON otisak_attempts(user_id);
+-- Hot path for admin listings: attempts of a given exam in chronological order.
+CREATE INDEX idx_otisak_attempts_exam_started ON otisak_attempts(exam_id, started_at DESC);
 
 -- ========================================
 -- OTISAK ATTEMPT ANSWERS
@@ -230,6 +232,8 @@ CREATE TABLE otisak_exam_tag_rules (
   position INTEGER NOT NULL DEFAULT 0,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+CREATE INDEX idx_otisak_exam_tag_rules_exam ON otisak_exam_tag_rules(exam_id);
 
 -- ========================================
 -- AI GRADING SETTINGS
@@ -399,6 +403,18 @@ CREATE INDEX idx_exam_requests_pending ON exam_requests(exam_id, status);
 CREATE INDEX idx_exam_requests_user ON exam_requests(user_id, status);
 -- A user can only have one pending request of a given type per exam.
 CREATE UNIQUE INDEX idx_exam_requests_one_pending ON exam_requests(exam_id, user_id, type) WHERE status = 'pending';
+
+-- ========================================
+-- MIGRATIONS LOG
+-- Each schema migration step recorded by the server-side migration runner.
+-- Idempotent: rows are inserted ON CONFLICT DO NOTHING the first time a step
+-- runs successfully. Informational only — gating logic lives in migrations.ts.
+-- ========================================
+
+CREATE TABLE migrations (
+  id TEXT PRIMARY KEY,
+  applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
 
 -- No user seeds: the server bootstraps a single admin account on first
 -- start with a randomly generated 10-character alphanumeric password
