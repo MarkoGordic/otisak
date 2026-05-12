@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { ShieldAlert } from 'lucide-react';
 import { useLang } from '../LangProvider';
 import { useTheme } from '../ThemeProvider';

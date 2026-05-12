@@ -1,7 +1,11 @@
+import type { I18nKey } from './en';
+
 // Serbian — Cyrillic script.
 // Mirror of sr.ts (Latin). Acronyms (OTISAK, JSON, CSV, AI, URL, MATH101) stay Latin
 // per Serbian publishing convention.
-const srCyrl: Record<string, string> = {
+//
+// Typed as Record<I18nKey, string> so the key set must match en.ts exactly.
+const srCyrl: Record<I18nKey, string> = {
   // App
   'app.title': 'OTISAK',
   'app.subtitle': 'Систем за аутоматско тестирање',

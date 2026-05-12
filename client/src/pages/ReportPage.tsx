@@ -1,13 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Loader2, ArrowLeft, Fingerprint, FileDown, AlertTriangle, Check, X,
   Clock, Target, Keyboard, MousePointer, Eye, EyeOff, Copy, Monitor,
 } from 'lucide-react';
-import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { useLang } from '../components/LangProvider';
 import { ToggleCluster } from '../components/ToggleCluster';
 
 type ReportData = {
@@ -50,7 +47,6 @@ const SUSPICIOUS = new Set(['copy_attempt', 'cut_attempt', 'paste_attempt', 'pag
 export default function StudentReportPage() {
   const navigate = useNavigate();
   const { examId, userId } = useParams();
-  const { t } = useLang();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ReportData | null>(null);
   const [showTimeline, setShowTimeline] = useState(false);

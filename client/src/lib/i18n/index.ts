@@ -1,10 +1,11 @@
 import sr from './sr';
 import srCyrl from './sr-cyrl';
-import en from './en';
+import en, { type I18nKey } from './en';
 
 export type Locale = 'en' | 'sr-Latn' | 'sr-Cyrl';
+export type { I18nKey };
 
-const translations: Record<Locale, Record<string, string>> = {
+const translations: Record<Locale, Record<I18nKey, string>> = {
   'en': en,
   'sr-Latn': sr,
   'sr-Cyrl': srCyrl,
@@ -25,7 +26,12 @@ export function nextLocale(current: Locale): Locale {
 }
 
 export function t(key: string, locale: Locale = 'sr-Latn', params?: Record<string, string | number>): string {
-  let text = translations[locale]?.[key] || translations['en']?.[key] || key;
+  // Cast: callers historically pass plain strings, and runtime fallback to the
+  // key itself is desirable when a key is missing. The strong typing happens
+  // inside the locale files (Record<I18nKey, string>), which is what catches
+  // drift at build time.
+  const k = key as I18nKey;
+  let text = translations[locale]?.[k] || translations['en']?.[k] || key;
   if (params) {
     for (const [k, v] of Object.entries(params)) {
       text = text.replace(new RegExp(`\\{${k}\\}`, 'g'), String(v));

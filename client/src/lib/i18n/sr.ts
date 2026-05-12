@@ -1,6 +1,12 @@
+import type { I18nKey } from './en';
+
 // Serbian — Latin script with full diacritics (š, č, ć, ž, đ).
 // Cyrillic variant lives in sr-cyrl.ts.
-const sr: Record<string, string> = {
+//
+// Typed as Record<I18nKey, string> so a key added to en.ts without a Serbian
+// translation fails the client build instead of silently falling back to
+// English at runtime.
+const sr: Record<I18nKey, string> = {
   // App
   'app.title': 'OTISAK',
   'app.subtitle': 'Sistem za automatsko testiranje',

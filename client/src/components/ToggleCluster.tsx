@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { Sun, Moon, Languages } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';

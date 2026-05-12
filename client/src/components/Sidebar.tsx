@@ -1,4 +1,4 @@
-import React from 'react';
+
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Fingerprint,
@@ -6,7 +6,6 @@ import {
   Settings,
   Users,
   LogOut,
-  FileText,
   BookOpen,
   BookMarked,
   Sun,
@@ -23,7 +22,7 @@ type SidebarProps = {
   userAvatar?: string;
 };
 
-export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
+export function Sidebar({ userName, userRole }: SidebarProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
@@ -132,7 +131,7 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
   );
 }
 
-export function MobileNav({ userName, userRole }: SidebarProps) {
+export function MobileNav({ userRole }: SidebarProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { t } = useLang();

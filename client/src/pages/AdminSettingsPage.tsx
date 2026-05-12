@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Settings, Shield, BookOpen, Users } from 'lucide-react';
+import { Loader2, Settings, Shield, BookOpen } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
-import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 
@@ -10,7 +9,6 @@ type UserInfo = { name?: string; role?: string };
 
 export default function AdminSettingsPage() {
   const navigate = useNavigate();
-  const { t } = useLang();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Record<string, string>>({});

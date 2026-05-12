@@ -1,4 +1,8 @@
-const en: Record<string, string> = {
+// `as const` (applied below at the export) makes every key a literal in the
+// inferred type. Sister locale files import that type and are forced by
+// TypeScript to provide the same key set — a missing or stale key fails the
+// build instead of silently falling back to English at runtime.
+const en = {
   // App
   'app.title': 'OTISAK',
   'app.subtitle': 'Automated Test & Assessment System',
@@ -489,6 +493,7 @@ const en: Record<string, string> = {
   'room.stats.statusActive': 'Working',
   'room.stats.statusFinished': 'Submitted',
   'room.stats.statusIdle': 'Ready',
-};
+} as const;
 
+export type I18nKey = keyof typeof en;
 export default en;

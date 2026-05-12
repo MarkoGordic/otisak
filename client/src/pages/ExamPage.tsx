@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Loader2, Power, AlertTriangle, StickyNote, X, PauseCircle } from 'lucide-react';
@@ -800,8 +800,6 @@ export default function ExamPage() {
   // EXAM
   // ========================================
   const currentQuestion = questions[currentQIndex];
-  const answeredCount = Object.values(answers).filter((v) => v.length > 0).length +
-    Object.values(textAnswers).filter((v) => v.trim()).length;
 
   return (
     <div className={`min-h-screen ${pageBg} flex flex-col relative overflow-hidden transition-colors`}

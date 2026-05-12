@@ -1,4 +1,4 @@
-import React from 'react';
+
 
 // Small unobtrusive footer line. Rendered inside the sidebar on admin pages
 // and inline at the bottom of public pages (login, home).

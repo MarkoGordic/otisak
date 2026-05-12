@@ -2,8 +2,8 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Loader2, Plus, Settings, Trash2, Users, Play, Pause, Archive, Eye,
-  Fingerprint, FileText, Clock, CalendarIcon, Radio, Link2, Copy,
+  Loader2, Plus, Settings, Trash2, Play, Pause, Archive,
+  FileText, Clock, CalendarIcon, Radio,
   Download, Upload, Pencil, Package,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
