@@ -54,3 +54,12 @@ export async function transaction<T>(
     client.release();
   }
 }
+
+// Drain the pool so a graceful shutdown doesn't sever live queries mid-flight.
+// Safe to call when no pool has been created yet (no-op).
+export async function closePool(): Promise<void> {
+  if (!pool) return;
+  const p = pool;
+  pool = null;
+  await p.end();
+}

@@ -78,7 +78,11 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
   // would lock out students on the LAN. The connection is still
   // authenticated via the signed session cookie inside the upgrade request,
   // so an attacker who can't forge a cookie can't open a session.
-  const wss = new WebSocketServer({ server, path: '/ws' });
+  //
+  // maxPayload caps a single inbound frame at 256 KB. Legitimate traffic is
+  // small JSON (events batches, subscribe messages). Without a cap, a hostile
+  // client could send a multi-MB frame and we'd buffer it before parsing.
+  const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 256 * 1024 });
 
   // Server-driven heartbeat. Each tick: terminate sockets that didn't pong since the
   // previous tick; then ping the rest. Browsers auto-respond to pings, so this works
