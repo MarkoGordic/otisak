@@ -162,7 +162,14 @@ export default function ExamRoomPage() {
   // exam.submitted is the one exception: it's a hint to immediately re-poll stats so the
   // "X of Y submitted" counter ticks up without waiting up to 5s for the next poll cycle.
   const { connected } = useExamSocket(examId, useCallback((evt) => {
-    if (evt.type === 'request.created' || evt.type === 'request.decided' || evt.type === 'lockdown.changed' || evt.type === 'exam.started') {
+    if (
+      evt.type === 'student.joined' ||
+      evt.type === 'request.created' ||
+      evt.type === 'request.decided' ||
+      evt.type === 'lockdown.changed' ||
+      evt.type === 'exam.started'
+    ) {
+      // Any of these change the participant list / requests / lockdown / start state.
       loadRoom();
     } else if (evt.type === 'timer.adjusted') {
       setExtraSeconds(Number(evt.extra_seconds || 0));

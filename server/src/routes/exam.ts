@@ -880,8 +880,24 @@ router.post('/join', async (req: Request, res: Response) => {
         userId: fullUser.id,
         type: 'late_join',
       });
-      if ('request' in created) pendingRequestId = created.request.id;
+      if ('request' in created) {
+        pendingRequestId = created.request.id;
+        // Tell every connected admin so the request list refreshes immediately.
+        broadcastExamEvent(examId, {
+          type: 'request.created',
+          request_id: created.request.id,
+          request_type: created.request.type,
+          user_id: created.request.user_id,
+        });
+      }
     }
+
+    // Always notify the room so the admin's participant list refreshes the moment a
+    // student joins, instead of waiting for the 5s polling fallback.
+    broadcastExamEvent(examId, {
+      type: 'student.joined',
+      user_id: fullUser.id,
+    });
 
     return res.json({
       user: {
