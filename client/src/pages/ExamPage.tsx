@@ -12,6 +12,7 @@ import {
   QuestionNav,
 } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
+import { useTheme } from '../components/ThemeProvider';
 import { useExamSocket } from '../lib/useExamSocket';
 import { useToast } from '../components/Toast';
 import { ToggleCluster } from '../components/ToggleCluster';
@@ -36,7 +37,21 @@ export default function ExamPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
   const { t } = useLang();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const toast = useToast();
+
+  // Centralized theme tokens used across loading/awaiting/lobby + main exam render.
+  // Each value is the same idea (bg surface, body text, accent text, etc.) — they just
+  // resolve to dark-themed values when `isDark` is true and light values otherwise.
+  const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
+  const titleText = isDark ? 'text-white' : 'text-slate-900';
+  const subText = isDark ? 'text-gray-400' : 'text-slate-500';
+  const subTextStrong = isDark ? 'text-gray-300' : 'text-slate-600';
+  const blueLabel = isDark ? 'text-blue-400/80' : 'text-blue-600/80';
+  const surfaceCard = isDark
+    ? 'bg-[#131520]/80 border-blue-500/20'
+    : 'bg-white border-slate-200 shadow-sm';
 
   const [phase, setPhase] = useState<Phase>('loading');
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -486,7 +501,8 @@ export default function ExamPage() {
     };
   }, [phase, saveAnswersNow]);
 
-  // Auto-save every 30s
+  // Auto-save every 5s. Tighter than the old 30s cadence so admin's live-stats poll
+  // (also 5s) sees up-to-date `answered_count` per student instead of 30s-stale data.
   useEffect(() => {
     if (phase !== 'exam' || !attempt) return;
     const interval = setInterval(() => {
@@ -498,7 +514,7 @@ export default function ExamPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: payload }),
       }).catch(() => {});
-    }, 30000);
+    }, 5000);
     return () => clearInterval(interval);
   }, [phase, attempt, examId, buildSavePayload]);
 
@@ -608,7 +624,7 @@ export default function ExamPage() {
   // ========================================
   if (phase === 'loading') {
     return (
-      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
+      <div className={`min-h-screen ${pageBg} flex items-center justify-center transition-colors`}>
         <ToggleCluster variant="solid" position="fixed" />
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
@@ -620,28 +636,28 @@ export default function ExamPage() {
   // ========================================
   if (phase === 'awaitingApproval') {
     return (
-      <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+      <div className={`min-h-screen w-full ${pageBg} flex flex-col items-center justify-center relative overflow-hidden transition-colors`}>
         <ToggleCluster variant="solid" position="fixed" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-sky-500/[0.09] rounded-full blur-[150px] animate-pulse" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/[0.10] rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className={`absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-sky-500/[0.09]' : 'bg-sky-300/20'}`} />
+          <div className={`absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/[0.10]' : 'bg-blue-400/20'}`} style={{ animationDelay: '1s' }} />
         </div>
 
         <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="z-10 w-full max-w-md px-6 flex flex-col items-center text-center">
           <OtisakLogo className="w-14 h-14 sm:w-16 sm:h-16 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] mb-8" />
-          <div className="w-20 h-20 rounded-2xl bg-sky-500/[0.08] border border-sky-400/25 flex items-center justify-center mb-6 shadow-[0_0_40px_rgba(56,189,248,0.10)]">
-            <Loader2 className="w-9 h-9 text-sky-300/85 animate-spin" strokeWidth={1.5} />
+          <div className={`w-20 h-20 rounded-2xl border flex items-center justify-center mb-6 ${isDark ? 'bg-sky-500/[0.08] border-sky-400/25 shadow-[0_0_40px_rgba(56,189,248,0.10)]' : 'bg-sky-50 border-sky-200 shadow-sm'}`}>
+            <Loader2 className={`w-9 h-9 animate-spin ${isDark ? 'text-sky-300/85' : 'text-sky-600'}`} strokeWidth={1.5} />
           </div>
-          <h1 className="text-2xl sm:text-3xl font-light text-white tracking-[0.2em] uppercase mb-3">{t('exam.awaitingApproval.title')}</h1>
-          <p className="text-slate-300/70 text-sm leading-relaxed mb-6 max-w-sm">{t('exam.awaitingApproval.body')}</p>
-          <div className="flex items-center gap-3 px-5 py-2.5 bg-sky-500/[0.06] border border-sky-400/20 rounded-full">
+          <h1 className={`text-2xl sm:text-3xl font-light tracking-[0.2em] uppercase mb-3 ${titleText}`}>{t('exam.awaitingApproval.title')}</h1>
+          <p className={`text-sm leading-relaxed mb-6 max-w-sm ${isDark ? 'text-slate-300/70' : 'text-slate-600'}`}>{t('exam.awaitingApproval.body')}</p>
+          <div className={`flex items-center gap-3 px-5 py-2.5 rounded-full border ${isDark ? 'bg-sky-500/[0.06] border-sky-400/20' : 'bg-sky-50 border-sky-200'}`}>
             <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full rounded-full bg-sky-300/60 animate-ping" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-300" />
+              <span className={`absolute inline-flex h-full w-full rounded-full animate-ping ${isDark ? 'bg-sky-300/60' : 'bg-sky-500/70'}`} />
+              <span className={`relative inline-flex h-2 w-2 rounded-full ${isDark ? 'bg-sky-300' : 'bg-sky-600'}`} />
             </span>
-            <span className="text-sky-200/85 text-[11px] uppercase tracking-[0.25em] font-medium">{t('exam.awaitingApproval.pill')}</span>
+            <span className={`text-[11px] uppercase tracking-[0.25em] font-medium ${isDark ? 'text-sky-200/85' : 'text-sky-700'}`}>{t('exam.awaitingApproval.pill')}</span>
           </div>
-          <p className="text-slate-500/60 text-[10px] uppercase tracking-[0.2em] mt-12">{t('exam.awaitingApproval.dontClose')}</p>
+          <p className={`text-[10px] uppercase tracking-[0.2em] mt-12 ${isDark ? 'text-slate-500/60' : 'text-slate-500'}`}>{t('exam.awaitingApproval.dontClose')}</p>
         </motion.div>
 
         <div className="absolute bottom-0 w-full"><OtisakFooter /></div>
@@ -654,11 +670,11 @@ export default function ExamPage() {
   // ========================================
   if (phase === 'lobby') {
     return (
-      <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+      <div className={`min-h-screen w-full ${pageBg} flex flex-col items-center justify-center relative overflow-hidden transition-colors`}>
         <ToggleCluster variant="solid" position="fixed" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
-          <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/15 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className={`absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/20' : 'bg-blue-400/30'}`} />
+          <div className={`absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/15' : 'bg-indigo-300/25'}`} style={{ animationDelay: '1s' }} />
         </div>
 
         <div className="z-10 w-full max-w-2xl px-4 sm:px-6 flex flex-col items-center text-center">
@@ -667,18 +683,18 @@ export default function ExamPage() {
           </motion.div>
 
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.2 }} className="flex flex-col items-center mb-8 sm:mb-14">
-            <h1 className="text-3xl sm:text-5xl font-light text-white mb-2 tracking-[0.2em] drop-shadow-lg">OTISAK</h1>
-            <span className="text-xs text-blue-400/80 tracking-[0.4em] uppercase font-medium">v 2.0</span>
+            <h1 className={`text-3xl sm:text-5xl font-light mb-2 tracking-[0.2em] ${titleText}`}>OTISAK</h1>
+            <span className={`text-xs tracking-[0.4em] uppercase font-medium ${blueLabel}`}>v 2.0</span>
           </motion.div>
 
           {user && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.4 }} className="flex flex-col items-center mb-8 sm:mb-14 w-full">
-              <div className="mb-3 text-gray-400 text-xs sm:text-sm uppercase tracking-widest font-medium">{t('exam.loggedInAs')}</div>
-              <div className="flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 bg-[#131520]/80 border border-blue-500/20 rounded-xl shadow-[0_0_30px_rgba(0,0,0,0.3)] backdrop-blur-sm max-w-full">
-                <span className="text-base sm:text-2xl text-white font-light tracking-wide truncate">
+              <div className={`mb-3 text-xs sm:text-sm uppercase tracking-widest font-medium ${subText}`}>{t('exam.loggedInAs')}</div>
+              <div className={`flex items-center gap-3 sm:gap-4 px-4 sm:px-8 py-3 sm:py-4 rounded-xl backdrop-blur-sm max-w-full border ${surfaceCard}`}>
+                <span className={`text-base sm:text-2xl font-light tracking-wide truncate ${titleText}`}>
                   {user.name || t('exam.student')}
                   {user.index_number && (
-                    <><span className="text-blue-500/50 mx-1 sm:mx-2">|</span><span className="font-mono text-blue-300">{user.index_number}</span></>
+                    <><span className={`mx-1 sm:mx-2 ${isDark ? 'text-blue-500/50' : 'text-blue-400/60'}`}>|</span><span className={`font-mono ${isDark ? 'text-blue-300' : 'text-blue-600'}`}>{user.index_number}</span></>
                   )}
                 </span>
               </div>
@@ -686,36 +702,36 @@ export default function ExamPage() {
           )}
 
           <motion.div initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: '100%' }} transition={{ duration: 0.8, delay: 0.6 }} className="w-full max-w-sm sm:max-w-lg mb-10 relative">
-            <div className="h-2 bg-gray-800/50 rounded-full overflow-hidden border border-gray-700/50 shadow-inner">
+            <div className={`h-2 rounded-full overflow-hidden border shadow-inner ${isDark ? 'bg-gray-800/50 border-gray-700/50' : 'bg-slate-200 border-slate-300'}`}>
               <div className="h-full bg-gradient-to-r from-blue-600 via-blue-400 to-blue-600 w-full origin-left animate-[otisak-progress_2s_ease-in-out_infinite] shadow-[0_0_15px_rgba(59,130,246,0.6)]" />
             </div>
             <div className="absolute -bottom-6 left-0 w-full text-center">
-              <span className="text-blue-400/60 text-[10px] uppercase tracking-widest animate-pulse">{t('exam.waitingForInstructor')}</span>
+              <span className={`text-[10px] uppercase tracking-widest animate-pulse ${blueLabel}`}>{t('exam.waitingForInstructor')}</span>
             </div>
           </motion.div>
 
-          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.8 }} className="text-gray-300 text-xs sm:text-sm mb-10 sm:mb-16 mt-6 max-w-md leading-relaxed font-light px-2">
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.8 }} className={`text-xs sm:text-sm mb-10 sm:mb-16 mt-6 max-w-md leading-relaxed font-light px-2 ${subTextStrong}`}>
             {t('exam.waitingDesc')}
           </motion.p>
 
           <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1 }} onClick={() => navigate('/')}
-            className="flex items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 bg-red-500/5 hover:bg-red-500/10 text-red-400/80 hover:text-red-400 text-xs font-medium rounded-lg transition-all border border-red-500/20 hover:border-red-500/40 mb-12 sm:mb-20 uppercase tracking-wider">
+            className={`flex items-center gap-2 px-6 sm:px-8 py-2.5 sm:py-3 text-xs font-medium rounded-lg transition-all border mb-12 sm:mb-20 uppercase tracking-wider ${isDark ? 'bg-red-500/5 hover:bg-red-500/10 text-red-400/80 hover:text-red-400 border-red-500/20 hover:border-red-500/40' : 'bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 border-red-200 hover:border-red-300'}`}>
             <Power className="w-3 h-3" />{t('exam.back')}
           </motion.button>
 
           {exam?.negative_points_enabled && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 1.1 }} className="max-w-lg w-full mb-8">
-              <div className="relative overflow-hidden rounded-xl border border-red-500/15 bg-red-500/[0.04] backdrop-blur-sm">
-                <div className="absolute left-0 top-0 bottom-0 w-[2px] bg-gradient-to-b from-red-500/60 to-red-500/20" />
+              <div className={`relative overflow-hidden rounded-xl border backdrop-blur-sm ${isDark ? 'border-red-500/15 bg-red-500/[0.04]' : 'border-red-200 bg-red-50/60'}`}>
+                <div className={`absolute left-0 top-0 bottom-0 w-[2px] ${isDark ? 'bg-gradient-to-b from-red-500/60 to-red-500/20' : 'bg-red-400/50'}`} />
                 <div className="px-5 py-4 flex items-start gap-3.5">
-                  <div className="p-1.5 rounded-lg bg-red-500/10 mt-0.5"><AlertTriangle className="w-3.5 h-3.5 text-red-400/80" /></div>
+                  <div className={`p-1.5 rounded-lg mt-0.5 ${isDark ? 'bg-red-500/10' : 'bg-red-100'}`}><AlertTriangle className={`w-3.5 h-3.5 ${isDark ? 'text-red-400/80' : 'text-red-600'}`} /></div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-[11px] font-semibold text-red-300/90 uppercase tracking-wider mb-1.5">{t('exam.negativePoints')}</p>
-                    <p className="text-[12px] text-gray-400/80 leading-relaxed">{t('exam.negativePointsDesc', { threshold: exam.negative_points_threshold, value: exam.negative_points_value })}</p>
-                    <div className="flex items-center gap-3 mt-3 pt-3 border-t border-red-500/10">
-                      <span className="text-[10px] text-gray-500 uppercase tracking-wider">{t('exam.threshold', { value: exam.negative_points_threshold })}</span>
-                      <div className="w-px h-3 bg-red-400/15" />
-                      <span className="text-xs font-bold text-red-400/70 font-mono">-{exam.negative_points_value} {t('questions.pts')}</span>
+                    <p className={`text-[11px] font-semibold uppercase tracking-wider mb-1.5 ${isDark ? 'text-red-300/90' : 'text-red-700'}`}>{t('exam.negativePoints')}</p>
+                    <p className={`text-[12px] leading-relaxed ${isDark ? 'text-gray-400/80' : 'text-slate-600'}`}>{t('exam.negativePointsDesc', { threshold: exam.negative_points_threshold, value: exam.negative_points_value })}</p>
+                    <div className={`flex items-center gap-3 mt-3 pt-3 border-t ${isDark ? 'border-red-500/10' : 'border-red-200'}`}>
+                      <span className={`text-[10px] uppercase tracking-wider ${subText}`}>{t('exam.threshold', { value: exam.negative_points_threshold })}</span>
+                      <div className={`w-px h-3 ${isDark ? 'bg-red-400/15' : 'bg-red-300'}`} />
+                      <span className={`text-xs font-bold font-mono ${isDark ? 'text-red-400/70' : 'text-red-600'}`}>-{exam.negative_points_value} {t('questions.pts')}</span>
                     </div>
                   </div>
                 </div>
@@ -723,7 +739,7 @@ export default function ExamPage() {
             </motion.div>
           )}
 
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1.2 }} className="text-xs text-gray-500/60 max-w-lg leading-relaxed border-t border-gray-800/50 pt-6">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1.2 }} className={`text-xs max-w-lg leading-relaxed border-t pt-6 ${isDark ? 'text-gray-500/60 border-gray-800/50' : 'text-slate-500 border-slate-200'}`}>
             <p className="mb-2">{t('exam.cheatingWarning')}</p>
             <p>{t('exam.disciplinaryWarning')}</p>
           </motion.div>
@@ -750,12 +766,12 @@ export default function ExamPage() {
     Object.values(textAnswers).filter((v) => v.trim()).length;
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] flex flex-col relative overflow-hidden"
+    <div className={`min-h-screen ${pageBg} flex flex-col relative overflow-hidden transition-colors`}
       onCopy={(e) => e.preventDefault()}
     >
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_0%_50%,_rgba(59,130,246,0.15),_transparent_50%)] blur-[120px]" />
-        <div className="absolute bottom-0 right-0 w-full h-full bg-[radial-gradient(circle_at_100%_50%,_rgba(59,130,246,0.15),_transparent_50%)] blur-[120px]" />
+        <div className={`absolute top-0 left-0 w-full h-full blur-[120px] ${isDark ? 'bg-[radial-gradient(circle_at_0%_50%,_rgba(59,130,246,0.15),_transparent_50%)]' : 'bg-[radial-gradient(circle_at_0%_50%,_rgba(96,165,250,0.18),_transparent_50%)]'}`} />
+        <div className={`absolute bottom-0 right-0 w-full h-full blur-[120px] ${isDark ? 'bg-[radial-gradient(circle_at_100%_50%,_rgba(59,130,246,0.15),_transparent_50%)]' : 'bg-[radial-gradient(circle_at_100%_50%,_rgba(99,102,241,0.18),_transparent_50%)]'}`} />
       </div>
 
       <OtisakHeader
@@ -776,15 +792,15 @@ export default function ExamPage() {
       <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 z-10 flex flex-col justify-center min-h-[400px] sm:min-h-[500px]">
         {exam?.negative_points_enabled && phase === 'exam' && (
           <div className="flex items-center justify-center mb-5">
-            <div className="inline-flex items-center gap-3 py-2 px-4 rounded-full bg-red-500/[0.06] border border-red-500/10">
+            <div className={`inline-flex items-center gap-3 py-2 px-4 rounded-full border ${isDark ? 'bg-red-500/[0.06] border-red-500/10' : 'bg-red-50 border-red-200'}`}>
               <div className="flex items-center gap-1.5">
-                <AlertTriangle className="w-3 h-3 text-red-400/50" />
-                <span className="text-[10px] text-red-300/40 font-semibold uppercase tracking-wider">{t('exam.negativePoints')}</span>
+                <AlertTriangle className={`w-3 h-3 ${isDark ? 'text-red-400/50' : 'text-red-500'}`} />
+                <span className={`text-[10px] font-semibold uppercase tracking-wider ${isDark ? 'text-red-300/40' : 'text-red-700'}`}>{t('exam.negativePoints')}</span>
               </div>
-              <div className="w-px h-3 bg-red-400/15" />
+              <div className={`w-px h-3 ${isDark ? 'bg-red-400/15' : 'bg-red-300'}`} />
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-gray-500">{t('exam.threshold', { value: exam.negative_points_threshold })}</span>
-                <span className="text-[11px] font-bold text-red-400/60 font-mono">-{exam.negative_points_value}</span>
+                <span className={`text-[10px] ${subText}`}>{t('exam.threshold', { value: exam.negative_points_threshold })}</span>
+                <span className={`text-[11px] font-bold font-mono ${isDark ? 'text-red-400/60' : 'text-red-600'}`}>-{exam.negative_points_value}</span>
               </div>
             </div>
           </div>
@@ -793,18 +809,18 @@ export default function ExamPage() {
         {phase === 'submitting' ? (
           <div className="flex flex-col items-center justify-center py-20">
             <Loader2 className="w-10 h-10 animate-spin text-blue-500 mb-4" />
-            <p className="text-gray-400 text-sm">{t('exam.submitting')}</p>
+            <p className={`text-sm ${subText}`}>{t('exam.submitting')}</p>
           </div>
         ) : currentQuestion ? (
           <>
             <AnimatePresence mode="wait">
               <motion.div key={currentQIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="w-full">
-                <div className="text-blue-400/60 text-[10px] sm:text-xs uppercase tracking-widest mb-3 sm:mb-4 font-medium">
+                <div className={`text-[10px] sm:text-xs uppercase tracking-widest mb-3 sm:mb-4 font-medium ${blueLabel}`}>
                   {t('exam.question', { current: currentQIndex + 1, total: questions.length })}
-                  {currentQuestion.points && <span className="ml-2 text-gray-500">&#8226; {currentQuestion.points} {currentQuestion.points === 1 ? t('exam.point') : t('exam.points')}</span>}
+                  {currentQuestion.points && <span className={`ml-2 ${subText}`}>&#8226; {currentQuestion.points} {currentQuestion.points === 1 ? t('exam.point') : t('exam.points')}</span>}
                 </div>
 
-                <h2 className="text-lg sm:text-2xl text-white mb-4 sm:mb-6 font-light leading-relaxed drop-shadow-md">
+                <h2 className={`text-lg sm:text-2xl mb-4 sm:mb-6 font-light leading-relaxed ${titleText}`}>
                   {currentQuestion.text}
                 </h2>
 
@@ -834,7 +850,7 @@ export default function ExamPage() {
                         <textarea
                           value={textAnswers[currentQuestion.id] || ''}
                           onChange={(e) => setTextAnswers(prev => ({ ...prev, [currentQuestion.id]: e.target.value }))}
-                          className="w-full bg-[#131520]/80 border border-purple-500/20 rounded-xl px-5 py-4 text-white text-sm leading-relaxed focus:outline-none focus:border-purple-500/50 focus:shadow-[0_0_20px_rgba(168,85,247,0.1)] resize-none min-h-[180px] placeholder-white/15 transition-all"
+                          className={`w-full rounded-xl px-5 py-4 text-sm leading-relaxed focus:outline-none focus:border-purple-500/50 focus:shadow-[0_0_20px_rgba(168,85,247,0.1)] resize-none min-h-[180px] transition-all border ${isDark ? 'bg-[#131520]/80 border-purple-500/20 text-white placeholder-white/15' : 'bg-white border-purple-200 text-slate-900 placeholder:text-slate-400'}`}
                           placeholder={t('exam.answerPlaceholder')}
                           rows={8}
                         />
@@ -860,17 +876,17 @@ export default function ExamPage() {
                     };
                     return (
                       <div className="space-y-2">
-                        <p className="text-blue-400/70 text-xs italic mb-2">{t('exam.orderItems')}</p>
+                        <p className={`text-xs italic mb-2 ${blueLabel}`}>{t('exam.orderItems')}</p>
                         {currentOrder.map((item, i) => (
-                          <div key={`${item}-${i}`} className="flex items-center gap-2 bg-[#131520]/80 border border-blue-500/20 rounded-lg px-4 py-3">
-                            <span className="text-blue-400 font-mono text-sm w-6 text-center flex-shrink-0">{i + 1}.</span>
-                            <span className="text-white text-sm flex-1">{item}</span>
+                          <div key={`${item}-${i}`} className={`flex items-center gap-2 rounded-lg px-4 py-3 border ${surfaceCard}`}>
+                            <span className={`font-mono text-sm w-6 text-center flex-shrink-0 ${isDark ? 'text-blue-400' : 'text-blue-600'}`}>{i + 1}.</span>
+                            <span className={`text-sm flex-1 ${titleText}`}>{item}</span>
                             <div className="flex flex-col gap-0.5 flex-shrink-0">
-                              <button type="button" disabled={i === 0} onClick={() => moveItem(i, i - 1)} className="p-1 rounded hover:bg-white/10 disabled:opacity-20 transition-colors">
-                                <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
+                              <button type="button" disabled={i === 0} onClick={() => moveItem(i, i - 1)} className={`p-1 rounded disabled:opacity-20 transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
+                                <svg className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" /></svg>
                               </button>
-                              <button type="button" disabled={i === currentOrder.length - 1} onClick={() => moveItem(i, i + 1)} className="p-1 rounded hover:bg-white/10 disabled:opacity-20 transition-colors">
-                                <svg className="w-3.5 h-3.5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                              <button type="button" disabled={i === currentOrder.length - 1} onClick={() => moveItem(i, i + 1)} className={`p-1 rounded disabled:opacity-20 transition-colors ${isDark ? 'hover:bg-white/10' : 'hover:bg-slate-100'}`}>
+                                <svg className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                               </button>
                             </div>
                           </div>
@@ -886,18 +902,28 @@ export default function ExamPage() {
                     const usedRight = new Set(Object.values(curMatches));
                     return (
                       <div className="space-y-4">
-                        <p className="text-blue-400/70 text-xs italic mb-2">{t('exam.matchItems')}</p>
+                        <p className={`text-xs italic mb-2 ${blueLabel}`}>{t('exam.matchItems')}</p>
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
                             {left.map((item, i) => {
                               const matched = curMatches[item] !== undefined;
                               const active = selLeft === item;
+                              // Three styling states (active/matched/idle) × two themes = six combinations.
+                              const baseIdle = isDark
+                                ? 'border-gray-700 bg-[#131520]/80 text-white hover:border-blue-500/50'
+                                : 'border-slate-300 bg-white text-slate-900 hover:border-blue-400';
+                              const activeStyle = isDark
+                                ? 'border-blue-500 bg-blue-500/10 text-blue-300'
+                                : 'border-blue-500 bg-blue-50 text-blue-700';
+                              const matchedStyle = isDark
+                                ? 'border-green-500/30 bg-green-500/[0.06] text-green-300'
+                                : 'border-green-300 bg-green-50 text-green-700';
                               return (
                                 <button key={`left-${i}`} type="button" onClick={() => {
                                   if (matched) { const nm = { ...curMatches }; delete nm[item]; setTextAnswers(prev => ({ ...prev, [currentQuestion.id]: JSON.stringify(nm) })); setMatchingSelectedLeft(null); }
                                   else { setMatchingSelectedLeft(active ? null : item); }
-                                }} className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all ${active ? 'border-blue-500 bg-blue-500/10 text-blue-300' : matched ? 'border-green-500/30 bg-green-500/[0.06] text-green-300' : 'border-gray-700 bg-[#131520]/80 text-white hover:border-blue-500/50'}`}>
-                                  {item}{matched && <span className="block text-[10px] text-green-400/60 mt-1">&#8594; {curMatches[item]}</span>}
+                                }} className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all ${active ? activeStyle : matched ? matchedStyle : baseIdle}`}>
+                                  {item}{matched && <span className={`block text-[10px] mt-1 ${isDark ? 'text-green-400/60' : 'text-green-600/70'}`}>&#8594; {curMatches[item]}</span>}
                                 </button>
                               );
                             })}
@@ -905,10 +931,19 @@ export default function ExamPage() {
                           <div className="space-y-2">
                             {right.map((item, i) => {
                               const used = usedRight.has(item);
+                              const usedStyle = isDark
+                                ? 'border-green-500/30 bg-green-500/[0.06] text-green-300/50'
+                                : 'border-green-200 bg-green-50/70 text-green-600/60';
+                              const armedStyle = isDark
+                                ? 'border-gray-600 bg-[#131520]/80 text-white hover:border-blue-500/50 cursor-pointer'
+                                : 'border-slate-300 bg-white text-slate-900 hover:border-blue-400 cursor-pointer';
+                              const idleStyle = isDark
+                                ? 'border-gray-700 bg-[#131520]/80 text-gray-400'
+                                : 'border-slate-200 bg-slate-50 text-slate-500';
                               return (
                                 <button key={`right-${i}`} type="button" disabled={!selLeft || used} onClick={() => {
                                   if (selLeft && !used) { const nm = { ...curMatches, [selLeft]: item }; setTextAnswers(prev => ({ ...prev, [currentQuestion.id]: JSON.stringify(nm) })); setMatchingSelectedLeft(null); }
-                                }} className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all ${used ? 'border-green-500/30 bg-green-500/[0.06] text-green-300/50' : selLeft ? 'border-gray-600 bg-[#131520]/80 text-white hover:border-blue-500/50 cursor-pointer' : 'border-gray-700 bg-[#131520]/80 text-gray-400'}`}>
+                                }} className={`w-full text-left px-4 py-3 rounded-lg border text-sm transition-all ${used ? usedStyle : selLeft ? armedStyle : idleStyle}`}>
                                   {item}
                                 </button>
                               );
@@ -924,23 +959,23 @@ export default function ExamPage() {
                     const parts = currentQuestion.text.split(/(___[A-Z0-9_]+___)/g);
                     return (
                       <div className="space-y-4">
-                        <div className="bg-[#131520]/80 border border-blue-500/20 rounded-xl px-5 py-4 text-white text-sm leading-loose">
+                        <div className={`rounded-xl px-5 py-4 text-sm leading-loose border ${surfaceCard} ${titleText}`}>
                           {parts.map((part, i) => {
                             const m = part.match(/^___([A-Z0-9_]+)___$/);
                             if (m) {
                               const bid = m[1];
-                              return (<input key={`blank-${bid}-${i}`} type="text" value={curFills[bid] || ''} onChange={(e) => { const nf = { ...curFills, [bid]: e.target.value }; setTextAnswers(prev => ({ ...prev, [currentQuestion.id]: JSON.stringify(nf) })); }} className="inline-block w-32 sm:w-40 mx-1 px-3 py-1 bg-blue-500/10 border-b-2 border-blue-500/40 text-blue-300 text-sm focus:outline-none focus:border-blue-500 transition-colors rounded-t placeholder-blue-300/30" placeholder="..." />);
+                              return (<input key={`blank-${bid}-${i}`} type="text" value={curFills[bid] || ''} onChange={(e) => { const nf = { ...curFills, [bid]: e.target.value }; setTextAnswers(prev => ({ ...prev, [currentQuestion.id]: JSON.stringify(nf) })); }} className={`inline-block w-32 sm:w-40 mx-1 px-3 py-1 border-b-2 text-sm focus:outline-none focus:border-blue-500 transition-colors rounded-t ${isDark ? 'bg-blue-500/10 border-blue-500/40 text-blue-300 placeholder-blue-300/30' : 'bg-blue-50 border-blue-300 text-blue-700 placeholder:text-blue-400/40'}`} placeholder="..." />);
                             }
                             return <span key={`text-${i}`}>{part}</span>;
                           })}
                         </div>
-                        <p className="text-[10px] text-blue-400/40">{blanks.length} {t('exam.blanksToFill')}</p>
+                        <p className={`text-[10px] ${blueLabel}`}>{blanks.length} {t('exam.blanksToFill')}</p>
                       </div>
                     );
                   })() : (
                     <>
                       {currentQuestion.multi_answer && (
-                        <p className="text-blue-400/70 text-xs italic mb-1">{t('exam.selectAll')}</p>
+                        <p className={`text-xs italic mb-1 ${blueLabel}`}>{t('exam.selectAll')}</p>
                       )}
                       {currentQuestion.answers.map((answer, i) => (
                         <AnswerOption
@@ -976,19 +1011,21 @@ export default function ExamPage() {
             </motion.div>
           </>
         ) : (
-          <div className="text-center text-gray-400 py-20"><p>{t('exam.noQuestions')}</p></div>
+          <div className={`text-center py-20 ${subText}`}><p>{t('exam.noQuestions')}</p></div>
         )}
       </main>
 
       {/* Scratch Notes Toggle */}
       <button type="button" onClick={() => setShowNotes(!showNotes)}
         className={`fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-lg ${
-          showNotes ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.2)]'
-            : scratchNotes ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-500/60 hover:text-yellow-400 hover:bg-yellow-500/20'
-              : 'bg-white/5 border border-white/10 text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/20'
+          showNotes
+            ? (isDark ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'bg-yellow-100 border border-yellow-300 text-yellow-700 shadow-md')
+            : scratchNotes
+              ? (isDark ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-500/60 hover:text-yellow-400 hover:bg-yellow-500/20' : 'bg-yellow-50 border border-yellow-200 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100')
+              : (isDark ? 'bg-white/5 border border-white/10 text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/20' : 'bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 shadow-sm')
         }`} title={t('exam.scratchNotes')}>
         <StickyNote className="w-4.5 h-4.5" />
-        {scratchNotes && !showNotes && <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-500 border border-[#0a0a14]" />}
+        {scratchNotes && !showNotes && <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-500 border ${isDark ? 'border-[#0a0a14]' : 'border-[#F8FAFC]'}`} />}
       </button>
 
       {/* Scratch Notes Panel */}
@@ -997,23 +1034,23 @@ export default function ExamPage() {
           <>
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] sm:hidden" onClick={() => setShowNotes(false)} />
             <motion.div initial={{ opacity: 0, x: 300 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 300 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[340px] bg-[#0d0d1a]/95 border-l border-yellow-500/10 backdrop-blur-xl shadow-[-20px_0_60px_rgba(0,0,0,0.5)] flex flex-col">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-yellow-500/10">
+              className={`fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[340px] border-l backdrop-blur-xl shadow-[-20px_0_60px_rgba(0,0,0,0.5)] flex flex-col ${isDark ? 'bg-[#0d0d1a]/95 border-yellow-500/10' : 'bg-white/95 border-yellow-200'}`}>
+              <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-yellow-500/10' : 'border-yellow-200'}`}>
                 <div className="flex items-center gap-2">
-                  <StickyNote className="w-4 h-4 text-yellow-500/60" />
-                  <span className="text-sm font-medium text-yellow-200/80 uppercase tracking-wider">{t('exam.scratchNotes')}</span>
+                  <StickyNote className={`w-4 h-4 ${isDark ? 'text-yellow-500/60' : 'text-yellow-600'}`} />
+                  <span className={`text-sm font-medium uppercase tracking-wider ${isDark ? 'text-yellow-200/80' : 'text-yellow-700'}`}>{t('exam.scratchNotes')}</span>
                 </div>
-                <button type="button" onClick={() => setShowNotes(false)} className="p-1.5 rounded-md text-gray-500 hover:text-white hover:bg-white/10 transition-colors">
+                <button type="button" onClick={() => setShowNotes(false)} className={`p-1.5 rounded-md transition-colors ${isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}>
                   <X className="w-4 h-4" />
                 </button>
               </div>
               <div className="flex-1 p-3">
                 <textarea value={scratchNotes} onChange={(e) => setScratchNotes(e.target.value)}
-                  className="w-full h-full bg-yellow-500/[0.02] border border-yellow-500/10 rounded-lg px-4 py-3 text-yellow-100/70 text-xs font-mono leading-relaxed focus:outline-none focus:border-yellow-500/25 resize-none placeholder-yellow-500/20"
+                  className={`w-full h-full rounded-lg px-4 py-3 text-xs font-mono leading-relaxed focus:outline-none resize-none border ${isDark ? 'bg-yellow-500/[0.02] border-yellow-500/10 text-yellow-100/70 focus:border-yellow-500/25 placeholder-yellow-500/20' : 'bg-yellow-50/30 border-yellow-200 text-yellow-900 focus:border-yellow-400 placeholder:text-yellow-600/40'}`}
                   placeholder={t('exam.scratchPlaceholder')} autoFocus />
               </div>
-              <div className="px-4 py-2.5 border-t border-yellow-500/10">
-                <p className="text-[9px] text-yellow-500/30 text-center">{t('exam.scratchFooter')}</p>
+              <div className={`px-4 py-2.5 border-t ${isDark ? 'border-yellow-500/10' : 'border-yellow-200'}`}>
+                <p className={`text-[9px] text-center ${isDark ? 'text-yellow-500/30' : 'text-yellow-700/60'}`}>{t('exam.scratchFooter')}</p>
               </div>
             </motion.div>
           </>
@@ -1038,18 +1075,18 @@ export default function ExamPage() {
               exit={{ scale: 0.95, opacity: 0 }}
               transition={{ type: 'spring', damping: 20 }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-[#131520] border border-blue-500/30 rounded-2xl shadow-[0_0_60px_rgba(59,130,246,0.2)] max-w-md w-full p-6 sm:p-8"
+              className={`rounded-2xl max-w-md w-full p-6 sm:p-8 border ${isDark ? 'bg-[#131520] border-blue-500/30 shadow-[0_0_60px_rgba(59,130,246,0.2)]' : 'bg-white border-slate-200 shadow-xl'}`}
             >
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                <div className={`w-10 h-10 rounded-xl border flex items-center justify-center ${isDark ? 'bg-amber-500/15 border-amber-500/30' : 'bg-amber-50 border-amber-200'}`}>
+                  <AlertTriangle className={`w-5 h-5 ${isDark ? 'text-amber-400' : 'text-amber-600'}`} />
                 </div>
-                <h3 className="text-lg font-medium text-white">{t('exam.finishConfirmTitle')}</h3>
+                <h3 className={`text-lg font-medium ${titleText}`}>{t('exam.finishConfirmTitle')}</h3>
               </div>
-              <p className="text-gray-400 text-sm leading-relaxed mb-2">
+              <p className={`text-sm leading-relaxed mb-2 ${subText}`}>
                 {t('exam.finishConfirmBody')}
               </p>
-              <p className="text-amber-400/80 text-xs leading-relaxed mb-6">
+              <p className={`text-xs leading-relaxed mb-6 ${isDark ? 'text-amber-400/80' : 'text-amber-700'}`}>
                 {t('exam.finishConfirmWarning')}
               </p>
 
@@ -1057,7 +1094,7 @@ export default function ExamPage() {
                 <button
                   onClick={() => setShowFinishConfirm(false)}
                   disabled={phase === 'submitting'}
-                  className="flex-1 h-11 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white font-medium rounded-xl border border-white/10 hover:border-white/20 transition-all uppercase tracking-widest text-xs disabled:opacity-40 disabled:cursor-not-allowed"
+                  className={`flex-1 h-11 font-medium rounded-xl border transition-all uppercase tracking-widest text-xs disabled:opacity-40 disabled:cursor-not-allowed ${isDark ? 'bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border-white/10 hover:border-white/20' : 'bg-slate-50 hover:bg-slate-100 text-slate-700 hover:text-slate-900 border-slate-200 hover:border-slate-300'}`}
                 >
                   {t('exam.finishConfirmCancel')}
                 </button>

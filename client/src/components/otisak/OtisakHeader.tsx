@@ -2,6 +2,7 @@ import React from 'react';
 import { OtisakLogo } from './OtisakLogo';
 import { motion } from 'framer-motion';
 import { useLang } from '../LangProvider';
+import { useTheme } from '../ThemeProvider';
 import { ToggleCluster } from '../ToggleCluster';
 
 interface OtisakHeaderProps {
@@ -13,12 +14,29 @@ interface OtisakHeaderProps {
 
 export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }: OtisakHeaderProps) {
   const { t } = useLang();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const displayDate = dateLabel || new Date().toLocaleDateString('sr-RS', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   }).replace(/\//g, '.');
 
+  // Header was originally hard-coded dark gradient. Mirror it in light mode with a soft
+  // white gradient and adjust every nested label/text/border so the contrast still works.
+  const headerBg = isDark
+    ? 'bg-gradient-to-b from-[#0d0f1a] to-[#0a0c16]'
+    : 'bg-gradient-to-b from-white to-slate-50 border-b border-slate-200';
+  const otisakTitleClass = isDark ? 'text-white drop-shadow-md' : 'text-slate-900';
+  const versionLabel = isDark ? 'text-blue-400/80' : 'text-blue-600/80';
+  const dateClass = isDark ? 'text-gray-400' : 'text-slate-500';
+  const userLabelClass = isDark ? 'text-gray-400' : 'text-slate-500';
+  const userNameClass = isDark ? 'text-white' : 'text-slate-900';
+  const userIndexClass = isDark ? 'text-blue-400/80' : 'text-blue-600/80';
+  const avatarGlow = isDark ? 'bg-blue-500/20' : 'bg-blue-500/10';
+  const avatarBorder = isDark ? 'border-blue-500/30' : 'border-blue-300';
+  const avatarFallback = isDark ? 'bg-blue-900/50 text-blue-300' : 'bg-blue-100 text-blue-700';
+
   return (
-    <header className="w-full h-16 sm:h-24 bg-gradient-to-b from-[#0d0f1a] to-[#0a0c16] relative z-20 shadow-lg">
+    <header className={`w-full h-16 sm:h-24 relative z-20 shadow-lg ${headerBg}`}>
       <div className="max-w-7xl mx-auto px-3 sm:px-6 h-full flex items-center justify-between">
         {/* Left: Logo & App Name */}
         <div className="flex items-center gap-2 sm:gap-5">
@@ -35,10 +53,10 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
             transition={{ duration: 0.5, delay: 0.1 }}
             className="hidden sm:flex flex-col"
           >
-            <span className="text-2xl font-bold text-white tracking-wider drop-shadow-md">
+            <span className={`text-2xl font-bold tracking-wider ${otisakTitleClass}`}>
               OTISAK
             </span>
-            <span className="text-[10px] text-blue-400/80 tracking-[0.2em] font-medium uppercase">
+            <span className={`text-[10px] tracking-[0.2em] font-medium uppercase ${versionLabel}`}>
               v 2.0
             </span>
           </motion.div>
@@ -47,7 +65,7 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
         {/* Center */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center max-w-[55%] sm:max-w-none">
           {showDate && (
-            <span className="hidden sm:inline text-gray-400 text-xs mb-1 font-medium tracking-wide opacity-60">
+            <span className={`hidden sm:inline text-xs mb-1 font-medium tracking-wide opacity-60 ${dateClass}`}>
               {displayDate}
             </span>
           )}
@@ -67,29 +85,29 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
             className="flex items-center gap-3 sm:gap-4 text-right"
           >
             <div className="hidden sm:flex flex-col">
-              <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">
+              <span className={`text-[10px] uppercase tracking-wider font-medium ${userLabelClass}`}>
                 {t('exam.loggedInAs')}
               </span>
-              <span className="text-base font-semibold text-white tracking-wide">
+              <span className={`text-base font-semibold tracking-wide ${userNameClass}`}>
                 {user.name || t('exam.student')}
               </span>
               {user.index_number && (
-                <span className="text-[11px] text-blue-400/80 font-mono">
+                <span className={`text-[11px] font-mono ${userIndexClass}`}>
                   {user.index_number}
                 </span>
               )}
             </div>
             <div className="relative">
-              <div className="absolute inset-0 bg-blue-500/20 rounded-full blur-md" />
+              <div className={`absolute inset-0 rounded-full blur-md ${avatarGlow}`} />
               {user.avatar_url ? (
                 <img
                   src={user.avatar_url}
                   alt={user.name || 'User'}
-                  className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 border-blue-500/30 object-cover shadow-lg"
+                  className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 object-cover shadow-lg ${avatarBorder}`}
                 />
               ) : (
-                <div className="relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 border-blue-500/30 bg-blue-900/50 flex items-center justify-center shadow-lg">
-                  <span className="text-blue-300 text-sm font-bold">
+                <div className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 flex items-center justify-center shadow-lg ${avatarBorder} ${avatarFallback}`}>
+                  <span className="text-sm font-bold">
                     {(user.name || 'U').charAt(0).toUpperCase()}
                   </span>
                 </div>

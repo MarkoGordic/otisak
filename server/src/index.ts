@@ -13,6 +13,7 @@ import practiceRoutes from './routes/practice';
 import questionsRoutes from './routes/questions';
 import historyRoutes from './routes/history';
 import { setupWebSocket } from './ws/events';
+import { startLiveStatsAggregator } from './ws/liveStatsAggregator';
 import { ensureBootstrapAdmin } from './bootstrap';
 import { assertSessionSecretIsSafe } from './session';
 
@@ -73,6 +74,10 @@ app.get('*', (_req, res) => {
 // Create HTTP server and attach WebSocket
 const server = http.createServer(app);
 setupWebSocket(server);
+
+// Background aggregator: every 5s, recompute live exam stats for monitored exams.
+// Admin RoomPage polls /live-stats and gets the cached result.
+startLiveStatsAggregator();
 
 const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {

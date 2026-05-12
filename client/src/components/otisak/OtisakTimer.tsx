@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
+import { useTheme } from '../ThemeProvider';
 
 interface TimerProps {
   durationSeconds: number;
@@ -76,8 +77,16 @@ export function OtisakTimer({
       ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]'
       : 'drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]';
 
+  // Local theme — only used to swap the digit-box surface; the foreground color is
+  // already encoded in `digitColor` (green/red/sky) and works against both surfaces.
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const digitBoxSurface = isDark
+    ? 'bg-[#0a0c10]/80 border-green-900/30'
+    : 'bg-white border-slate-200';
+
   const DigitBox = ({ value }: { value: string }) => (
-    <div className="relative bg-[#0a0c10]/80 border border-green-900/30 rounded px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[1.8rem] sm:min-w-[2.2rem] flex justify-center items-center shadow-inner">
+    <div className={`relative rounded px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[1.8rem] sm:min-w-[2.2rem] flex justify-center items-center shadow-inner border ${digitBoxSurface}`}>
       <span
         className={`font-mono text-lg sm:text-2xl md:text-3xl font-bold tracking-widest tabular-nums ${glow} ${digitColor}`}
       >

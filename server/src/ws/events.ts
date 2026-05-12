@@ -4,6 +4,7 @@ import { parseSessionCookie } from '../session';
 import { findUserById } from '../db/users';
 import { logEvents } from '../db/activity-log';
 import { query } from '../db/client';
+import { markExamMonitored, unmarkExamMonitored, listMonitoredExams } from './liveStatsAggregator';
 
 // Map of examId -> Set of WebSocket connections (admin-only room broadcasts; legacy)
 const roomSubscriptions = new Map<string, Set<WebSocket>>();
@@ -154,6 +155,11 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
             if (allowed) {
               if (!examSubscriptions.has(examId)) examSubscriptions.set(examId, new Set());
               examSubscriptions.get(examId)!.add(ws);
+              // Admin/assistant subscriptions also "wake up" the live-stats aggregator for this exam.
+              // Students don't trigger this — they don't poll /live-stats.
+              if (user.role === 'admin' || user.role === 'assistant') {
+                markExamMonitored(examId);
+              }
               ws.send(JSON.stringify({ type: 'subscribed', exam_id: examId }));
             } else {
               ws.send(JSON.stringify({ type: 'subscribe_denied', exam_id: examId }));
@@ -172,6 +178,22 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
         for (const [examId, subscribers] of examSubscriptions.entries()) {
           subscribers.delete(ws);
           if (subscribers.size === 0) examSubscriptions.delete(examId);
+        }
+        // If no admin/assistant is still watching any of the monitored exams,
+        // unmark them so the 5s aggregator stops doing DB work for them.
+        if (user.role === 'admin' || user.role === 'assistant') {
+          for (const examId of listMonitoredExams()) {
+            const subs = examSubscriptions.get(examId);
+            if (!subs || subs.size === 0) {
+              unmarkExamMonitored(examId);
+              continue;
+            }
+            const stillAdmin = Array.from(subs).some((other) => {
+              const meta = wsUserMap.get(other);
+              return meta && (meta.role === 'admin' || meta.role === 'assistant');
+            });
+            if (!stillAdmin) unmarkExamMonitored(examId);
+          }
         }
       });
 

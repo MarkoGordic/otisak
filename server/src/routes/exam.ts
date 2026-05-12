@@ -21,7 +21,6 @@ import {
   getExamRoomStatus,
   startExamTimer,
   updateOtisakExamStatus,
-  getLiveExamStats,
 } from '../db/otisak';
 import { getActiveLockdown, createLockdown, endLockdown } from '../db/settings';
 import { logEvents, getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
@@ -35,6 +34,7 @@ import {
 import { findUserById, findUserByIndexNumber } from '../db/users';
 import { query } from '../db/client';
 import { broadcastExamEvent } from '../ws/events';
+import { getCachedLiveStats, markExamMonitored, refreshLiveStatsNow } from '../ws/liveStatsAggregator';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { markSessionActive, isLockedByOtherSession } from '../session-tracker';
 import { requireAuth, requireRole } from '../middleware';
@@ -58,12 +58,6 @@ async function getCachedExam(examId: string) {
   return exam;
 }
 function invalidateExamCache(examId: string) { examCache.delete(examId); }
-
-// Throttle exam.progress broadcasts per (examId, userId) so a student tapping rapidly
-// doesn't flood every admin's socket. 3s window matches the previous polling cadence
-// — same UX, far fewer events.
-const PROGRESS_BROADCAST_THROTTLE_MS = 3000;
-const lastProgressBroadcastAt = new Map<string, number>();
 
 // GET /exams/:examId - get exam + attempt + questions for student
 router.get('/', requireAuth, async (req: Request, res: Response) => {
@@ -182,50 +176,27 @@ router.post('/attempt', requireAuth, async (req: Request, res: Response) => {
     if (submit === true) {
       const timeSpent = time_spent_seconds || Math.floor((Date.now() - new Date(attempt.started_at).getTime()) / 1000);
       const finished = await finishAttempt(attempt.id, timeSpent);
-      // Broadcast so admin's RoomPage can instantly bump the "finished" counter and mark
-      // this student as submitted, instead of waiting for the 3s poll fallback.
+      // Refresh the live-stats cache immediately so the next admin poll (within 5s)
+      // reflects this submission. Also fire a WS event so any admin RoomPage that
+      // happens to be open can react instantly (without waiting up to 5s for the next poll).
       try {
-        const stats = await getLiveExamStats(examId);
-        broadcastExamEvent(examId, {
-          type: 'exam.submitted',
-          user_id: user.id,
-          finished_count: stats.finished_count,
-          total_participants: stats.total_participants,
-        });
+        const stats = await refreshLiveStatsNow(examId);
+        if (stats) {
+          broadcastExamEvent(examId, {
+            type: 'exam.submitted',
+            user_id: user.id,
+            finished_count: stats.finished_count,
+            total_participants: stats.total_participants,
+          });
+        }
       } catch (err) {
-        console.error('Failed to broadcast exam.submitted', err);
+        console.error('Failed to refresh stats / broadcast exam.submitted', err);
       }
-      // Clear any pending progress throttle so the next save broadcasts immediately.
-      lastProgressBroadcastAt.delete(`${examId}:${user.id}`);
       return res.json({ attempt: finished, submitted: true });
     }
 
-    // Throttled progress broadcast — admin RoomPage updates per-student progress without polling.
-    if (answers && Array.isArray(answers) && answers.length > 0) {
-      const key = `${examId}:${user.id}`;
-      const last = lastProgressBroadcastAt.get(key) || 0;
-      const now = Date.now();
-      if (now - last >= PROGRESS_BROADCAST_THROTTLE_MS) {
-        lastProgressBroadcastAt.set(key, now);
-        try {
-          // Only emit per-student row to keep broadcast payload small.
-          const stats = await getLiveExamStats(examId);
-          const row = stats.per_student.find((r) => r.user_id === user.id);
-          if (row) {
-            broadcastExamEvent(examId, {
-              type: 'exam.progress',
-              user_id: user.id,
-              answered_count: row.answered_count,
-              total_questions: stats.total_questions,
-              time_spent_seconds: row.time_spent_seconds,
-            });
-          }
-        } catch (err) {
-          console.error('Failed to broadcast exam.progress', err);
-        }
-      }
-    }
-
+    // No per-save broadcast: progress is delivered to admin via the 5s polling cycle,
+    // which fetches the server-side cache. Lower WS chatter, simpler debugging.
     return res.json({ attempt, submitted: false });
   } catch (error) {
     console.error('Attempt error:', error);
@@ -973,12 +944,22 @@ router.get('/room', requireAuth, requireRole(['admin', 'assistant']), async (req
 });
 
 // GET /exams/:examId/live-stats - admin/assistant, snapshot of per-student live progress.
-// Used on RoomPage initial load and on socket reconnect to backfill any missed events.
+// Served from a 5s server-side cache populated by the background aggregator. Admin's
+// RoomPage polls this every 5s; the cache absorbs the load so 10 admins polling do not
+// equal 10 DB hits per 5s. First-time hit primes the cache and marks the exam monitored.
 router.get('/live-stats', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
-    const stats = await getLiveExamStats(examId);
-    return res.json(stats);
+    const cached = getCachedLiveStats(examId);
+    if (cached) {
+      // Mark monitored in case admin landed via direct URL without the WS subscription firing yet.
+      markExamMonitored(examId);
+      return res.json(cached);
+    }
+    // Cache miss: compute now AND start the aggregator for this exam.
+    const fresh = await refreshLiveStatsNow(examId);
+    if (!fresh) return res.status(500).json({ error: 'Failed to compute stats' });
+    return res.json(fresh);
   } catch (error) {
     console.error('Live stats error:', error);
     return res.status(500).json({ error: 'Internal server error' });

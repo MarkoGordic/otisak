@@ -157,42 +157,36 @@ export default function ExamRoomPage() {
 
   useEffect(() => { loadRoom(); }, [loadRoom]);
 
-  // Live push channel: instant updates from admin commands AND per-student progress.
-  // Returns a `connected` flag the UI uses to show live/reconnecting state and decide
-  // whether polling is necessary.
+  // WebSocket: realtime channel for admin-side events (requests, lockdown, timer, started).
+  // Stats are deliberately NOT pushed via this socket — see the polling effect below for why.
+  // exam.submitted is the one exception: it's a hint to immediately re-poll stats so the
+  // "X of Y submitted" counter ticks up without waiting up to 5s for the next poll cycle.
   const { connected } = useExamSocket(examId, useCallback((evt) => {
     if (evt.type === 'request.created' || evt.type === 'request.decided' || evt.type === 'lockdown.changed' || evt.type === 'exam.started') {
       loadRoom();
     } else if (evt.type === 'timer.adjusted') {
       setExtraSeconds(Number(evt.extra_seconds || 0));
     } else if (evt.type === 'exam.submitted') {
-      // Patch the student's row immediately + refresh aggregate counters.
-      setLiveStats((prev) => ({
-        ...prev,
-        finished_count: Number(evt.finished_count ?? prev.finished_count),
-        total_participants: Number(evt.total_participants ?? prev.total_participants),
-        per_student: prev.per_student.map((s) =>
-          s.user_id === evt.user_id ? { ...s, submitted: true } : s
-        ),
-      }));
-    } else if (evt.type === 'exam.progress') {
-      setLiveStats((prev) => ({
-        ...prev,
-        total_questions: Number(evt.total_questions ?? prev.total_questions),
-        per_student: prev.per_student.map((s) =>
-          s.user_id === evt.user_id
-            ? { ...s, answered_count: Number(evt.answered_count), time_spent_seconds: Number(evt.time_spent_seconds) }
-            : s
-        ),
-      }));
+      // Server already refreshed its cache before broadcasting; poll once now to pick it up.
+      loadLiveStats();
     }
-  }, [loadRoom]), {
+  }, [loadRoom, loadLiveStats]), {
     // After a reconnect, refetch room + stats so anything missed during the gap is restored.
     onReconnect: useCallback(() => { loadRoom(); }, [loadRoom]),
   });
 
-  // Polling fallback: only run when the socket is *not* connected. Once the socket is up,
-  // events arrive in real time so polling just wastes DB cycles.
+  // Live-stats polling. The server runs a 5s background aggregator and caches the result;
+  // the admin pulls from that cache. This is the source of truth for per-student progress
+  // and the finished/total counter — *not* the websocket. Polling is independent of socket
+  // state so a flaky WS doesn't kill the live UI.
+  useEffect(() => {
+    if (!started) return;
+    const id = setInterval(loadLiveStats, 5000);
+    return () => clearInterval(id);
+  }, [started, loadLiveStats]);
+
+  // Lightweight room polling for participants list + lockdown + requests, as a safety
+  // net when the websocket isn't connected. The stats polling above always runs.
   useEffect(() => {
     if (connected) {
       if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }

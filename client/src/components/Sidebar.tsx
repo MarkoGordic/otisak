@@ -28,6 +28,8 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
   const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
   const { t, locale, cycleLocale } = useLang();
+  // Sidebar shows the *currently active* language; tooltip hints at what clicking does.
+  const currentLangLabel = t(`lang.next.${locale}`);
   const nextLangLabel = t(`lang.next.${nextLocale(locale)}`);
 
   const isAdmin = userRole === 'admin';
@@ -98,14 +100,14 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
           {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
         </button>
 
-        {/* Language cycle: en → sr-Latn → sr-Cyrl → en */}
+        {/* Language cycle: en → sr-Latn → sr-Cyrl → en. Label = currently active. */}
         <button
           onClick={cycleLocale}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-1"
           title={nextLangLabel}
         >
           <Languages size={18} strokeWidth={1.5} />
-          {nextLangLabel}
+          {currentLangLabel}
         </button>
 
         {/* User */}
