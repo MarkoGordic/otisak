@@ -253,19 +253,13 @@ export async function getOtisakQuestions(examId: string): Promise<OtisakQuestion
     answersByQuestion.set(a.question_id, existing);
   }
 
-  // multi_answer isn't a column — it's derived from the answers. Per QUESTIONS.md, any
-  // question with 2+ is_correct entries is a multi-select. Without this, ExamPage sees
-  // q.multi_answer === undefined and renders the question as single-select radios even
-  // though the grading code in submitAttemptAnswers correctly handles multiple correct
-  // answers. Derive it here so the client UI matches the grading behaviour.
-  return questions.map((q) => {
-    const answers = answersByQuestion.get(q.id) || [];
-    return {
-      ...q,
-      answers,
-      multi_answer: answers.filter((a) => a.is_correct).length > 1,
-    };
-  });
+  // multi_answer is read straight off the row now. Authoring (createOtisakQuestion +
+  // JSON import) is responsible for setting it correctly — single source of truth in
+  // the DB, not derived at read time.
+  return questions.map((q) => ({
+    ...q,
+    answers: answersByQuestion.get(q.id) || [],
+  }));
 }
 
 export async function createOtisakQuestion(
@@ -278,10 +272,17 @@ export async function createOtisakQuestion(
   );
   const nextPos = data.position ?? (posResult.rows[0].max_pos + 1);
 
+  // multi_answer resolution: caller's explicit value wins. If omitted, fall back
+  // to "any question with 2+ correct answers is multi-select" — matches the
+  // pre-column behaviour and the docs for legacy JSON imports.
+  const multiAnswer = typeof data.multi_answer === 'boolean'
+    ? data.multi_answer
+    : (data.answers.filter((a) => a.is_correct).length > 1);
+
   const qResult = await query<OtisakQuestion>(
-    `INSERT INTO otisak_questions (exam_id, type, text, content, points, position, explanation, ai_grading_instructions)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-    [examId, data.type, data.text, data.content || null, data.points ?? 2, nextPos, data.explanation || null, data.ai_grading_instructions || null]
+    `INSERT INTO otisak_questions (exam_id, type, text, content, points, position, explanation, ai_grading_instructions, multi_answer)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+    [examId, data.type, data.text, data.content || null, data.points ?? 2, nextPos, data.explanation || null, data.ai_grading_instructions || null, multiAnswer]
   );
   const question = qResult.rows[0];
 

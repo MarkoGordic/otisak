@@ -106,6 +106,9 @@ CREATE TABLE otisak_questions (
   explanation TEXT,
   ai_grading_instructions TEXT,
   bank_question_id UUID,
+  -- TRUE = student picks any subset of correct answers (checkboxes).
+  -- FALSE = single-correct (radio). Authoritative — not derived from is_correct count.
+  multi_answer BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );

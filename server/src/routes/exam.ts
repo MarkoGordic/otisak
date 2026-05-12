@@ -602,6 +602,10 @@ router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), asy
         position: q.position,
         explanation: q.explanation,
         ai_grading_instructions: q.ai_grading_instructions,
+        // Carry the single/multi distinction in the export so a round-trip
+        // (export → re-import) preserves authoring intent — not just whatever
+        // is_correct count happens to be on disk.
+        multi_answer: q.multi_answer,
         answers: q.answers.map((a) => ({
           text: a.text,
           is_correct: a.is_correct,

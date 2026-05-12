@@ -150,6 +150,10 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
     let createdQuestions = 0;
     for (const q of body.questions) {
       if (!q || typeof q.type !== 'string' || typeof q.text !== 'string') continue;
+      // JSON authors decide single vs multi explicitly via "multi_answer": true|false.
+      // If the field is missing, fall back to "derive from is_correct count" inside
+      // createOtisakQuestion — keeps old fixtures working without surprises.
+      const multiAnswer = typeof q.multi_answer === 'boolean' ? q.multi_answer : undefined;
       await createOtisakQuestion(exam.id, {
         type: q.type,
         text: q.text,
@@ -158,6 +162,7 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
         position: typeof q.position === 'number' ? q.position : undefined,
         explanation: q.explanation ?? null,
         ai_grading_instructions: q.ai_grading_instructions ?? null,
+        multi_answer: multiAnswer,
         answers: Array.isArray(q.answers)
           ? q.answers
               .filter((a: unknown): a is { text: string; is_correct?: boolean; position?: number } =>

@@ -149,6 +149,7 @@ const sr: Record<string, string> = {
   'examEdit.saveFailed': 'Čuvanje nije uspelo.',
   'examEdit.saveSuccess': 'Podešavanja sačuvana.',
   'examEdit.multiAnswer': 'Više tačnih',
+  'examEdit.multiAnswerToggle': 'Više tačnih odgovora (checkbox)',
   'examEdit.addQuestion': 'Dodaj pitanje',
   'examEdit.addFailed': 'Dodavanje pitanja nije uspelo.',
   'examEdit.confirmDelete': 'Obrisati ovo pitanje?',

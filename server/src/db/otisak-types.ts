@@ -62,6 +62,7 @@ export interface OtisakQuestion {
   position: number;
   explanation: string | null;
   ai_grading_instructions: string | null;
+  multi_answer: boolean;
   created_at: Date;
   updated_at: Date;
 }
@@ -76,7 +77,6 @@ export interface OtisakAnswer {
 
 export interface OtisakQuestionWithAnswers extends OtisakQuestion {
   answers: OtisakAnswer[];
-  multi_answer?: boolean;
 }
 
 export interface OtisakEnrollment {
@@ -176,6 +176,10 @@ export interface CreateOtisakQuestionInput {
   position?: number;
   explanation?: string;
   ai_grading_instructions?: string;
+  // Explicit single vs multi switch. Optional in the input: when omitted, the
+  // caller is happy with the "derive from is_correct count" fallback that
+  // createOtisakQuestion applies (any question with 2+ correct = multi).
+  multi_answer?: boolean;
   answers: Array<{
     text: string;
     is_correct: boolean;

@@ -40,6 +40,7 @@ type Question = {
   position: number;
   explanation: string | null;
   ai_grading_instructions: string | null;
+  multi_answer: boolean;
   answers: Answer[];
 };
 
@@ -81,6 +82,10 @@ export default function ExamEditPage() {
   const [draftLang, setDraftLang] = useState('python');
   const [draftImage, setDraftImage] = useState('');
   const [draftAnswers, setDraftAnswers] = useState<Answer[]>(blankAnswers());
+  // Explicit single vs multi flag — stored on the question itself, NOT derived from
+  // is_correct count anymore. Admin picks here, JSON imports get a field, exports
+  // round-trip it. Defaults to false (single) for new drafts.
+  const [draftMulti, setDraftMulti] = useState(false);
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
@@ -184,6 +189,7 @@ export default function ExamEditPage() {
     setDraftImage('');
     setDraftPoints('2');
     setDraftAnswers(blankAnswers());
+    setDraftMulti(false);
   };
 
   const handleAddQuestion = async () => {
@@ -197,6 +203,10 @@ export default function ExamEditPage() {
         type: draftType,
         text: draftText,
         points: Number(draftPoints) || 1,
+        // Only attach multi_answer for question types that have selectable
+        // options (text/code/image). open_text, ordering, matching, fill_blank
+        // each have their own answering model where the flag is meaningless.
+        ...(['text', 'code', 'image'].includes(draftType) ? { multi_answer: draftMulti } : {}),
         answers: draftType === 'open_text' ? [] : draftAnswers.filter((a) => a.text.trim()),
       };
       if (draftType === 'code') {
@@ -410,6 +420,16 @@ export default function ExamEditPage() {
                 </div>
               )}
 
+              {['text', 'code', 'image'].includes(draftType) && (
+                <div className="mt-3">
+                  <Toggle
+                    label={t('examEdit.multiAnswerToggle')}
+                    value={draftMulti}
+                    onChange={setDraftMulti}
+                  />
+                </div>
+              )}
+
               {draftType !== 'open_text' && (
                 <div className="mt-3 space-y-2">
                   <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">{t('examEdit.answers')}</span>
@@ -452,11 +472,10 @@ export default function ExamEditPage() {
                     const isOpen = expanded.has(q.id);
                     const typeInfo = TYPE_LABELS[q.type] || { labelKey: '', icon: <FileText size={14} /> };
                     const typeLabel = typeInfo.labelKey ? t(typeInfo.labelKey) : q.type;
-                    // Surface multi-select status as a chip so the admin can verify at a
-                    // glance whether two or more answers were marked correct (multi_answer
-                    // is derived server-side from the is_correct count).
-                    const correctCount = q.answers.filter((a) => a.is_correct).length;
-                    const isMultiAnswer = correctCount > 1;
+                    // Surface single-vs-multi status. The flag is now an explicit column
+                    // on the question, set by the admin toggle when authoring (or by the
+                    // JSON import).
+                    const isMultiAnswer = q.multi_answer;
                     return (
                       <div key={q.id} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)]">
                         <button type="button" onClick={() => toggleExpand(q.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left">

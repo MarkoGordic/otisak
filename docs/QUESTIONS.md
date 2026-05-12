@@ -52,6 +52,7 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
   "text": "Sta od navedenog je RAM memorija?",
   "points": 2,
   "tags": ["memorija"],
+  "multi_answer": true,
   "answers": [
     { "text": "DRAM",   "is_correct": true,  "position": 0 },
     { "text": "ROM",    "is_correct": false, "position": 1 },
@@ -61,8 +62,12 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 }
 ```
 
-- Multiple `is_correct: true` entries are allowed — that turns the question into a multi-select. Do **not** add `(više tačnih odgovora)` (or any "select all that apply" hint) to `text`; the UI already shows checkbox-style boxes and a "Označite sve tačne odgovore" hint when it detects 2+ correct answers. Grading honours `partial_scoring` on the exam.
-- The `multi_answer` flag is **derived server-side** from the count of `is_correct: true` answers — do not send it in JSON imports, it will be ignored.
+- **`multi_answer`** (boolean) is the **authoritative** single-vs-multi switch and the only thing that controls UI rendering (checkboxes vs radios):
+  - `true` → student sees checkboxes and can pick any subset.
+  - `false` (or omitted with only 1 `is_correct: true`) → student sees radios.
+  - If omitted entirely, the server falls back to "any question with 2+ `is_correct: true` answers becomes multi". Old fixtures keep working but **new JSON should always be explicit** so single-correct questions with one is_correct stay single even after an answer list edit.
+- Do **not** add `(više tačnih odgovora)` (or any "select all that apply" hint) to `text` — the UI already shows the "Označite sve tačne odgovore" prompt when `multi_answer` is true.
+- Grading honours `partial_scoring` on the exam.
 - `position` is optional; if omitted, the array order is used.
 
 ---

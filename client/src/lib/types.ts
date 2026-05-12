@@ -53,6 +53,7 @@ export interface OtisakQuestion {
   position: number;
   explanation: string | null;
   ai_grading_instructions: string | null;
+  multi_answer: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -67,7 +68,6 @@ export interface OtisakAnswer {
 
 export interface OtisakQuestionWithAnswers extends OtisakQuestion {
   answers: OtisakAnswer[];
-  multi_answer?: boolean;
 }
 
 export interface OtisakAttempt {

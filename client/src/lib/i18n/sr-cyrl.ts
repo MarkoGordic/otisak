@@ -150,6 +150,7 @@ const srCyrl: Record<string, string> = {
   'examEdit.saveFailed': 'Чување није успело.',
   'examEdit.saveSuccess': 'Подешавања сачувана.',
   'examEdit.multiAnswer': 'Више тачних',
+  'examEdit.multiAnswerToggle': 'Више тачних одговора (чекбокс)',
   'examEdit.addQuestion': 'Додај питање',
   'examEdit.addFailed': 'Додавање питања није успело.',
   'examEdit.confirmDelete': 'Обрисати ово питање?',

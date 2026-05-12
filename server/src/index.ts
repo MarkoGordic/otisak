@@ -16,6 +16,7 @@ import { setupWebSocket } from './ws/events';
 import { startLiveStatsAggregator } from './ws/liveStatsAggregator';
 import { startExamExpiryWatcher } from './jobs/examExpiryWatcher';
 import { ensureBootstrapAdmin } from './bootstrap';
+import { runMigrations } from './db/migrations';
 import { assertSessionSecretIsSafe } from './session';
 
 // Refuse to boot with an empty / known-default / too-short SESSION_SECRET.
@@ -89,6 +90,15 @@ const PORT = process.env.PORT || 3001;
 server.listen(PORT, async () => {
   console.log(`OTISAK server running on port ${PORT}`);
   console.log(`Client served from: ${clientDist}`);
+  // Schema migrations: idempotent ALTER + backfill on every boot. Runs before
+  // anything else that touches affected tables so bootstrapAdmin / the
+  // aggregator / expiry watcher always see the migrated schema.
+  try {
+    await runMigrations();
+  } catch (err) {
+    console.error('FATAL: migrations failed', err);
+    process.exit(1);
+  }
   await ensureBootstrapAdmin();
 });
 

@@ -147,6 +147,7 @@ const en: Record<string, string> = {
   'examEdit.saveFailed': 'Save failed.',
   'examEdit.saveSuccess': 'Settings saved.',
   'examEdit.multiAnswer': 'Multi-answer',
+  'examEdit.multiAnswerToggle': 'Multiple correct answers (checkbox)',
   'examEdit.addQuestion': 'Add question',
   'examEdit.addFailed': 'Failed to add question.',
   'examEdit.confirmDelete': 'Delete this question?',
