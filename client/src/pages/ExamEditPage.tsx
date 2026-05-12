@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
+import { useToast } from '../components/Toast';
 import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 import { CodeBlock } from '../components/otisak';
@@ -56,6 +57,7 @@ export default function ExamEditPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
   const { t } = useLang();
+  const toast = useToast();
 
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
@@ -143,8 +145,34 @@ export default function ExamEditPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || t('examEdit.saveFailed'));
+        toast.error(d.error || t('examEdit.saveFailed'));
+        return;
       }
+      // Sync local state to the server's truth so the form reflects what was
+      // actually persisted (Postgres NUMERIC comes back as a string; the merge
+      // below normalises those fields). Without this, the dropdown would still
+      // *display* the chosen value but nothing in the UI confirmed the save.
+      const saved = await res.json().catch(() => null);
+      if (saved && typeof saved === 'object') {
+        setExam((prev) => prev ? {
+          ...prev,
+          title: typeof saved.title === 'string' ? saved.title : prev.title,
+          description: 'description' in saved ? saved.description : prev.description,
+          duration_minutes: Number(saved.duration_minutes ?? prev.duration_minutes),
+          pass_threshold: Number(saved.pass_threshold ?? prev.pass_threshold),
+          exam_mode: saved.exam_mode === 'practice' ? 'practice' : 'real',
+          allow_review: !!saved.allow_review,
+          shuffle_questions: !!saved.shuffle_questions,
+          shuffle_answers: !!saved.shuffle_answers,
+          partial_scoring: !!saved.partial_scoring,
+          negative_points_enabled: !!saved.negative_points_enabled,
+          negative_points_value: Number(saved.negative_points_value ?? prev.negative_points_value),
+          negative_points_threshold: Number(saved.negative_points_threshold ?? prev.negative_points_threshold),
+        } : prev);
+      }
+      toast.success(t('examEdit.saveSuccess'));
+    } catch {
+      toast.error(t('examEdit.saveFailed'));
     } finally {
       setSavingSettings(false);
     }

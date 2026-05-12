@@ -147,6 +147,7 @@ const sr: Record<string, string> = {
   'examEdit.partialScoring': 'Delimično bodovanje',
   'examEdit.saveSettings': 'Sačuvaj podešavanja',
   'examEdit.saveFailed': 'Čuvanje nije uspelo.',
+  'examEdit.saveSuccess': 'Podešavanja sačuvana.',
   'examEdit.addQuestion': 'Dodaj pitanje',
   'examEdit.addFailed': 'Dodavanje pitanja nije uspelo.',
   'examEdit.confirmDelete': 'Obrisati ovo pitanje?',

@@ -148,6 +148,7 @@ const srCyrl: Record<string, string> = {
   'examEdit.partialScoring': 'Делимично бодовање',
   'examEdit.saveSettings': 'Сачувај подешавања',
   'examEdit.saveFailed': 'Чување није успело.',
+  'examEdit.saveSuccess': 'Подешавања сачувана.',
   'examEdit.addQuestion': 'Додај питање',
   'examEdit.addFailed': 'Додавање питања није успело.',
   'examEdit.confirmDelete': 'Обрисати ово питање?',

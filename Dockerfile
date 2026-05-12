@@ -77,15 +77,18 @@ RUN groupadd --system --gid 1001 otisak \
     && useradd --system --uid 1001 --gid otisak --create-home otisak
 
 # Server: compiled JS + prod-only node_modules (no devDeps, smaller image)
+# Note: no `chown -R /app` after the COPYs. The server only *reads* its bundle
+# at runtime (no fs.write* calls, Puppeteer writes to /tmp which is world-
+# writable) so the default root-owned + world-readable bits from COPY are
+# enough. Skipping the recursive chown shaves a layer worth of file copies
+# off the final image (which would otherwise duplicate every file with new
+# ownership metadata) and a couple of seconds off the build.
 COPY --from=server-build      /app/server/dist           ./server/dist
 COPY --from=server-prod-deps  /app/server/node_modules   ./server/node_modules
 COPY --from=server-build      /app/server/package.json   ./server/
 
 # Client: pre-built static assets
 COPY --from=client-build /app/client/dist ./client/dist
-
-# Make sure runtime dirs the non-root user writes to are owned by them.
-RUN chown -R otisak:otisak /app
 
 USER otisak
 EXPOSE 3001
