@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Loader2, Clock, Target } from 'lucide-react';
 import { OtisakHeader, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
+import { useTheme } from '../components/ThemeProvider';
 import { ToggleCluster } from '../components/ToggleCluster';
 import type { OtisakExamResults } from '../lib/types';
 
@@ -18,6 +19,20 @@ export default function ResultsPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
   const { t } = useLang();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  // Centralized theme tokens — same idea as on ExamPage / JoinPage. Keeps the JSX
+  // below readable and makes it easy to tweak the light-mode palette in one place.
+  const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
+  const titleText = isDark ? 'text-white' : 'text-slate-900';
+  const subText = isDark ? 'text-gray-400' : 'text-slate-500';
+  const subSoft = isDark ? 'text-white/60' : 'text-slate-600';
+  const kickerText = isDark ? 'text-white/50' : 'text-slate-500';
+  const dividerBorder = isDark ? 'border-gray-800/50' : 'border-slate-200';
+  const cardSurface = isDark
+    ? 'bg-[#1a1c26]/90 border-gray-800 shadow-[0_0_30px_rgba(0,0,0,0.3)]'
+    : 'bg-white border-slate-200 shadow-sm';
 
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -87,7 +102,7 @@ export default function ResultsPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
+      <div className={`min-h-screen ${pageBg} flex items-center justify-center transition-colors`}>
         <ToggleCluster variant="solid" position="fixed" />
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
@@ -103,16 +118,17 @@ export default function ResultsPage() {
   const timeSpent = results?.attempt?.time_spent_seconds ?? 0;
 
   return (
-    <div className="min-h-screen bg-[#0a0a14] flex flex-col relative overflow-hidden">
+    <div className={`min-h-screen ${pageBg} flex flex-col relative overflow-hidden transition-colors`}>
       {/* Toggle cluster is rendered inside OtisakHeader (md+) below; on mobile, header avatar takes the space. */}
       <div className="md:hidden">
         <ToggleCluster variant="solid" position="fixed" />
       </div>
-      {/* Soft white ambient glow — terminal "finished" screen */}
+      {/* Soft ambient glow — terminal "finished" screen. In light mode we use blue
+          tints instead of white so the page doesn't feel like an empty void. */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-white/[0.06] rounded-full blur-[180px]" />
-        <div className="absolute bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] bg-white/[0.04] rounded-full blur-[180px]" />
-        <div className="absolute top-[40%] right-[30%] w-[35vw] h-[35vw] bg-white/[0.025] rounded-full blur-[140px]" />
+        <div className={`absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full blur-[180px] ${isDark ? 'bg-white/[0.06]' : 'bg-blue-300/15'}`} />
+        <div className={`absolute bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full blur-[180px] ${isDark ? 'bg-white/[0.04]' : 'bg-indigo-300/15'}`} />
+        <div className={`absolute top-[40%] right-[30%] w-[35vw] h-[35vw] rounded-full blur-[140px] ${isDark ? 'bg-white/[0.025]' : 'bg-blue-200/10'}`} />
       </div>
 
       <OtisakHeader
@@ -120,8 +136,10 @@ export default function ResultsPage() {
         centerContent={
           results ? (
             <motion.span initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
-              className={`text-2xl sm:text-3xl font-light tracking-[0.2em] uppercase drop-shadow-lg ${
-                passed ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]'
+              className={`text-2xl sm:text-3xl font-light tracking-[0.2em] uppercase ${
+                passed
+                  ? (isDark ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-green-600')
+                  : (isDark ? 'text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'text-amber-600')
               }`}>
               {passed ? t('results.passed') : t('results.title')}
             </motion.span>
@@ -133,8 +151,8 @@ export default function ResultsPage() {
       <main className="flex-1 max-w-3xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-10 z-10 flex flex-col items-center">
         {!results ? (
           <div className="text-center py-20">
-            <p className="text-gray-300 text-lg mb-2">{t('results.notAvailable')}</p>
-            <p className="text-gray-500 text-sm">{t('results.processing')}</p>
+            <p className={`text-lg mb-2 ${titleText}`}>{t('results.notAvailable')}</p>
+            <p className={`text-sm ${subText}`}>{t('results.processing')}</p>
           </div>
         ) : (
           <>
@@ -145,37 +163,39 @@ export default function ResultsPage() {
               transition={{ duration: 0.6 }}
               className="text-center mb-8 sm:mb-10"
             >
-              <p className="text-[11px] sm:text-xs uppercase tracking-[0.35em] text-white/50 mb-3">{t('results.finishedKicker')}</p>
-              <h1 className="text-2xl sm:text-3xl font-light text-white tracking-wide leading-snug">
+              <p className={`text-[11px] sm:text-xs uppercase tracking-[0.35em] mb-3 ${kickerText}`}>{t('results.finishedKicker')}</p>
+              <h1 className={`text-2xl sm:text-3xl font-light tracking-wide leading-snug ${titleText}`}>
                 {t('results.finishedTitle')}
               </h1>
-              <p className="text-sm text-white/60 mt-3 max-w-md mx-auto">{t('results.finishedSubtitle')}</p>
+              <p className={`text-sm mt-3 max-w-md mx-auto ${subSoft}`}>{t('results.finishedSubtitle')}</p>
             </motion.div>
             {/* Score Card */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
-              className="bg-[#1a1c26]/90 border border-gray-800 rounded-xl p-4 sm:p-6 w-full mb-6 shadow-[0_0_30px_rgba(0,0,0,0.3)] backdrop-blur-sm">
+              className={`rounded-xl p-4 sm:p-6 w-full mb-6 backdrop-blur-sm border ${cardSurface}`}>
               <div className="flex items-center justify-between mb-4 gap-3">
                 <div className="flex flex-col gap-1 min-w-0">
-                  <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium truncate">{results.exam.title}</span>
-                  <span className="text-gray-500 text-[10px] sm:text-xs">
+                  <span className={`text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium truncate ${subText}`}>{results.exam.title}</span>
+                  <span className={`text-[10px] sm:text-xs ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>
                     {percentage}% &#8226; {passed ? t('results.passedLabel') : t('results.notPassed')}
-                    {Number(results.exam.pass_threshold) > 0 && <span className="text-gray-600"> ({t('results.thresholdLabel', { value: results.exam.pass_threshold })})</span>}
+                    {Number(results.exam.pass_threshold) > 0 && <span className={isDark ? 'text-gray-600' : 'text-slate-400'}> ({t('results.thresholdLabel', { value: results.exam.pass_threshold })})</span>}
                   </span>
                 </div>
-                <div className={`text-3xl sm:text-5xl font-mono tracking-wider font-bold drop-shadow-lg flex-shrink-0 ${
-                  passed ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.4)]'
+                <div className={`text-3xl sm:text-5xl font-mono tracking-wider font-bold flex-shrink-0 ${
+                  passed
+                    ? (isDark ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-green-600')
+                    : (isDark ? 'text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.4)]' : 'text-red-600')
                 }`}>
                   {totalPoints}/{maxPoints}
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-3 border-t border-gray-800/50">
-                <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                  <Target className="w-3.5 h-3.5 text-blue-400" />
+              <div className={`flex flex-wrap items-center gap-3 sm:gap-4 pt-3 border-t ${dividerBorder}`}>
+                <div className={`flex items-center gap-1.5 text-xs ${subText}`}>
+                  <Target className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                   <span>{correctCount}/{totalQuestions} {t('results.correct')}</span>
                 </div>
                 {timeSpent > 0 && (
-                  <div className="flex items-center gap-1.5 text-xs text-gray-500">
-                    <Clock className="w-3.5 h-3.5 text-blue-400" />
+                  <div className={`flex items-center gap-1.5 text-xs ${subText}`}>
+                    <Clock className={`w-3.5 h-3.5 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
                     <span>{Math.floor(timeSpent / 60)}m {timeSpent % 60}s</span>
                   </div>
                 )}
@@ -185,19 +205,19 @@ export default function ResultsPage() {
             {/* AI Grading Banner */}
             {aiGradingStatus && aiGradingStatus !== 'graded' && (
               <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-4 w-full mb-4 flex items-center gap-3">
+                className={`rounded-xl p-4 w-full mb-4 flex items-center gap-3 border ${isDark ? 'bg-purple-500/10 border-purple-500/20' : 'bg-purple-50 border-purple-200'}`}>
                 {(aiGradingStatus === 'pending' || aiGradingStatus === 'grading') ? (
                   <>
-                    <Loader2 className="w-5 h-5 animate-spin text-purple-400 flex-shrink-0" />
+                    <Loader2 className={`w-5 h-5 animate-spin flex-shrink-0 ${isDark ? 'text-purple-400' : 'text-purple-600'}`} />
                     <div>
-                      <p className="text-sm text-purple-300 font-medium">{t('results.aiGradingInProgress')}</p>
-                      <p className="text-xs text-purple-400/60">{t('results.aiGradingWait')}</p>
+                      <p className={`text-sm font-medium ${isDark ? 'text-purple-300' : 'text-purple-700'}`}>{t('results.aiGradingInProgress')}</p>
+                      <p className={`text-xs ${isDark ? 'text-purple-400/60' : 'text-purple-600/70'}`}>{t('results.aiGradingWait')}</p>
                     </div>
                   </>
                 ) : (
                   <div>
-                    <p className="text-sm text-amber-300 font-medium">{t('results.aiGradingPartial')}</p>
-                    <p className="text-xs text-amber-400/60">{t('results.aiGradingPartialHint')}</p>
+                    <p className={`text-sm font-medium ${isDark ? 'text-amber-300' : 'text-amber-700'}`}>{t('results.aiGradingPartial')}</p>
+                    <p className={`text-xs ${isDark ? 'text-amber-400/60' : 'text-amber-600/70'}`}>{t('results.aiGradingPartialHint')}</p>
                   </div>
                 )}
               </motion.div>
@@ -209,24 +229,26 @@ export default function ResultsPage() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5, delay: 0.15 }}
-                className="bg-[#1a1c26]/90 border border-gray-800 rounded-xl p-4 sm:p-5 w-full mb-6 backdrop-blur-sm"
+                className={`rounded-xl p-4 sm:p-5 w-full mb-6 backdrop-blur-sm border ${cardSurface}`}
               >
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-gray-400 text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium">{t('results.recap')}</span>
-                  <span className="text-[10px] text-gray-500 uppercase tracking-widest">{t('results.recapHint')}</span>
+                  <span className={`text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium ${subText}`}>{t('results.recap')}</span>
+                  <span className={`text-[10px] uppercase tracking-widest ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>{t('results.recapHint')}</span>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {results.questions.map((q, i) => {
                     const awarded = Number(q.points_awarded ?? 0);
                     const max = Number(q.question.points ?? 0);
                     const pending = q.ai_grading_status === 'pending' || q.ai_grading_status === 'grading';
+                    // Each tone has a dark and light variant. Light mode uses solid pastel surfaces
+                    // and darker text so the chips read clearly on a white page.
                     const tone = pending
-                      ? 'border-purple-500/25 bg-purple-500/[0.06] text-purple-300'
+                      ? (isDark ? 'border-purple-500/25 bg-purple-500/[0.06] text-purple-300' : 'border-purple-200 bg-purple-50 text-purple-700')
                       : max > 0 && awarded === max
-                        ? 'border-green-500/25 bg-green-500/[0.06] text-green-300'
+                        ? (isDark ? 'border-green-500/25 bg-green-500/[0.06] text-green-300' : 'border-green-200 bg-green-50 text-green-700')
                         : awarded > 0
-                          ? 'border-amber-500/25 bg-amber-500/[0.06] text-amber-300'
-                          : 'border-red-500/25 bg-red-500/[0.06] text-red-300';
+                          ? (isDark ? 'border-amber-500/25 bg-amber-500/[0.06] text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700')
+                          : (isDark ? 'border-red-500/25 bg-red-500/[0.06] text-red-300' : 'border-red-200 bg-red-50 text-red-700');
                     return (
                       <div key={q.question.id} className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-xs ${tone}`}>
                         <span className="font-medium tabular-nums">{t('results.questionNumber', { number: i + 1 })}</span>
@@ -246,7 +268,7 @@ export default function ResultsPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.6, delay: 0.4 }}
-              className="text-[10px] uppercase tracking-[0.3em] text-white/35 mt-4 mb-10"
+              className={`text-[10px] uppercase tracking-[0.3em] mt-4 mb-10 ${isDark ? 'text-white/35' : 'text-slate-400'}`}
             >
               {t('results.finishedFooter')}
             </motion.p>
