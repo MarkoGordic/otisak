@@ -262,10 +262,34 @@ export async function getOtisakQuestions(examId: string): Promise<OtisakQuestion
   }));
 }
 
+// Field length caps. Picked to be generous for legitimate use (a long open-text
+// rubric, a verbose code question) but firm enough that a runaway client can't
+// bloat the questions table or break read paths that render the text.
+const MAX_QUESTION_TEXT_LEN = 8000;
+const MAX_QUESTION_CONTENT_LEN = 16000;
+const MAX_EXPLANATION_LEN = 4000;
+const MAX_AI_INSTRUCTIONS_LEN = 4000;
+
 export async function createOtisakQuestion(
   examId: string,
   data: CreateOtisakQuestionInput
 ): Promise<OtisakQuestionWithAnswers> {
+  if (!data.text || typeof data.text !== 'string' || data.text.length === 0) {
+    throw new Error('Question text is required');
+  }
+  if (data.text.length > MAX_QUESTION_TEXT_LEN) {
+    throw new Error(`Question text exceeds ${MAX_QUESTION_TEXT_LEN} characters`);
+  }
+  if (data.content && data.content.length > MAX_QUESTION_CONTENT_LEN) {
+    throw new Error(`Question content exceeds ${MAX_QUESTION_CONTENT_LEN} characters`);
+  }
+  if (data.explanation && data.explanation.length > MAX_EXPLANATION_LEN) {
+    throw new Error(`Explanation exceeds ${MAX_EXPLANATION_LEN} characters`);
+  }
+  if (data.ai_grading_instructions && data.ai_grading_instructions.length > MAX_AI_INSTRUCTIONS_LEN) {
+    throw new Error(`AI grading instructions exceed ${MAX_AI_INSTRUCTIONS_LEN} characters`);
+  }
+
   const posResult = await query<{ max_pos: number }>(
     'SELECT COALESCE(MAX(position), -1)::int as max_pos FROM otisak_questions WHERE exam_id = $1',
     [examId]
@@ -837,6 +861,13 @@ export async function enrollUsersByPattern(examId: string, pattern: string): Pro
   return result.rowCount ?? 0;
 }
 
+// Hard cap on how many index_number patterns we generate per call. A real
+// student cohort is at most a few hundred per course/year; anything larger
+// is almost certainly a typo'd range. The cap also keeps the patterns array
+// (and ANY($2::text[]) Postgres parameter) from blowing up in pathological
+// inputs like fromNumber=1, toNumber=999999.
+const MAX_ENROLLMENT_RANGE = 2000;
+
 export async function enrollByCourseAndYear(
   examId: string,
   courseCode: string,
@@ -844,7 +875,25 @@ export async function enrollByCourseAndYear(
   fromNumber?: number,
   toNumber?: number,
 ): Promise<number> {
+  // courseCode is interpolated into LIKE / equality patterns below. It comes
+  // from admin input and is parameterised, but we still constrain its shape
+  // to avoid pattern-matching surprises (e.g. accidental wildcard chars).
+  if (!/^[a-z0-9]{1,10}$/i.test(courseCode)) {
+    throw new Error('Invalid course code (1-10 alphanumeric chars expected)');
+  }
+  if (!Number.isInteger(year) || year < 1900 || year > 2100) {
+    throw new Error('Invalid year');
+  }
   if (fromNumber !== undefined && toNumber !== undefined) {
+    if (!Number.isInteger(fromNumber) || !Number.isInteger(toNumber)) {
+      throw new Error('Range bounds must be integers');
+    }
+    if (fromNumber < 1 || toNumber < fromNumber) {
+      throw new Error('Invalid range');
+    }
+    if (toNumber - fromNumber + 1 > MAX_ENROLLMENT_RANGE) {
+      throw new Error(`Range exceeds maximum of ${MAX_ENROLLMENT_RANGE} students`);
+    }
     const patterns: string[] = [];
     for (let i = fromNumber; i <= toNumber; i++) {
       patterns.push(`${courseCode.toUpperCase()} ${i}/${year}`);

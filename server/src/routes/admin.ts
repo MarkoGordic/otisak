@@ -189,15 +189,29 @@ router.get('/settings', async (_req: Request, res: Response) => {
   }
 });
 
+// Whitelist of writable settings keys. The settings PATCH endpoint is
+// admin-only but we still constrain the keys so a typo (or a buggy client)
+// can't quietly write garbage into app_settings — every legitimate key has
+// a UI control somewhere that knows how to read it back.
+const ALLOWED_SETTING_KEYS = new Set([
+  'practice_mode_enabled',
+]);
+
 // PATCH /admin/settings
 router.patch('/settings', async (req: Request, res: Response) => {
   try {
     const entries = req.body;
-    if (!entries || typeof entries !== 'object') {
+    if (!entries || typeof entries !== 'object' || Array.isArray(entries)) {
       return res.status(400).json({ error: 'Settings object is required' });
     }
 
-    for (const [key, value] of Object.entries(entries)) {
+    const updates = Object.entries(entries);
+    for (const [key] of updates) {
+      if (!ALLOWED_SETTING_KEYS.has(key)) {
+        return res.status(400).json({ error: `Unknown setting key: ${key}` });
+      }
+    }
+    for (const [key, value] of updates) {
       await setSetting(key, String(value));
     }
 

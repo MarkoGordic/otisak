@@ -16,6 +16,12 @@ export interface ActivityLogEntry {
   timestamp: Date;
 }
 
+// Cap on a single insert batch. The client buffers events and flushes them in
+// chunks, so a legitimate flush stays well under this. A hostile or buggy
+// client trying to push thousands of events at once gets truncated rather than
+// pulling the server into a huge multi-row INSERT.
+const MAX_EVENTS_PER_BATCH = 200;
+
 export async function logEvents(
   attemptId: string,
   userId: string,
@@ -23,6 +29,10 @@ export async function logEvents(
   events: ActivityEvent[]
 ): Promise<void> {
   if (events.length === 0) return;
+  if (events.length > MAX_EVENTS_PER_BATCH) {
+    console.warn(`logEvents: truncating ${events.length} events to ${MAX_EVENTS_PER_BATCH} (attempt ${attemptId})`);
+    events = events.slice(0, MAX_EVENTS_PER_BATCH);
+  }
 
   const values: unknown[] = [];
   const placeholders: string[] = [];

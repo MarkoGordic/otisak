@@ -1,13 +1,34 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
+import rateLimit from 'express-rate-limit';
 import { findUserByEmail, updateLastLogin, createUser } from '../db/users';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth, requireRole } from '../middleware';
 
 const router = Router();
 
+// Brute-force / credential-stuffing guard. 10 attempts per IP per 15 min is
+// generous for typo cases (a fast-typing admin) and strict enough that a
+// remote attacker can't grind through a dictionary without obvious noise.
+// Successful logins don't count toward the bucket so a legitimate user
+// re-logging in after a typo isn't penalised.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: 'Too many login attempts. Try again in 15 minutes.' },
+});
+
+// Dummy bcrypt hash used for timing-equalised "user not found" responses.
+// Computed once at module load. Any bcrypt.compare against this will fail but
+// take roughly the same wall-clock as a real comparison would, so the response
+// time doesn't leak whether an email exists in the users table.
+const DUMMY_HASH = bcrypt.hashSync('::dummy::', 10);
+
 // POST /auth/login
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', loginLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -16,12 +37,10 @@ router.post('/login', async (req: Request, res: Response) => {
     }
 
     const user = await findUserByEmail(email);
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
-    }
-
-    const valid = await bcrypt.compare(password, user.password_hash);
-    if (!valid) {
+    // Always run bcrypt.compare, even for unknown emails, so the response time
+    // doesn't reveal account existence (timing oracle for enumeration).
+    const valid = await bcrypt.compare(password, user?.password_hash || DUMMY_HASH);
+    if (!user || !valid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 

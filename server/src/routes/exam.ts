@@ -536,8 +536,15 @@ router.post('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (
 
     // Enroll by course and year
     if (course_code && year) {
-      const count = await enrollByCourseAndYear(examId, course_code, year, from_number, to_number);
-      return res.json({ enrolled: count });
+      try {
+        const count = await enrollByCourseAndYear(examId, course_code, year, from_number, to_number);
+        return res.json({ enrolled: count });
+      } catch (err) {
+        // Validation errors thrown from enrollByCourseAndYear (bad course_code,
+        // year out of range, range too wide) are user-correctable: surface
+        // them as 400 instead of swallowing into a generic 500.
+        return res.status(400).json({ error: (err as Error).message });
+      }
     }
 
     // Enroll specific user IDs
@@ -646,6 +653,12 @@ router.post('/questions', requireAuth, requireRole(['admin', 'assistant']), asyn
     const question = await createOtisakQuestion(examId, req.body);
     return res.json(question);
   } catch (error) {
+    const msg = (error as Error).message || '';
+    // Surface validation errors (text length caps, missing text) as 400 so the
+    // UI can show the precise reason. Genuine 500s still log to stderr below.
+    if (/exceeds|required|Invalid/i.test(msg)) {
+      return res.status(400).json({ error: msg });
+    }
     console.error('Create question error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
