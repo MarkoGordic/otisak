@@ -452,6 +452,11 @@ export default function ExamEditPage() {
                     const isOpen = expanded.has(q.id);
                     const typeInfo = TYPE_LABELS[q.type] || { labelKey: '', icon: <FileText size={14} /> };
                     const typeLabel = typeInfo.labelKey ? t(typeInfo.labelKey) : q.type;
+                    // Surface multi-select status as a chip so the admin can verify at a
+                    // glance whether two or more answers were marked correct (multi_answer
+                    // is derived server-side from the is_correct count).
+                    const correctCount = q.answers.filter((a) => a.is_correct).length;
+                    const isMultiAnswer = correctCount > 1;
                     return (
                       <div key={q.id} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)]">
                         <button type="button" onClick={() => toggleExpand(q.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -460,6 +465,11 @@ export default function ExamEditPage() {
                             {typeInfo.icon}
                             {typeLabel}
                           </span>
+                          {isMultiAnswer && (
+                            <span className="text-[10px] uppercase tracking-wider text-warning bg-warning-light px-2 py-0.5 rounded-full">
+                              {t('examEdit.multiAnswer')}
+                            </span>
+                          )}
                           <span className="flex-1 text-sm text-[var(--text-primary)] truncate">{q.text}</span>
                           <span className="text-xs font-mono text-[var(--text-secondary)]">{Number(q.points)} {t('questions.pts')}</span>
                           {isOpen ? <ChevronUp size={14} className="text-[var(--text-muted)]" /> : <ChevronDown size={14} className="text-[var(--text-muted)]" />}

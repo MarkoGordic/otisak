@@ -253,10 +253,19 @@ export async function getOtisakQuestions(examId: string): Promise<OtisakQuestion
     answersByQuestion.set(a.question_id, existing);
   }
 
-  return questions.map((q) => ({
-    ...q,
-    answers: answersByQuestion.get(q.id) || [],
-  }));
+  // multi_answer isn't a column — it's derived from the answers. Per QUESTIONS.md, any
+  // question with 2+ is_correct entries is a multi-select. Without this, ExamPage sees
+  // q.multi_answer === undefined and renders the question as single-select radios even
+  // though the grading code in submitAttemptAnswers correctly handles multiple correct
+  // answers. Derive it here so the client UI matches the grading behaviour.
+  return questions.map((q) => {
+    const answers = answersByQuestion.get(q.id) || [];
+    return {
+      ...q,
+      answers,
+      multi_answer: answers.filter((a) => a.is_correct).length > 1,
+    };
+  });
 }
 
 export async function createOtisakQuestion(

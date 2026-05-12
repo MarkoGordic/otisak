@@ -61,7 +61,8 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 }
 ```
 
-- Multiple `is_correct: true` entries are allowed — that turns the question into a multi-select. Grading honours `partial_scoring` on the exam.
+- Multiple `is_correct: true` entries are allowed — that turns the question into a multi-select. Do **not** add `(više tačnih odgovora)` (or any "select all that apply" hint) to `text`; the UI already shows checkbox-style boxes and a "Označite sve tačne odgovore" hint when it detects 2+ correct answers. Grading honours `partial_scoring` on the exam.
+- The `multi_answer` flag is **derived server-side** from the count of `is_correct: true` answers — do not send it in JSON imports, it will be ignored.
 - `position` is optional; if omitted, the array order is used.
 
 ---
