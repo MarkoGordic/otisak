@@ -750,7 +750,7 @@ export default function ExamRoomPage() {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                                 body: JSON.stringify({ decision: 'approved' }),
                               });
-                              if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
+                              if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.error || t('common.error')); }
                               else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); loadRoom(); }
                             } finally { setDecidingId(null); }
                           }}
@@ -769,7 +769,7 @@ export default function ExamRoomPage() {
                                 method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
                                 body: JSON.stringify({ decision: 'denied' }),
                               });
-                              if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
+                              if (!res.ok) { const d = await res.json().catch(() => ({})); toast.error(d.error || t('common.error')); }
                               else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); }
                             } finally { setDecidingId(null); }
                           }}

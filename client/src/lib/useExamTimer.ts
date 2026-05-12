@@ -41,6 +41,10 @@ export function useExamTimer({
   const calculate = useCallback(() => {
     if (!startedAt) return 0;
     const startMs = new Date(startedAt).getTime();
+    // Malformed startedAt produces NaN; downstream Math.max(0, NaN) is NaN
+    // and the timer renders "NaN:NaN". Treat as "not started" instead so the
+    // exam UI stays usable and the consumer can see startedAt isn't valid.
+    if (!Number.isFinite(startMs)) return 0;
     const totalMs = (durationSeconds + extraSeconds) * 1000;
     const elapsed = Math.max(0, Date.now() - startMs - pausedSeconds * 1000);
     return Math.max(0, Math.floor((totalMs - elapsed) / 1000));
@@ -50,6 +54,10 @@ export function useExamTimer({
 
   useEffect(() => {
     if (paused) return;
+    // Don't fire onExpire when the exam hasn't started yet. Without this guard
+    // a freshly-mounted timer with startedAt=null reads totalSeconds=0 and
+    // would trigger a premature submission via the consumer's onExpire.
+    if (!startedAt) return;
     if (totalSeconds <= 0) {
       if (!firedExpiryRef.current) {
         firedExpiryRef.current = true;
@@ -76,12 +84,15 @@ export function useExamTimer({
     setTotalSeconds(calculate());
   }, [calculate, paused]);
 
+  // Defensive clamp: if a producer manages to seed a NaN/negative, render zero
+  // instead of "NaN:NaN" which the user can't make sense of.
+  const safeTotal = Number.isFinite(totalSeconds) && totalSeconds > 0 ? totalSeconds : 0;
   return {
-    hours: Math.floor(totalSeconds / 3600),
-    minutes: Math.floor((totalSeconds % 3600) / 60),
-    seconds: totalSeconds % 60,
-    totalSeconds,
-    expired: totalSeconds <= 0 && !!startedAt,
+    hours: Math.floor(safeTotal / 3600),
+    minutes: Math.floor((safeTotal % 3600) / 60),
+    seconds: safeTotal % 60,
+    totalSeconds: safeTotal,
+    expired: safeTotal <= 0 && !!startedAt,
     paused,
   };
 }

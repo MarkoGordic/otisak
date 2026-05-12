@@ -24,6 +24,9 @@ export function OtisakTimer({
 
   const calculateRemaining = useCallback(() => {
     const startMs = new Date(startedAt).getTime();
+    // Malformed startedAt yields NaN; treat as "not started yet" instead of
+    // letting NaN propagate into the rendered digits.
+    if (!Number.isFinite(startMs)) return 0;
     const endMs = startMs + durationSeconds * 1000;
     const elapsed = Math.max(0, Date.now() - startMs - pausedSeconds * 1000);
     return Math.max(0, Math.floor((endMs - startMs - elapsed) / 1000));

@@ -92,10 +92,16 @@ export default function ResultsPage() {
     }
   }, [navigate]));
 
-  // Poll for AI grading
+  // Poll for AI grading. Capped at 100 attempts (~5 minutes at 3s interval)
+  // so a stuck AI backend doesn't leave the poll running indefinitely until
+  // the student closes the tab — we instead set status to 'pending' and let
+  // them refresh manually if/when grading finishes server-side.
   useEffect(() => {
     if (!pollingAi || !results?.attempt?.id) return;
+    let tries = 0;
+    const MAX_TRIES = 100;
     const interval = setInterval(async () => {
+      tries++;
       try {
         const res = await fetch(`/api/otisak/exams/${examId}/results`, { credentials: 'include' });
         if (res.ok) {
@@ -105,9 +111,13 @@ export default function ResultsPage() {
           if (status === 'graded' || status === 'partial') {
             setPollingAi(false);
             setResults(data.results);
+            return;
           }
         }
       } catch { /* ignore */ }
+      if (tries >= MAX_TRIES) {
+        setPollingAi(false);
+      }
     }, 3000);
     return () => clearInterval(interval);
   }, [pollingAi, results?.attempt?.id, examId]);
