@@ -11,9 +11,11 @@ import {
   BookMarked,
   Sun,
   Moon,
+  Languages,
 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';
+import { nextLocale } from '../lib/i18n';
 
 type SidebarProps = {
   userName?: string;
@@ -25,7 +27,8 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
-  const { t, locale, setLocale } = useLang();
+  const { t, locale, cycleLocale } = useLang();
+  const nextLangLabel = t(`lang.next.${nextLocale(locale)}`);
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'admin' || userRole === 'assistant';
@@ -95,13 +98,14 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
           {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
         </button>
 
-        {/* Language toggle */}
+        {/* Language cycle: en → sr-Latn → sr-Cyrl → en */}
         <button
-          onClick={() => setLocale(locale === 'sr' ? 'en' : 'sr')}
+          onClick={cycleLocale}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-1"
+          title={nextLangLabel}
         >
-          <span className="text-base w-[18px] text-center">{locale === 'sr' ? '\u{1F1EC}\u{1F1E7}' : '\u{1F1F7}\u{1F1F8}'}</span>
-          {locale === 'sr' ? 'English' : 'Srpski'}
+          <Languages size={18} strokeWidth={1.5} />
+          {nextLangLabel}
         </button>
 
         {/* User */}

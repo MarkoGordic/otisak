@@ -14,6 +14,12 @@ const examSubscriptions = new Map<string, Set<WebSocket>>();
 // Map of ws -> user info
 const wsUserMap = new WeakMap<WebSocket, { userId: string; role: string }>();
 
+// Heartbeat: track liveness of each socket. Sockets that don't respond to a ping within
+// the next interval are terminated. This catches silent connection drops caused by
+// LAN proxies/NATs where neither side gets a clean close.
+const HEARTBEAT_MS = 25_000;
+type Heartbeatable = WebSocket & { isAlive?: boolean };
+
 async function isUserAllowedOnExam(examId: string, userId: string, role: string): Promise<boolean> {
   // Privileged roles see every exam.
   if (role === 'admin' || role === 'assistant') return true;
@@ -73,7 +79,28 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
   // so an attacker who can't forge a cookie can't open a session.
   const wss = new WebSocketServer({ server, path: '/ws' });
 
-  wss.on('connection', async (ws, req) => {
+  // Server-driven heartbeat. Each tick: terminate sockets that didn't pong since the
+  // previous tick; then ping the rest. Browsers auto-respond to pings, so this works
+  // without any client-side ping handling.
+  const heartbeat = setInterval(() => {
+    wss.clients.forEach((client) => {
+      const ws = client as Heartbeatable;
+      if (ws.isAlive === false) {
+        ws.terminate();
+        return;
+      }
+      ws.isAlive = false;
+      try { ws.ping(); } catch { /* socket already broken */ }
+    });
+  }, HEARTBEAT_MS);
+
+  wss.on('close', () => clearInterval(heartbeat));
+
+  wss.on('connection', async (rawWs, req) => {
+    const ws = rawWs as Heartbeatable;
+    ws.isAlive = true;
+    ws.on('pong', () => { ws.isAlive = true; });
+
     try {
       const cookies = parseCookies(req.headers.cookie);
       const sessionCookie = cookies['otisak_session'];

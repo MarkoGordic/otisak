@@ -1200,6 +1200,82 @@ export async function getExamRoomStatus(examId: string): Promise<{
   };
 }
 
+// Aggregate live progress for every attempt on an exam. Used both for an HTTP
+// snapshot (RoomPage initial load + reconnect) and for the lightweight payload
+// included with exam.submitted/exam.progress broadcasts.
+export async function getLiveExamStats(examId: string): Promise<{
+  total_participants: number;
+  finished_count: number;
+  total_questions: number;
+  per_student: Array<{
+    user_id: string;
+    user_name: string | null;
+    user_email: string;
+    index_number: string | null;
+    submitted: boolean;
+    answered_count: number;
+    started_at: Date | null;
+    finished_at: Date | null;
+    time_spent_seconds: number;
+    suspicious_count: number;
+  }>;
+}> {
+  // Total question count for the exam (the same for everyone).
+  const qCount = await query<{ count: number }>(
+    `SELECT COUNT(*)::int AS count FROM otisak_questions WHERE exam_id = $1`,
+    [examId]
+  );
+  const total_questions = qCount.rows[0]?.count ?? 0;
+
+  // Suspicious activity event types we count for the live UI badge.
+  const SUSPICIOUS_TYPES = ['tab_switch', 'copy_attempt', 'cut_attempt', 'paste_attempt', 'page_blur', 'mouse_leave_window', 'devtools_attempt', 'print_attempt'];
+
+  const result = await query<{
+    user_id: string;
+    user_name: string | null;
+    user_email: string;
+    index_number: string | null;
+    submitted: boolean;
+    answered_count: number;
+    started_at: Date | null;
+    finished_at: Date | null;
+    time_spent_seconds: number;
+    suspicious_count: number;
+  }>(
+    `SELECT a.user_id,
+            u.name AS user_name,
+            u.email AS user_email,
+            u.index_number,
+            a.submitted,
+            a.started_at,
+            a.finished_at,
+            a.time_spent_seconds,
+            (
+              SELECT COUNT(*)::int FROM otisak_attempt_answers aa
+              WHERE aa.attempt_id = a.id
+                AND (
+                  aa.selected_answer_id IS NOT NULL
+                  OR (aa.selected_answer_ids IS NOT NULL AND array_length(aa.selected_answer_ids, 1) > 0)
+                  OR (aa.text_answer IS NOT NULL AND length(trim(aa.text_answer)) > 0)
+                )
+            ) AS answered_count,
+            (
+              SELECT COUNT(*)::int FROM exam_activity_log al
+              WHERE al.attempt_id = a.id
+                AND al.event_type = ANY($2::text[])
+            ) AS suspicious_count
+     FROM otisak_attempts a
+     JOIN users u ON a.user_id = u.id
+     WHERE a.exam_id = $1
+     ORDER BY a.started_at ASC`,
+    [examId, SUSPICIOUS_TYPES]
+  );
+
+  const per_student = result.rows;
+  const finished_count = per_student.filter((r) => r.submitted).length;
+  return { total_participants: per_student.length, finished_count, total_questions, per_student };
+}
+
 export async function joinExamByIndex(examId: string, indexNumber: string): Promise<{
   user: { id: string; name: string | null; index_number: string | null } | null;
   error?: string;

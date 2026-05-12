@@ -457,6 +457,33 @@ const en: Record<string, string> = {
   'common.loading': 'Loading...',
   'common.error': 'Error',
   'common.success': 'Success',
+
+  // Language switcher
+  'lang.next.en': 'English',
+  'lang.next.sr-Latn': 'Srpski (Latin)',
+  'lang.next.sr-Cyrl': 'Српски (Cyrillic)',
+  'lang.short.en': 'EN',
+  'lang.short.sr-Latn': 'SR',
+  'lang.short.sr-Cyrl': 'СР',
+
+  // Live connection state
+  'live.connected': 'Live',
+  'live.reconnecting': 'Reconnecting...',
+  'live.offline': 'Disconnected',
+
+  // Live stats (room)
+  'room.stats.title': 'Live statistics',
+  'room.stats.finished': 'submitted',
+  'room.stats.finishedOf': '{done} of {total} submitted',
+  'room.stats.timeLeft': 'Remaining',
+  'room.stats.timeUp': 'Time up',
+  'room.stats.atQuestion': 'Question {current}/{total}',
+  'room.stats.answered': '{answered}/{total} answered',
+  'room.stats.timeSpent': 'Time: {time}',
+  'room.stats.suspicious': '{count} suspicious',
+  'room.stats.statusActive': 'Working',
+  'room.stats.statusFinished': 'Submitted',
+  'room.stats.statusIdle': 'Ready',
 };
 
 export default en;

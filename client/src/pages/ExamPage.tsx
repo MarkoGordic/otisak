@@ -14,6 +14,7 @@ import {
 import { useLang } from '../components/LangProvider';
 import { useExamSocket } from '../lib/useExamSocket';
 import { useToast } from '../components/Toast';
+import { ToggleCluster } from '../components/ToggleCluster';
 import type {
   OtisakExamWithSubject,
   OtisakQuestionWithAnswers,
@@ -608,6 +609,7 @@ export default function ExamPage() {
   if (phase === 'loading') {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
+        <ToggleCluster variant="solid" position="fixed" />
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
@@ -619,6 +621,7 @@ export default function ExamPage() {
   if (phase === 'awaitingApproval') {
     return (
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+        <ToggleCluster variant="solid" position="fixed" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-sky-500/[0.09] rounded-full blur-[150px] animate-pulse" />
           <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/[0.10] rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
@@ -652,6 +655,7 @@ export default function ExamPage() {
   if (phase === 'lobby') {
     return (
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+        <ToggleCluster variant="solid" position="fixed" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
           <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/15 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />

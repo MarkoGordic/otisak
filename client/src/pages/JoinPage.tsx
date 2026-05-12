@@ -5,6 +5,7 @@ import { Loader2, Fingerprint, AlertTriangle, Hash, ArrowLeft, Check, User as Us
 import { OtisakLogo, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import { useExamSocket } from '../lib/useExamSocket';
+import { ToggleCluster } from '../components/ToggleCluster';
 
 type Phase = 'index-entry' | 'confirm' | 'waiting' | 'starting' | 'error';
 
@@ -169,6 +170,7 @@ export default function JoinExamPage() {
   if (phase === 'error') {
     return (
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center p-4">
+        <ToggleCluster variant="solid" position="fixed" />
         <div className="text-center">
           <AlertTriangle className="w-16 h-16 text-red-400/60 mx-auto mb-4" />
           <h1 className="text-xl text-white font-light mb-2">{t('join.cannotJoin')}</h1>
@@ -185,6 +187,7 @@ export default function JoinExamPage() {
   if (phase === 'index-entry') {
     return (
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+        <ToggleCluster variant="solid" position="fixed" />
         {/* Background glows */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
@@ -272,6 +275,7 @@ export default function JoinExamPage() {
   if (phase === 'confirm') {
     return (
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+        <ToggleCluster variant="solid" position="fixed" />
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />
           <div className="absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-blue-600/15 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
@@ -350,6 +354,7 @@ export default function JoinExamPage() {
   if (phase === 'starting') {
     return (
       <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center">
+        <ToggleCluster variant="solid" position="fixed" />
         <motion.div initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="text-center">
           <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
             <Fingerprint className="w-10 h-10 text-green-400" strokeWidth={1.5} />
@@ -366,6 +371,7 @@ export default function JoinExamPage() {
   // ========================================
   return (
     <div className="min-h-screen w-full bg-[#0a0a14] flex flex-col items-center justify-center relative overflow-hidden">
+      <ToggleCluster variant="solid" position="fixed" />
       {/* Background glows */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] bg-blue-600/20 rounded-full blur-[150px] animate-pulse" />

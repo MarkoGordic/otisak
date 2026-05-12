@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Loader2, Clock, Target } from 'lucide-react';
 import { OtisakHeader, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
+import { ToggleCluster } from '../components/ToggleCluster';
 import type { OtisakExamResults } from '../lib/types';
 
 type UserInfo = {
@@ -87,6 +88,7 @@ export default function ResultsPage() {
   if (isLoading) {
     return (
       <div className="min-h-screen bg-[#0a0a14] flex items-center justify-center">
+        <ToggleCluster variant="solid" position="fixed" />
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
@@ -102,6 +104,10 @@ export default function ResultsPage() {
 
   return (
     <div className="min-h-screen bg-[#0a0a14] flex flex-col relative overflow-hidden">
+      {/* Toggle cluster is rendered inside OtisakHeader (md+) below; on mobile, header avatar takes the space. */}
+      <div className="md:hidden">
+        <ToggleCluster variant="solid" position="fixed" />
+      </div>
       {/* Soft white ambient glow — terminal "finished" screen */}
       <div className="fixed inset-0 pointer-events-none">
         <div className="absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] bg-white/[0.06] rounded-full blur-[180px]" />

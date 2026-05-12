@@ -2,6 +2,7 @@ import React from 'react';
 import { OtisakLogo } from './OtisakLogo';
 import { motion } from 'framer-motion';
 import { useLang } from '../LangProvider';
+import { ToggleCluster } from '../ToggleCluster';
 
 interface OtisakHeaderProps {
   user?: { name: string | null; index_number: string | null; avatar_url: string | null } | null;
@@ -53,13 +54,17 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
           {centerContent}
         </div>
 
-        {/* Right: User Info */}
-        {user && (
+        {/* Right: Toggle cluster + User Info */}
+        <div className="flex items-center gap-3 sm:gap-4 text-right">
+          <div className="hidden md:block">
+            <ToggleCluster variant="solid" position="static" />
+          </div>
+          {user && (
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ duration: 0.5 }}
-            className="flex items-center gap-4 text-right"
+            className="flex items-center gap-3 sm:gap-4 text-right"
           >
             <div className="hidden sm:flex flex-col">
               <span className="text-[10px] text-gray-400 uppercase tracking-wider font-medium">
@@ -91,7 +96,8 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
               )}
             </div>
           </motion.div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Blue accent line */}

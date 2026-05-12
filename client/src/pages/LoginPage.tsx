@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, Sun, Moon, ArrowLeft } from 'lucide-react';
+import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react';
 import { AppCopyright } from '../components/AppCopyright';
 import { useTheme } from '../components/ThemeProvider';
 import { useLang } from '../components/LangProvider';
+import { ToggleCluster } from '../components/ToggleCluster';
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { theme, toggle } = useTheme();
-  const { t, locale, setLocale } = useLang();
+  const { theme } = useTheme();
+  const { t } = useLang();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -91,22 +92,8 @@ export default function LoginPage() {
       </button>
 
       {/* Theme & Language toggles */}
-      <div className="fixed top-4 right-4 z-10 flex items-center gap-2">
-        <button
-          onClick={toggle}
-          className={`p-2.5 rounded-xl border backdrop-blur-sm transition-colors ${isDark ? 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 shadow-sm'}`}
-          title={theme === 'dark' ? t('login.switchLight') : t('login.switchDark')}
-        >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-        </button>
-        <button
-          onClick={() => setLocale(locale === 'sr' ? 'en' : 'sr')}
-          className={`p-2.5 rounded-xl border backdrop-blur-sm transition-colors ${isDark ? 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20' : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 shadow-sm'}`}
-          title={locale === 'sr' ? 'English' : 'Srpski'}
-        >
-          <span className="text-sm">{locale === 'sr' ? '\u{1F1EC}\u{1F1E7}' : '\u{1F1F7}\u{1F1F8}'}</span>
-        </button>
-      </div>
+      <ToggleCluster variant="glass" position="fixed" />
+
 
       <div className="w-full max-w-[420px] relative z-10">
         {/* Logo */}

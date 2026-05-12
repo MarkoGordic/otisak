@@ -1,10 +1,11 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, RefreshCw, Clock, BookOpen, ArrowRight, ShieldCheck, Sun, Moon } from 'lucide-react';
+import { Loader2, RefreshCw, Clock, BookOpen, ArrowRight, ShieldCheck } from 'lucide-react';
 import { OtisakLogo, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
+import { ToggleCluster } from '../components/ToggleCluster';
 
 type ActiveExam = {
   id: string;
@@ -17,8 +18,8 @@ type ActiveExam = {
 
 export default function HomePage() {
   const navigate = useNavigate();
-  const { t, locale, setLocale } = useLang();
-  const { theme, toggle } = useTheme();
+  const { t } = useLang();
+  const { theme } = useTheme();
   const isDark = theme === 'dark';
   const [exams, setExams] = useState<ActiveExam[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,22 +96,7 @@ export default function HomePage() {
 
       {/* Top-right cluster: theme toggle, language toggle, admin login */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
-        <button
-          onClick={toggle}
-          className={`p-2.5 rounded-xl border backdrop-blur-sm transition-colors ${togglePillClass}`}
-          title={isDark ? t('login.switchLight') : t('login.switchDark')}
-          aria-label={isDark ? t('login.switchLight') : t('login.switchDark')}
-        >
-          {isDark ? <Sun size={16} /> : <Moon size={16} />}
-        </button>
-        <button
-          onClick={() => setLocale(locale === 'sr' ? 'en' : 'sr')}
-          className={`p-2.5 rounded-xl border backdrop-blur-sm transition-colors ${togglePillClass}`}
-          title={locale === 'sr' ? 'English' : 'Srpski'}
-          aria-label={locale === 'sr' ? 'English' : 'Srpski'}
-        >
-          <span className="text-sm">{locale === 'sr' ? '\u{1F1EC}\u{1F1E7}' : '\u{1F1F7}\u{1F1F8}'}</span>
-        </button>
+        <ToggleCluster position="static" variant="glass" />
         <button
           onClick={() => navigate('/admin')}
           className={`flex items-center gap-2 px-3 py-2 rounded-xl border backdrop-blur-sm transition-colors text-xs uppercase tracking-widest ${togglePillClass}`}

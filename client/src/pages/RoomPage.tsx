@@ -2,15 +2,17 @@ import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Loader2, Users, Play, Pause, Copy, Check, Clock, Link2, UserCheck, ArrowLeft,
-  Fingerprint, AlertTriangle, Radio, ShieldOff, ShieldAlert, FileText,
-  Plus, Minus, X, UserPlus, Timer as TimerIcon,
+  Loader2, Users, Play, Pause, Copy, Check, Link2, UserCheck, ArrowLeft,
+  Fingerprint, Radio, ShieldOff, ShieldAlert, FileText,
+  Plus, Minus, X, UserPlus, Timer as TimerIcon, AlertTriangle, Wifi, WifiOff,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { useToast } from '../components/Toast';
 import { useExamSocket } from '../lib/useExamSocket';
+import { useExamTimer, formatTimer } from '../lib/useExamTimer';
 
 type Participant = {
   user_id: string;
@@ -31,6 +33,37 @@ type ExamData = {
   negative_points_enabled: boolean;
 };
 
+type UserInfo = { id?: string; name?: string; role?: string; avatar_url?: string };
+
+type LiveStudent = {
+  user_id: string;
+  user_name: string | null;
+  user_email: string;
+  index_number: string | null;
+  submitted: boolean;
+  answered_count: number;
+  started_at: string | null;
+  finished_at: string | null;
+  time_spent_seconds: number;
+  suspicious_count: number;
+};
+
+type LiveStats = {
+  total_participants: number;
+  finished_count: number;
+  total_questions: number;
+  per_student: LiveStudent[];
+};
+
+const SUSPICIOUS_BADGE_THRESHOLD = 5;
+
+function formatElapsed(secs: number): string {
+  if (!secs || secs < 0) return '00:00';
+  const m = Math.floor(secs / 60);
+  const s = secs % 60;
+  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+}
+
 export default function ExamRoomPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
@@ -38,6 +71,7 @@ export default function ExamRoomPage() {
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [exam, setExam] = useState<ExamData | null>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [starting, setStarting] = useState(false);
@@ -54,10 +88,43 @@ export default function ExamRoomPage() {
   }>>([]);
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [extraSeconds, setExtraSeconds] = useState(0);
+  const [pausedSeconds, setPausedSeconds] = useState(0);
   const [adjusting, setAdjusting] = useState(false);
+  const [liveStats, setLiveStats] = useState<LiveStats>({ total_participants: 0, finished_count: 0, total_questions: 0, per_student: [] });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const joinLink = `${window.location.origin}/join/${examId}`;
+
+  // Load current admin/assistant user (for Sidebar).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/session', { credentials: 'include' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (!cancelled && data?.authenticated) {
+          setUser({
+            id: data.user?.id,
+            name: data.user?.name,
+            role: data.user?.role,
+            avatar_url: data.user?.avatar_url,
+          });
+        }
+      } catch { /* silent */ }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const loadLiveStats = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/live-stats`, { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setLiveStats(data);
+      }
+    } catch { /* silent */ }
+  }, [examId]);
 
   const loadRoom = useCallback(async () => {
     try {
@@ -67,7 +134,7 @@ export default function ExamRoomPage() {
       setExam(data.exam);
       setParticipants(data.participants || []);
       if (data.exam?.exam_started_at) setStarted(true);
-      // Check lockdown status + room-status (extra_seconds)
+      // Check lockdown status + room-status (extra_seconds + paused_seconds) + requests + live stats.
       try {
         const [lockRes, statusRes, reqRes] = await Promise.all([
           fetch(`/api/otisak/exams/${examId}/lockdown`),
@@ -75,29 +142,74 @@ export default function ExamRoomPage() {
           fetch(`/api/otisak/exams/${examId}/requests`, { credentials: 'include' }),
         ]);
         if (lockRes.ok) { const ld = await lockRes.json(); setLocked(!!ld.lockdown?.is_active); }
-        if (statusRes.ok) { const st = await statusRes.json(); setExtraSeconds(Number(st.extra_seconds || 0)); }
+        if (statusRes.ok) {
+          const st = await statusRes.json();
+          setExtraSeconds(Number(st.extra_seconds || 0));
+          setPausedSeconds(Number(st.paused_seconds || 0));
+        }
         if (reqRes.ok) { const rq = await reqRes.json(); setRequests(rq.requests || []); }
       } catch {}
+      // Live stats only matters when exam has started, but cheap to call always.
+      loadLiveStats();
     } catch { navigate('/manage'); }
     finally { setLoading(false); }
-  }, [examId, navigate]);
+  }, [examId, navigate, loadLiveStats]);
 
   useEffect(() => { loadRoom(); }, [loadRoom]);
 
-  // Live push channel: instant refresh on student requests, lockdown, timer changes.
-  useExamSocket(examId, useCallback((evt) => {
+  // Live push channel: instant updates from admin commands AND per-student progress.
+  // Returns a `connected` flag the UI uses to show live/reconnecting state and decide
+  // whether polling is necessary.
+  const { connected } = useExamSocket(examId, useCallback((evt) => {
     if (evt.type === 'request.created' || evt.type === 'request.decided' || evt.type === 'lockdown.changed' || evt.type === 'exam.started') {
       loadRoom();
     } else if (evt.type === 'timer.adjusted') {
       setExtraSeconds(Number(evt.extra_seconds || 0));
+    } else if (evt.type === 'exam.submitted') {
+      // Patch the student's row immediately + refresh aggregate counters.
+      setLiveStats((prev) => ({
+        ...prev,
+        finished_count: Number(evt.finished_count ?? prev.finished_count),
+        total_participants: Number(evt.total_participants ?? prev.total_participants),
+        per_student: prev.per_student.map((s) =>
+          s.user_id === evt.user_id ? { ...s, submitted: true } : s
+        ),
+      }));
+    } else if (evt.type === 'exam.progress') {
+      setLiveStats((prev) => ({
+        ...prev,
+        total_questions: Number(evt.total_questions ?? prev.total_questions),
+        per_student: prev.per_student.map((s) =>
+          s.user_id === evt.user_id
+            ? { ...s, answered_count: Number(evt.answered_count), time_spent_seconds: Number(evt.time_spent_seconds) }
+            : s
+        ),
+      }));
     }
-  }, [loadRoom]));
+  }, [loadRoom]), {
+    // After a reconnect, refetch room + stats so anything missed during the gap is restored.
+    onReconnect: useCallback(() => { loadRoom(); }, [loadRoom]),
+  });
 
-  // Poll for new participants every 3 seconds
+  // Polling fallback: only run when the socket is *not* connected. Once the socket is up,
+  // events arrive in real time so polling just wastes DB cycles.
   useEffect(() => {
-    pollRef.current = setInterval(loadRoom, 3000);
+    if (connected) {
+      if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null; }
+      return;
+    }
+    pollRef.current = setInterval(loadRoom, 5000);
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
-  }, [loadRoom]);
+  }, [connected, loadRoom]);
+
+  // Live exam timer (admin view) — same algorithm as student timer so the two stay in sync.
+  const timer = useExamTimer({
+    startedAt: exam?.exam_started_at ?? null,
+    durationSeconds: (exam?.duration_minutes ?? 0) * 60,
+    extraSeconds,
+    pausedSeconds,
+    paused: locked,
+  });
 
   const handleCopyLink = () => {
     navigator.clipboard.writeText(joinLink);
@@ -122,7 +234,6 @@ export default function ExamRoomPage() {
       const d = await res.json().catch(() => ({}));
       toast.success(t('room.toast.finishedAll', { count: Number(d.finished_count ?? 0) }));
       setShowFinishModal(false);
-      // Done — bounce admin back to the manage list since the exam is now closed.
       navigate('/manage');
     } catch {
       toast.error(t('room.toast.finishFailed'));
@@ -156,7 +267,7 @@ export default function ExamRoomPage() {
     }
   };
 
-  if (loading) {
+  if (loading || !user) {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
@@ -164,446 +275,575 @@ export default function ExamRoomPage() {
     );
   }
 
+  // Index per_student by user_id for quick lookup when rendering participant rows.
+  const statsByUser = new Map(liveStats.per_student.map((s) => [s.user_id, s] as const));
+
   return (
-    <div className="min-h-screen bg-[var(--bg-secondary)] flex flex-col">
-      {/* Header */}
-      <header className="w-full bg-[var(--bg-elevated)] border-b border-[var(--border-default)] px-4 sm:px-6 py-4 z-20 sticky top-0">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-            <button
-              onClick={() => navigate('/manage')}
-              className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-              aria-label="Back"
-            >
-              <ArrowLeft size={20} />
-            </button>
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
-                <Fingerprint className="w-5 h-5 text-accent" strokeWidth={1.75} />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-lg font-display font-bold text-[var(--text-primary)] truncate">
-                  {exam?.title || t('room.title')}
-                </h1>
-                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] truncate">
-                  {exam?.subject_name && <span className="truncate">{exam.subject_name}</span>}
-                  <span>·</span>
-                  <span>{exam?.duration_minutes}min</span>
-                  <span>·</span>
-                  <span>{exam?.question_count} {t('questions.title').toLowerCase()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[var(--bg-secondary)] flex">
+      <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
+      <MobileNav userName={user.name} userRole={user.role} />
 
-          <div className="flex items-center gap-3 flex-shrink-0">
-            {started ? (
-              <Badge variant="success" size="md" dot>{t('room.running')}</Badge>
-            ) : (
-              <Badge variant="warning" size="md" dot>{t('room.waiting')}</Badge>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 z-10 w-full">
-        {/* Join Link Card */}
-        {!started && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-5 mb-6"
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Link2 size={16} className="text-accent" />
-              <span className="text-sm font-medium text-[var(--text-primary)]">{t('room.joinLink')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex-1 bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] rounded-lg px-4 py-3 font-mono text-sm text-accent truncate">
-                {joinLink}
-              </div>
+      <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen pb-20 lg:pb-0">
+        {/* Header */}
+        <header className="w-full bg-[var(--bg-elevated)] border-b border-[var(--border-default)] px-4 sm:px-6 py-4 z-20 sticky top-0">
+          <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3 sm:gap-4 min-w-0">
               <button
-                onClick={handleCopyLink}
-                className={`px-4 py-3 rounded-lg font-medium text-sm transition-all flex items-center gap-2 border ${
-                  copied
-                    ? 'bg-success-light border-[var(--border-default)] text-success'
-                    : 'bg-accent border-accent hover:bg-accent-hover text-white'
-                }`}
+                onClick={() => navigate('/manage')}
+                className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                aria-label="Back"
               >
-                {copied ? <><Check size={16} />{t('room.copied')}</> : <><Copy size={16} />{t('room.copy')}</>}
+                <ArrowLeft size={20} />
               </button>
-            </div>
-            <p className="text-[11px] text-[var(--text-muted)] mt-2">{t('room.joinLinkDesc')}</p>
-          </motion.div>
-        )}
-
-        {/* Stats + Start */}
-        <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
-          <div className="flex items-center gap-4 flex-wrap">
-            <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg">
-              <Users size={16} className="text-accent" />
-              <span className="text-[var(--text-primary)] font-mono text-lg font-bold">{participants.length}</span>
-              <span className="text-[var(--text-muted)] text-sm">{t('room.joined')}</span>
-            </div>
-            {!started && (
-              <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
-                <Radio size={12} className="text-success animate-pulse" />
-                {t('room.liveRefresh')}
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
+                  <Fingerprint className="w-5 h-5 text-accent" strokeWidth={1.75} />
+                </div>
+                <div className="min-w-0">
+                  <h1 className="text-lg font-display font-bold text-[var(--text-primary)] truncate">
+                    {exam?.title || t('room.title')}
+                  </h1>
+                  <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] truncate">
+                    {exam?.subject_name && <span className="truncate">{exam.subject_name}</span>}
+                    <span>·</span>
+                    <span>{exam?.duration_minutes}min</span>
+                    <span>·</span>
+                    <span>{exam?.question_count} {t('questions.title').toLowerCase()}</span>
+                  </div>
+                </div>
               </div>
-            )}
-          </div>
+            </div>
 
+            <div className="flex items-center gap-3 flex-shrink-0">
+              {/* Connection indicator: visible only when not connected so we don't add noise during normal operation. */}
+              {!connected && (
+                <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-warning-light text-warning text-[11px] uppercase tracking-wider font-medium">
+                  <WifiOff size={12} />
+                  {t('live.reconnecting')}
+                </span>
+              )}
+              {connected && started && (
+                <span className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-success-light text-success text-[11px] uppercase tracking-wider font-medium">
+                  <Wifi size={12} />
+                  {t('live.connected')}
+                </span>
+              )}
+              {started ? (
+                <Badge variant="success" size="md" dot>{t('room.running')}</Badge>
+              ) : (
+                <Badge variant="warning" size="md" dot>{t('room.waiting')}</Badge>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 z-10">
+          {/* Join Link Card — hidden once the exam is running */}
           {!started && (
-            <Button
-              variant="primary"
-              size="lg"
-              leftIcon={<Play size={18} className="fill-current" />}
-              loading={starting}
-              onClick={handleStartExam}
-            >
-              {t('room.startExam')}
-            </Button>
-          )}
-        </div>
-
-        {/* Participants List */}
-        <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl overflow-hidden">
-          <div className="flex items-center px-5 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-            <div className="w-8">#</div>
-            <div className="flex-1">{t('room.student')}</div>
-            <div className="w-40 hidden sm:block">{t('room.indexNumber')}</div>
-            <div className="w-32 hidden md:block">{t('room.joinedAt')}</div>
-            <div className="w-20 text-center">{t('room.status')}</div>
-            {started && <div className="w-10" />}
-          </div>
-
-          {participants.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center">
-              <Users className="w-12 h-12 text-[var(--text-muted)] mb-3" />
-              <p className="text-[var(--text-secondary)] text-sm mb-1">{t('room.noStudents')}</p>
-              <p className="text-[var(--text-muted)] text-xs">{t('room.noStudentsDesc')}</p>
-            </div>
-          ) : (
-            <AnimatePresence>
-              {participants.map((p, idx) => (
-                <motion.div
-                  key={p.user_id}
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: idx * 0.03 }}
-                  className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
-                >
-                  <div className="w-8 text-[var(--text-muted)] font-mono text-xs">{idx + 1}</div>
-                  <div className="flex-1 min-w-0">
-                    <span className="text-sm text-[var(--text-primary)] truncate block">{p.name || p.email}</span>
-                    {p.name && <span className="text-[11px] text-[var(--text-muted)] block">{p.email}</span>}
-                  </div>
-                  <div className="w-40 hidden sm:block">
-                    <span className="font-mono text-xs text-accent">{p.index_number || '-'}</span>
-                  </div>
-                  <div className="w-32 hidden md:block text-[11px] text-[var(--text-muted)]">
-                    {new Date(p.enrolled_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                  </div>
-                  <div className="w-20 flex justify-center">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
-                      <span className="text-[10px] text-success uppercase font-medium">{t('room.ready')}</span>
-                    </div>
-                  </div>
-                  {started && (
-                    <div className="w-10 flex justify-center">
-                      <button
-                        onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
-                        className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent hover:bg-accent-light transition-colors"
-                        title={t('room.requests.title')}
-                      >
-                        <FileText size={14} />
-                      </button>
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
-          )}
-        </div>
-
-        {/* Started notice + Finish-for-all action */}
-        {started && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-            className="mt-6 bg-success-light border border-[var(--border-default)] rounded-xl p-5 flex items-center gap-4 flex-wrap"
-          >
-            <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center flex-shrink-0">
-              <Play size={20} className="text-success fill-current" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-success font-medium">{t('room.examRunning')}</p>
-              <p className="text-[var(--text-secondary)] text-xs">
-                {t('room.startedAt', { time: exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : '—' })}
-              </p>
-            </div>
-            <Button
-              variant="danger"
-              size="md"
-              leftIcon={<Pause size={16} />}
-              onClick={() => { setFinishRedirect(false); setShowFinishModal(true); }}
-            >
-              {t('room.finishAll')}
-            </Button>
-          </motion.div>
-        )}
-
-        {/* Finish-all confirmation modal */}
-        <AnimatePresence>
-          {showFinishModal && (
             <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
-              onClick={() => !finishing && setShowFinishModal(false)}
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-5 mb-6"
             >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-                onClick={(e) => e.stopPropagation()}
-                className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-2xl shadow-2xl max-w-md w-full p-6"
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-danger-light flex items-center justify-center">
-                    <Pause size={18} className="text-danger" />
-                  </div>
-                  <h3 className="text-lg font-display font-semibold text-[var(--text-primary)]">{t('room.finishAll.title')}</h3>
+              <div className="flex items-center gap-2 mb-3">
+                <Link2 size={16} className="text-accent" />
+                <span className="text-sm font-medium text-[var(--text-primary)]">{t('room.joinLink')}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 bg-[var(--bg-tertiary)] border border-[var(--border-subtle)] rounded-lg px-4 py-3 font-mono text-sm text-accent truncate">
+                  {joinLink}
                 </div>
-                <p className="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">{t('room.finishAll.body')}</p>
-                <p className="text-xs text-warning mb-4 leading-relaxed">{t('room.finishAll.warning')}</p>
-
-                <label className="flex items-start gap-3 mb-5 p-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-tertiary)] cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={finishRedirect}
-                    onChange={(e) => setFinishRedirect(e.target.checked)}
-                    className="mt-0.5 w-4 h-4 accent-[var(--accent)]"
-                  />
-                  <span className="text-sm text-[var(--text-primary)]">
-                    <span className="block font-medium">{t('room.finishAll.redirectLabel')}</span>
-                    <span className="block text-xs text-[var(--text-muted)] mt-0.5">{t('room.finishAll.redirectHint')}</span>
-                  </span>
-                </label>
-
-                <div className="flex items-center justify-end gap-3">
-                  <Button variant="secondary" onClick={() => setShowFinishModal(false)} disabled={finishing}>
-                    {t('common.cancel')}
-                  </Button>
-                  <Button variant="danger" loading={finishing} onClick={handleFinishAll}>
-                    {t('room.finishAll.confirm')}
-                  </Button>
-                </div>
-              </motion.div>
+                <button
+                  onClick={handleCopyLink}
+                  className={`px-4 py-3 rounded-lg font-medium text-sm transition-all flex items-center gap-2 border ${
+                    copied
+                      ? 'bg-success-light border-[var(--border-default)] text-success'
+                      : 'bg-accent border-accent hover:bg-accent-hover text-white'
+                  }`}
+                >
+                  {copied ? <><Check size={16} />{t('room.copied')}</> : <><Copy size={16} />{t('room.copy')}</>}
+                </button>
+              </div>
+              <p className="text-[11px] text-[var(--text-muted)] mt-2">{t('room.joinLinkDesc')}</p>
             </motion.div>
           )}
-        </AnimatePresence>
 
-        {/* Lockdown Controls */}
-        {started && (
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
-            className={`mt-4 rounded-xl border p-5 flex items-center justify-between ${
-              locked
-                ? 'bg-accent-light border-[var(--border-default)]'
-                : 'bg-[var(--bg-elevated)] border-[var(--border-default)]'
-            }`}
-          >
-            <div className="flex items-center gap-4">
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                locked ? 'bg-accent/15' : 'bg-[var(--bg-tertiary)]'
-              }`}>
-                {locked
-                  ? <ShieldAlert size={20} className="text-accent" />
-                  : <ShieldOff size={20} className="text-[var(--text-muted)]" />
-                }
+          {/* Stats + Start */}
+          <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
+            <div className="flex items-center gap-4 flex-wrap">
+              <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg">
+                <Users size={16} className="text-accent" />
+                <span className="text-[var(--text-primary)] font-mono text-lg font-bold">{participants.length}</span>
+                <span className="text-[var(--text-muted)] text-sm">{t('room.joined')}</span>
               </div>
-              <div>
-                <p className={`font-medium ${locked ? 'text-accent' : 'text-[var(--text-primary)]'}`}>
-                  {t('lockdown.title.short')}
-                </p>
-                <p className={`text-xs ${locked ? 'text-accent-muted' : 'text-[var(--text-muted)]'}`}>
-                  {locked ? t('lockdown.desc.active') : t('lockdown.desc.idle')}
-                </p>
-              </div>
-            </div>
-            <Button
-              variant={locked ? 'secondary' : 'danger'}
-              size="md"
-              loading={locking}
-              leftIcon={locked ? <ShieldOff size={16} /> : <ShieldAlert size={16} />}
-              onClick={async () => {
-                setLocking(true);
-                const next = !locked;
-                try {
-                  const res = await fetch(`/api/otisak/exams/${examId}/lockdown`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                    body: JSON.stringify({
-                      lock: next,
-                      message: t('lockdown.adminMessage'),
-                    }),
-                  });
-                  if (!res.ok) {
-                    const d = await res.json().catch(() => ({}));
-                    toast.error(d.error || t('common.error'));
-                  } else {
-                    setLocked(next);
-                    toast.info(t(next ? 'room.toast.lockOn' : 'room.toast.lockOff'));
-                  }
-                } catch {
-                  toast.error(t('common.error'));
-                } finally { setLocking(false); }
-              }}
-            >
-              {locked ? t('lockdown.button.resume') : t('lockdown.button.pause')}
-            </Button>
-          </motion.div>
-        )}
-
-        {/* Pending requests + timer adjust — only useful once exam has started */}
-        {started && (
-          <>
-            {/* REQUESTS */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.05 }}
-              className="mt-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
-                  <UserPlus size={16} className="text-accent" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{t('room.requests.title')}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{requests.length === 0 ? t('room.requests.empty') : `${requests.length}`}</p>
-                </div>
-              </div>
-
-              {requests.length > 0 && (
-                <div className="space-y-2">
-                  {requests.map((r) => (
-                    <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-sm text-[var(--text-primary)] truncate">{r.user_name || r.user_email}</span>
-                          {r.user_index_number && (
-                            <span className="text-[11px] font-mono text-accent">{r.user_index_number}</span>
-                          )}
-                          <span className="text-[10px] uppercase tracking-widest text-accent px-2 py-0.5 rounded-full bg-accent-light border border-[var(--border-default)]">
-                            {t(`room.requests.${r.type}`) || r.type}
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{new Date(r.created_at).toLocaleTimeString('sr-RS')}</p>
-                      </div>
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        loading={decidingId === r.id}
-                        leftIcon={<Check size={14} />}
-                        onClick={async () => {
-                          setDecidingId(r.id);
-                          try {
-                            const res = await fetch(`/api/otisak/exams/${examId}/requests/${r.id}/decide`, {
-                              method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                              body: JSON.stringify({ decision: 'approved' }),
-                            });
-                            if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
-                            else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); loadRoom(); }
-                          } finally { setDecidingId(null); }
-                        }}
-                      >
-                        {t('room.requests.approve')}
-                      </Button>
-                      <Button
-                        variant="danger"
-                        size="sm"
-                        loading={decidingId === r.id}
-                        leftIcon={<X size={14} />}
-                        onClick={async () => {
-                          setDecidingId(r.id);
-                          try {
-                            const res = await fetch(`/api/otisak/exams/${examId}/requests/${r.id}/decide`, {
-                              method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                              body: JSON.stringify({ decision: 'denied' }),
-                            });
-                            if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
-                            else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); }
-                          } finally { setDecidingId(null); }
-                        }}
-                      >
-                        {t('room.requests.deny')}
-                      </Button>
-                    </div>
-                  ))}
+              {started && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg">
+                  <UserCheck size={16} className="text-success" />
+                  <span className="text-[var(--text-primary)] font-mono text-lg font-bold">{liveStats.finished_count}</span>
+                  <span className="text-[var(--text-muted)] text-sm">/ {Math.max(liveStats.total_participants, participants.length)} {t('room.stats.finished')}</span>
                 </div>
               )}
-            </motion.div>
+              {!started && (
+                <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                  <Radio size={12} className="text-success animate-pulse" />
+                  {t('room.liveRefresh')}
+                </div>
+              )}
+            </div>
 
-            {/* TIMER ADJUSTMENT */}
+            {!started && (
+              <Button
+                variant="primary"
+                size="lg"
+                leftIcon={<Play size={18} className="fill-current" />}
+                loading={starting}
+                onClick={handleStartExam}
+              >
+                {t('room.startExam')}
+              </Button>
+            )}
+          </div>
+
+          {/* Live exam timer — only meaningful while the exam is running. Same algorithm as student timer. */}
+          {started && exam?.exam_started_at && (
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className={`mb-6 bg-[var(--bg-elevated)] border rounded-xl p-5 flex items-center justify-between ${
+                timer.expired
+                  ? 'border-danger/40'
+                  : timer.totalSeconds <= 5 * 60
+                    ? 'border-warning/40'
+                    : 'border-[var(--border-default)]'
+              }`}
             >
-              <div className="flex items-center gap-3 mb-1">
-                <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
-                  <TimerIcon size={16} className="text-accent" />
+              <div className="flex items-center gap-3">
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${
+                  timer.expired
+                    ? 'bg-danger-light text-danger'
+                    : timer.totalSeconds <= 5 * 60
+                      ? 'bg-warning-light text-warning'
+                      : 'bg-accent-light text-accent'
+                }`}>
+                  <TimerIcon size={20} />
                 </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[var(--text-primary)]">{t('room.timer.title')}</p>
-                  <p className="text-xs text-[var(--text-muted)]">{t('room.timer.desc')}</p>
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">{t('room.stats.timeLeft')}</p>
+                  <p className={`font-mono text-3xl font-bold tabular-nums ${
+                    timer.expired
+                      ? 'text-danger'
+                      : timer.totalSeconds <= 5 * 60
+                        ? 'text-warning'
+                        : 'text-[var(--text-primary)]'
+                  }`}>
+                    {timer.expired ? t('room.stats.timeUp') : formatTimer(timer)}
+                  </p>
                 </div>
-                <span className={`text-[11px] font-mono whitespace-nowrap ${extraSeconds === 0 ? 'text-[var(--text-muted)]' : extraSeconds > 0 ? 'text-success' : 'text-danger'}`}>
-                  {t('room.timer.currentExtra', { value: extraSeconds })}
+              </div>
+              {locked && (
+                <Badge variant="warning" size="md" dot>{t('lockdown.timerPaused')}</Badge>
+              )}
+              {extraSeconds !== 0 && (
+                <span className={`text-xs font-mono ${extraSeconds > 0 ? 'text-success' : 'text-danger'}`}>
+                  {extraSeconds > 0 ? '+' : ''}{Math.round(extraSeconds / 60)}min
                 </span>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                {[
-                  { label: '−5', delta: -5 * 60, variant: 'danger' as const, icon: <Minus size={14} /> },
-                  { label: '−1', delta: -1 * 60, variant: 'danger' as const, icon: <Minus size={14} /> },
-                  { label: '+1', delta: +1 * 60, variant: 'primary' as const, icon: <Plus size={14} /> },
-                  { label: '+5', delta: +5 * 60, variant: 'primary' as const, icon: <Plus size={14} /> },
-                ].map((b) => (
-                  <Button
-                    key={b.label}
-                    variant={b.variant}
-                    size="md"
-                    loading={adjusting}
-                    leftIcon={b.icon}
-                    onClick={async () => {
-                      setAdjusting(true);
-                      try {
-                        const res = await fetch(`/api/otisak/exams/${examId}/adjust-timer`, {
-                          method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-                          body: JSON.stringify({ delta_seconds: b.delta }),
-                        });
-                        if (!res.ok) {
-                          const d = await res.json().catch(() => ({}));
-                          toast.error(d.error || t('room.timer.failed'));
-                        } else {
-                          const d = await res.json();
-                          setExtraSeconds(Number(d.extra_seconds || 0));
-                          const minutes = b.delta / 60;
-                          toast.success(
-                            t(minutes > 0 ? 'room.timer.toast.added' : 'room.timer.toast.removed', { minutes: Math.abs(minutes) })
-                          );
-                        }
-                      } finally { setAdjusting(false); }
-                    }}
-                  >
-                    {b.label} {t('room.timer.minute')}
-                  </Button>
-                ))}
-              </div>
+              )}
             </motion.div>
-          </>
-        )}
-      </main>
+          )}
+
+          {/* Participants list — when running, each row shows live progress + suspicious counter */}
+          <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl overflow-hidden">
+            <div className="flex items-center px-5 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
+              <div className="w-8">#</div>
+              <div className="flex-1">{t('room.student')}</div>
+              <div className="w-40 hidden sm:block">{t('room.indexNumber')}</div>
+              {!started && <div className="w-32 hidden md:block">{t('room.joinedAt')}</div>}
+              {started && <div className="w-56 hidden md:block">{t('room.stats.title')}</div>}
+              <div className="w-20 text-center">{t('room.status')}</div>
+              {started && <div className="w-10" />}
+            </div>
+
+            {participants.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-16 text-center">
+                <Users className="w-12 h-12 text-[var(--text-muted)] mb-3" />
+                <p className="text-[var(--text-secondary)] text-sm mb-1">{t('room.noStudents')}</p>
+                <p className="text-[var(--text-muted)] text-xs">{t('room.noStudentsDesc')}</p>
+              </div>
+            ) : (
+              <AnimatePresence>
+                {participants.map((p, idx) => {
+                  const s = statsByUser.get(p.user_id);
+                  const total = liveStats.total_questions || exam?.question_count || 0;
+                  const answered = s?.answered_count ?? 0;
+                  const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
+                  const submitted = !!s?.submitted;
+                  const suspicious = s?.suspicious_count ?? 0;
+                  return (
+                    <motion.div
+                      key={p.user_id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: idx * 0.03 }}
+                      className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors"
+                    >
+                      <div className="w-8 text-[var(--text-muted)] font-mono text-xs">{idx + 1}</div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-sm text-[var(--text-primary)] truncate block">{p.name || p.email}</span>
+                        {p.name && <span className="text-[11px] text-[var(--text-muted)] block">{p.email}</span>}
+                      </div>
+                      <div className="w-40 hidden sm:block">
+                        <span className="font-mono text-xs text-accent">{p.index_number || '-'}</span>
+                      </div>
+                      {!started && (
+                        <div className="w-32 hidden md:block text-[11px] text-[var(--text-muted)]">
+                          {new Date(p.enrolled_at).toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </div>
+                      )}
+                      {started && (
+                        <div className="w-56 hidden md:block">
+                          {/* Mini progress bar + answered/total + elapsed + suspicious badge */}
+                          <div className="flex items-center gap-2">
+                            <div className="flex-1 h-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${submitted ? 'bg-success' : 'bg-accent'}`}
+                                style={{ width: `${Math.min(100, pct)}%` }}
+                              />
+                            </div>
+                            <span className="text-[11px] font-mono text-[var(--text-muted)] whitespace-nowrap">
+                              {answered}/{total}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-[10px] text-[var(--text-muted)] font-mono">{formatElapsed(s?.time_spent_seconds ?? 0)}</span>
+                            {suspicious > 0 && (
+                              <span
+                                className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                                  suspicious >= SUSPICIOUS_BADGE_THRESHOLD
+                                    ? 'bg-danger-light text-danger'
+                                    : 'bg-warning-light text-warning'
+                                }`}
+                                title={t('room.stats.suspicious', { count: suspicious })}
+                              >
+                                <AlertTriangle size={10} />
+                                {suspicious}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <div className="w-20 flex justify-center">
+                        {started && submitted ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-success" />
+                            <span className="text-[10px] text-success uppercase font-medium">{t('room.stats.statusFinished')}</span>
+                          </div>
+                        ) : started ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                            <span className="text-[10px] text-accent uppercase font-medium">{t('room.stats.statusActive')}</span>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                            <span className="text-[10px] text-success uppercase font-medium">{t('room.ready')}</span>
+                          </div>
+                        )}
+                      </div>
+                      {started && (
+                        <div className="w-10 flex justify-center">
+                          <button
+                            onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
+                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent hover:bg-accent-light transition-colors"
+                            title={t('room.requests.title')}
+                          >
+                            <FileText size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </motion.div>
+                  );
+                })}
+              </AnimatePresence>
+            )}
+          </div>
+
+          {/* Started notice + Finish-for-all action */}
+          {started && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+              className="mt-6 bg-success-light border border-[var(--border-default)] rounded-xl p-5 flex items-center gap-4 flex-wrap"
+            >
+              <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center flex-shrink-0">
+                <Play size={20} className="text-success fill-current" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-success font-medium">{t('room.examRunning')}</p>
+                <p className="text-[var(--text-secondary)] text-xs">
+                  {t('room.startedAt', { time: exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : '—' })}
+                </p>
+              </div>
+              <Button
+                variant="danger"
+                size="md"
+                leftIcon={<Pause size={16} />}
+                onClick={() => { setFinishRedirect(false); setShowFinishModal(true); }}
+              >
+                {t('room.finishAll')}
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Finish-all confirmation modal */}
+          <AnimatePresence>
+            {showFinishModal && (
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                onClick={() => !finishing && setShowFinishModal(false)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-2xl shadow-2xl max-w-md w-full p-6"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-danger-light flex items-center justify-center">
+                      <Pause size={18} className="text-danger" />
+                    </div>
+                    <h3 className="text-lg font-display font-semibold text-[var(--text-primary)]">{t('room.finishAll.title')}</h3>
+                  </div>
+                  <p className="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">{t('room.finishAll.body')}</p>
+                  <p className="text-xs text-warning mb-4 leading-relaxed">{t('room.finishAll.warning')}</p>
+
+                  <label className="flex items-start gap-3 mb-5 p-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-tertiary)] cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={finishRedirect}
+                      onChange={(e) => setFinishRedirect(e.target.checked)}
+                      className="mt-0.5 w-4 h-4 accent-[var(--accent)]"
+                    />
+                    <span className="text-sm text-[var(--text-primary)]">
+                      <span className="block font-medium">{t('room.finishAll.redirectLabel')}</span>
+                      <span className="block text-xs text-[var(--text-muted)] mt-0.5">{t('room.finishAll.redirectHint')}</span>
+                    </span>
+                  </label>
+
+                  <div className="flex items-center justify-end gap-3">
+                    <Button variant="secondary" onClick={() => setShowFinishModal(false)} disabled={finishing}>
+                      {t('common.cancel')}
+                    </Button>
+                    <Button variant="danger" loading={finishing} onClick={handleFinishAll}>
+                      {t('room.finishAll.confirm')}
+                    </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Lockdown Controls */}
+          {started && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+              className={`mt-4 rounded-xl border p-5 flex items-center justify-between ${
+                locked
+                  ? 'bg-accent-light border-[var(--border-default)]'
+                  : 'bg-[var(--bg-elevated)] border-[var(--border-default)]'
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                  locked ? 'bg-accent/15' : 'bg-[var(--bg-tertiary)]'
+                }`}>
+                  {locked
+                    ? <ShieldAlert size={20} className="text-accent" />
+                    : <ShieldOff size={20} className="text-[var(--text-muted)]" />
+                  }
+                </div>
+                <div>
+                  <p className={`font-medium ${locked ? 'text-accent' : 'text-[var(--text-primary)]'}`}>
+                    {t('lockdown.title.short')}
+                  </p>
+                  <p className={`text-xs ${locked ? 'text-accent-muted' : 'text-[var(--text-muted)]'}`}>
+                    {locked ? t('lockdown.desc.active') : t('lockdown.desc.idle')}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={locked ? 'secondary' : 'danger'}
+                size="md"
+                loading={locking}
+                leftIcon={locked ? <ShieldOff size={16} /> : <ShieldAlert size={16} />}
+                onClick={async () => {
+                  setLocking(true);
+                  const next = !locked;
+                  try {
+                    const res = await fetch(`/api/otisak/exams/${examId}/lockdown`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({
+                        lock: next,
+                        message: t('lockdown.adminMessage'),
+                      }),
+                    });
+                    if (!res.ok) {
+                      const d = await res.json().catch(() => ({}));
+                      toast.error(d.error || t('common.error'));
+                    } else {
+                      setLocked(next);
+                      toast.info(t(next ? 'room.toast.lockOn' : 'room.toast.lockOff'));
+                    }
+                  } catch {
+                    toast.error(t('common.error'));
+                  } finally { setLocking(false); }
+                }}
+              >
+                {locked ? t('lockdown.button.resume') : t('lockdown.button.pause')}
+              </Button>
+            </motion.div>
+          )}
+
+          {/* Pending requests + timer adjust — only useful once exam has started */}
+          {started && (
+            <>
+              {/* REQUESTS */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.05 }}
+                className="mt-6 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
+              >
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
+                    <UserPlus size={16} className="text-accent" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{t('room.requests.title')}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{requests.length === 0 ? t('room.requests.empty') : `${requests.length}`}</p>
+                  </div>
+                </div>
+
+                {requests.length > 0 && (
+                  <div className="space-y-2">
+                    {requests.map((r) => (
+                      <div key={r.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-subtle)]">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm text-[var(--text-primary)] truncate">{r.user_name || r.user_email}</span>
+                            {r.user_index_number && (
+                              <span className="text-[11px] font-mono text-accent">{r.user_index_number}</span>
+                            )}
+                            <span className="text-[10px] uppercase tracking-widest text-accent px-2 py-0.5 rounded-full bg-accent-light border border-[var(--border-default)]">
+                              {t(`room.requests.${r.type}`) || r.type}
+                            </span>
+                          </div>
+                          <p className="text-[11px] text-[var(--text-muted)] mt-0.5">{new Date(r.created_at).toLocaleTimeString('sr-RS')}</p>
+                        </div>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          loading={decidingId === r.id}
+                          leftIcon={<Check size={14} />}
+                          onClick={async () => {
+                            setDecidingId(r.id);
+                            try {
+                              const res = await fetch(`/api/otisak/exams/${examId}/requests/${r.id}/decide`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                                body: JSON.stringify({ decision: 'approved' }),
+                              });
+                              if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
+                              else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); loadRoom(); }
+                            } finally { setDecidingId(null); }
+                          }}
+                        >
+                          {t('room.requests.approve')}
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          loading={decidingId === r.id}
+                          leftIcon={<X size={14} />}
+                          onClick={async () => {
+                            setDecidingId(r.id);
+                            try {
+                              const res = await fetch(`/api/otisak/exams/${examId}/requests/${r.id}/decide`, {
+                                method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                                body: JSON.stringify({ decision: 'denied' }),
+                              });
+                              if (!res.ok) { const d = await res.json(); alert(d.error || 'Greska'); }
+                              else { setRequests((rs) => rs.filter((x) => x.id !== r.id)); }
+                            } finally { setDecidingId(null); }
+                          }}
+                        >
+                          {t('room.requests.deny')}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+
+              {/* TIMER ADJUSTMENT */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
+              >
+                <div className="flex items-center gap-3 mb-1">
+                  <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
+                    <TimerIcon size={16} className="text-accent" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[var(--text-primary)]">{t('room.timer.title')}</p>
+                    <p className="text-xs text-[var(--text-muted)]">{t('room.timer.desc')}</p>
+                  </div>
+                  <span className={`text-[11px] font-mono whitespace-nowrap ${extraSeconds === 0 ? 'text-[var(--text-muted)]' : extraSeconds > 0 ? 'text-success' : 'text-danger'}`}>
+                    {t('room.timer.currentExtra', { value: extraSeconds })}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {[
+                    { label: '−5', delta: -5 * 60, variant: 'danger' as const, icon: <Minus size={14} /> },
+                    { label: '−1', delta: -1 * 60, variant: 'danger' as const, icon: <Minus size={14} /> },
+                    { label: '+1', delta: +1 * 60, variant: 'primary' as const, icon: <Plus size={14} /> },
+                    { label: '+5', delta: +5 * 60, variant: 'primary' as const, icon: <Plus size={14} /> },
+                  ].map((b) => (
+                    <Button
+                      key={b.label}
+                      variant={b.variant}
+                      size="md"
+                      loading={adjusting}
+                      leftIcon={b.icon}
+                      onClick={async () => {
+                        setAdjusting(true);
+                        try {
+                          const res = await fetch(`/api/otisak/exams/${examId}/adjust-timer`, {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
+                            body: JSON.stringify({ delta_seconds: b.delta }),
+                          });
+                          if (!res.ok) {
+                            const d = await res.json().catch(() => ({}));
+                            toast.error(d.error || t('room.timer.failed'));
+                          } else {
+                            const d = await res.json();
+                            setExtraSeconds(Number(d.extra_seconds || 0));
+                            const minutes = b.delta / 60;
+                            toast.success(
+                              t(minutes > 0 ? 'room.timer.toast.added' : 'room.timer.toast.removed', { minutes: Math.abs(minutes) })
+                            );
+                          }
+                        } finally { setAdjusting(false); }
+                      }}
+                    >
+                      {b.label} {t('room.timer.minute')}
+                    </Button>
+                  ))}
+                </div>
+              </motion.div>
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

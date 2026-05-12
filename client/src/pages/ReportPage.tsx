@@ -8,6 +8,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { useLang } from '../components/LangProvider';
+import { ToggleCluster } from '../components/ToggleCluster';
 
 type ReportData = {
   exam: { id: string; title: string; subject_name: string | null; duration_minutes: number; pass_threshold: number };
@@ -66,7 +67,12 @@ export default function StudentReportPage() {
   }, [examId, userId, navigate]);
 
   if (loading || !data) {
-    return <div className="min-h-screen bg-[#070b14] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-blue-500" /></div>;
+    return (
+      <div className="min-h-screen bg-[#070b14] flex items-center justify-center">
+        <ToggleCluster variant="solid" position="fixed" />
+        <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+      </div>
+    );
   }
 
   const { exam, student, attempt, results, activity } = data;
@@ -87,10 +93,13 @@ export default function StudentReportPage() {
               <p className="text-xs text-gray-500">{exam.title}</p>
             </div>
           </div>
-          <a href={`/api/otisak/exams/${examId}/report/${userId}/pdf`}
-            className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">
-            <FileDown size={16} />PDF Izvestaj
-          </a>
+          <div className="flex items-center gap-3">
+            <ToggleCluster variant="solid" position="static" />
+            <a href={`/api/otisak/exams/${examId}/report/${userId}/pdf`}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">
+              <FileDown size={16} />PDF Izvestaj
+            </a>
+          </div>
         </div>
       </header>
 
