@@ -76,6 +76,7 @@ export function useExamSocket(
       ws = new WebSocket(url);
 
       ws.onopen = () => {
+        if (stopped) { try { ws?.close(); } catch { /* ignore */ } return; }
         attempt = 0;
         setConnected(true);
         ws?.send(JSON.stringify({ type: 'subscribe_exam', exam_id: examId }));
@@ -89,6 +90,10 @@ export function useExamSocket(
       };
 
       ws.onmessage = (msg) => {
+        // A message can arrive in the brief window between unmount and the
+        // socket actually closing. Skip dispatch so the handler doesn't fire
+        // on a tear-down consumer that may have already freed its state.
+        if (stopped) return;
         resetSilenceTimer();
         try {
           const data = JSON.parse(msg.data) as ExamWsEvent;
@@ -100,8 +105,8 @@ export function useExamSocket(
 
       ws.onclose = () => {
         if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
-        setConnected(false);
         if (stopped) return;
+        setConnected(false);
         attempt = Math.min(attempt + 1, 6);
         const delay = Math.min(15000, 500 * 2 ** attempt);
         reconnectTimer = setTimeout(open, delay);
@@ -119,7 +124,12 @@ export function useExamSocket(
       stopped = true;
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (silenceTimer) clearTimeout(silenceTimer);
-      if (ws && ws.readyState === WebSocket.OPEN) ws.close(1000, 'unmount');
+      // Close in any state but CLOSED/CLOSING. WebSocket.close() during CONNECTING
+      // is legal and aborts the handshake — the previous check missed that case
+      // and would leave the socket dangling until the browser timed it out.
+      if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
+        try { ws.close(1000, 'unmount'); } catch { /* ignore */ }
+      }
     };
   }, [examId]);
 
