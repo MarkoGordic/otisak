@@ -388,21 +388,41 @@ export function buildResultsTableHTML(args: {
 
 // Convenience: render an HTML page to a PDF buffer using a (possibly shared) Puppeteer
 // browser. Caller is responsible for closing the browser.
+//
+// Timeouts: setContent with `networkidle0` can hang if a remote asset (Google
+// Fonts CDN, in particular) is slow or blocked. Without explicit timeouts the
+// request handler that called us would wait indefinitely, holding a DB
+// connection and a chromium page until the client gives up. We cap each phase
+// so the worst case is "PDF fails for this student" rather than "the server is
+// stuck for that exam's exporters".
+const PUPPETEER_NAVIGATION_TIMEOUT_MS = 15_000;
+const PUPPETEER_PDF_TIMEOUT_MS = 30_000;
+
 export async function renderHtmlToPdf(html: string, browserPromise: Awaitable<import('puppeteer').Browser>, landscape = false): Promise<Buffer> {
   const browser = await browserPromise;
   const page = await browser.newPage();
+  // domcontentloaded is significantly more reliable than networkidle0 — fonts
+  // load from a CDN over the open internet and the previous `networkidle0`
+  // waited for *every* outbound request to settle. domcontentloaded fires when
+  // the inline HTML/CSS is parsed, which is enough for our report (no JS
+  // hydration, all styles inline).
+  page.setDefaultNavigationTimeout(PUPPETEER_NAVIGATION_TIMEOUT_MS);
+  page.setDefaultTimeout(PUPPETEER_NAVIGATION_TIMEOUT_MS);
   try {
     await page.emulateMediaType('screen');
-    await page.setContent(html, { waitUntil: 'networkidle0' });
+    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: PUPPETEER_NAVIGATION_TIMEOUT_MS });
     const pdf = await page.pdf({
       format: 'A4',
       landscape,
       printBackground: true,
       preferCSSPageSize: true,
       margin: { top: 0, bottom: 0, left: 0, right: 0 },
+      timeout: PUPPETEER_PDF_TIMEOUT_MS,
     });
     return Buffer.from(pdf);
   } finally {
-    await page.close();
+    // Always close the page — even if setContent / pdf throws, leaking pages
+    // would pile up inside the long-lived browser singleton.
+    await page.close().catch((err) => console.error('renderHtmlToPdf: page.close failed', err));
   }
 }

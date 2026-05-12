@@ -14,8 +14,8 @@ import practiceRoutes from './routes/practice';
 import questionsRoutes from './routes/questions';
 import historyRoutes from './routes/history';
 import { setupWebSocket } from './ws/events';
-import { startLiveStatsAggregator } from './ws/liveStatsAggregator';
-import { startExamExpiryWatcher } from './jobs/examExpiryWatcher';
+import { startLiveStatsAggregator, stopLiveStatsAggregator } from './ws/liveStatsAggregator';
+import { startExamExpiryWatcher, stopExamExpiryWatcher } from './jobs/examExpiryWatcher';
 import { ensureBootstrapAdmin } from './bootstrap';
 import { runMigrations } from './db/migrations';
 import { closePool } from './db/client';
@@ -154,6 +154,10 @@ async function start(): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
     console.log(`${signal} received; shutting down gracefully`);
+    // Stop background intervals first so they don't try to schedule queries
+    // mid-pool-drain.
+    stopExamExpiryWatcher();
+    stopLiveStatsAggregator();
     server.close((err) => {
       if (err) console.error('HTTP server close error:', err);
     });
