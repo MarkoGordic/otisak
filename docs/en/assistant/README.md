@@ -1,33 +1,34 @@
 # Assistant guide
 
-Assistants run exams for the subjects they've been assigned to. An assistant with zero assignments sees an empty `/manage` page — ask an admin to assign you to your subject(s) before doing anything else.
+Assistants run exams for the subjects they're assigned to. If you have no assignments, `/manage` is empty. Ask an admin to add you to your subject before doing anything else.
 
-## Tasks
+## Pages
 
-- [Building an exam](building-an-exam.md) — settings, question types, the question bank, JSON import.
-- [Running the live room](running-the-room.md) — the per-exam admin view: live progress, timer adjustments, lockdown, late-join requests.
-- [After the exam](after-the-exam.md) — closing the exam, exporting results, AI grading for open-text questions.
+- [Building an exam](building-an-exam.md). Settings, question types, the question bank, JSON import.
+- [Running the live room](running-the-room.md). Live progress, timer adjustments, lockdown, late-join requests.
+- [After the exam](after-the-exam.md). Closing the exam, exporting results, AI grading for open-text answers.
 
-## Lifecycle of an exam
+## Exam lifecycle
 
 ```
-draft  ──▶  scheduled  ──▶  active  ──▶  completed  ──▶  archived
+draft  →  scheduled  →  active  →  completed  →  archived
 ```
 
-- **draft** — editable. Add questions, tweak settings.
-- **scheduled** — optionally pinned to a date; students with an enrollment can see it on their dashboard.
-- **active** — students can join. From this point, edits should be avoided.
-- **completed** — irreversible: cannot be flipped back to active. Results are final.
-- **archived** — out of the main listing.
+- **draft**. Editable. Add questions, change settings.
+- **scheduled**. Optionally pinned to a date. Enrolled students see it on their dashboard.
+- **active**. Students can join. Avoid edits from this point on.
+- **completed**. Final. The database blocks any move back to active.
+- **archived**. Hidden from the main list.
 
-The `completed` → `active` transition is blocked at the DB layer specifically — no UI button or stray API call can undo a finalized exam.
+The `completed` to `active` transition is blocked at the DB layer. No UI button or stray API call can undo a finished exam.
 
-## Two creation paths
+## Two ways to create an exam
 
-1. **Build by hand** — `/manage` → `Nov ispit` → add questions one at a time via `/manage/:id/edit`.
-2. **Import JSON** — `/manage` → `Uvezi JSON`. Same shape as the export endpoint. Useful for reusing last year's exam or moving between environments. The JSON's `subject_name` is matched case-insensitively against your assigned subjects.
+1. **By hand**. `/manage`, **Nov ispit**, then add questions on `/manage/:id/edit`.
+2. **JSON import**. `/manage`, **Uvezi JSON**. Same shape as the export endpoint. Good for reusing last year's exam or moving between environments. The JSON `subject_name` is matched case-insensitively against one of your assigned subjects.
 
-## Question bank vs. inline questions
+## Bank questions or inline questions
 
-- An exam can hold its own inline questions (what `/manage/:id/edit` shows by default).
-- Or it can be a **bank-backed** exam: it pulls N questions from the bank, filtered by tag rules, generated freshly per attempt. See [`building-an-exam.md`](building-an-exam.md) for when to choose which.
+Inline questions live on the exam itself. The `/manage/:id/edit` view shows them by default.
+
+Bank-backed exams pull N questions from the bank using tag rules. The pool is generated fresh for each attempt. See [`building-an-exam.md`](building-an-exam.md) for when to choose which.

@@ -2,32 +2,37 @@
 
 ## Logging in
 
-You should have received your index number and an initial password from your assistant. Log in at the main URL with those. The first thing the system asks you to do — if your account was bulk-imported — is change that initial password from your profile.
+Your assistant gave you an index number and a starting password. Log in on the main page with those.
 
-## Two ways to enter an exam
+If your account was created via CSV import, change that starting password from your profile after first login.
 
-1. **From the dashboard** — exams you're enrolled in show up under the **Ispiti** tab. Click `Uđi` once the exam is active and the timer is running.
-2. **By index number** — for public real exams, use the `Pristupi po indeksu` flow on the login page. You enter your index number and the exam ID provided by your assistant. No prior enrollment needed.
+## Two ways to open an exam
 
-## Taking an exam
+1. **From the dashboard.** Enrolled exams show up under **Ispiti**. Click `Uđi` once the exam is active.
+2. **By index number.** For public real exams, use `Pristupi po indeksu` on the login page. Type index + exam ID. No enrollment needed.
 
-- **Timer** — top of the screen. Turns red under 60 s. The clock pauses if the assistant triggers a lockdown.
-- **Navigation** — left/right between questions, or the question grid on the side. Green = answered, gray = unanswered.
-- **Auto-save** — answers are saved every 30 seconds and on every click. You can refresh or briefly lose connection without losing progress.
-- **Submit** — final submit only works from the last question. If you accidentally close the tab, your answers up to the last save are still recorded; reopening the exam will resume your attempt.
-- **Scratch notes** — the side panel is a private scratchpad. It is **not** submitted with your answers. Use it for calculations.
+## During the exam
 
-## Practice mode
+| Thing | Notes |
+|---|---|
+| Timer | Top of screen. Red under 60s. Pauses during lockdown. |
+| Navigation | Arrows between questions or the side grid. Green = answered, gray = not. |
+| Auto-save | Every 30s and on every click. Refresh-safe. |
+| Submit | Only from the last question. Tab closes by accident: answers up to last save are kept. Reopen to resume. |
+| Notes | Side panel. Private scratchpad. Not submitted. |
 
-The **Vežba** tab on the dashboard always shows the built-in demo exam, plus any public practice exam your assistants have published. Practice attempts are scored but don't count toward anything — they're for getting comfortable with the format.
+## Practice
+
+The **Vežba** tab shows the built-in demo plus any public practice exam your assistants published. Practice attempts are scored but don't count. Use them to learn the format.
 
 ## Results
 
-- **Real exams** — visible after the assistant closes the exam, not the moment you submit. You'll see your score, pass/fail, and (if `Pregled odgovora` is enabled for the exam) which questions you got wrong with the correct answer revealed.
-- **Practice exams** — visible immediately after you submit.
+Real exams: visible only after the assistant closes the exam. You'll see score, pass/fail, and (if **Pregled odgovora** is on) which questions you missed and the correct answer.
+
+Practice exams: visible immediately after submit.
 
 ## Trouble during an exam
 
-- **"Lockdown" red screen** — the assistant has paused the exam (network issue, room incident). Your timer is paused too. Wait for the message to disappear; don't refresh.
-- **"You missed the start"** — the exam timer started before you joined. There's a `Zahtev za naknadan ulazak` button — submitting it puts your name in the assistant's queue; they can approve and start your timer.
-- **Lost connection** — the page will reconnect automatically and resync your progress. If it doesn't within ~30 s, refresh the page; your saved answers are still there.
+- **Red lockdown screen.** The assistant paused the exam. Your timer is paused. Wait, don't refresh.
+- **You missed the start.** Click `Zahtev za naknadan ulazak`. Goes to the assistant's queue. They approve and start your timer.
+- **Lost connection.** Page auto-reconnects. If not within 30s, refresh. Saved answers stay.

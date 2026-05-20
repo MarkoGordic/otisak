@@ -487,7 +487,7 @@ const sr: Record<I18nKey, string> = {
   'room.finishAll': 'Završi za sve',
   'room.finishAll.title': 'Završi ispit za sve studente?',
   'room.finishAll.body': 'Ovo zaustavlja tajmer i automatski predaje sve nepredate radove. Bodovi se računaju iz već sačuvanih odgovora.',
-  'room.finishAll.warning': 'Akcija je trajna — zatvoreni ispit se ne može ponovo otvoriti.',
+  'room.finishAll.warning': 'Akcija je trajna. Zatvoreni ispit se ne može ponovo otvoriti.',
   'room.finishAll.redirectLabel': 'Vrati studente na početnu stranicu',
   'room.finishAll.redirectHint': 'Studenti dobijaju kratku poruku i bivaju automatski preusmereni nazad. Bez ove opcije idu na ekran sa rezultatima.',
   'room.finishAll.confirm': 'Da, završi za sve',

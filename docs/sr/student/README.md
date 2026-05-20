@@ -2,32 +2,37 @@
 
 ## Prijava
 
-Trebalo bi da si dobio/la broj indeksa i početnu lozinku od svog asistenta. Loguj se na glavni URL sa tim podacima. Prvo što sistem traži — ako ti je nalog kreiran bulk import-om — jeste da promeniš tu početnu lozinku iz svog profila.
+Asistent ti je dao broj indeksa i početnu lozinku. Loguj se na glavnu stranicu.
+
+Ako je nalog kreiran kroz CSV import, posle prve prijave promeni početnu lozinku iz profila.
 
 ## Dva načina za pristup ispitu
 
-1. **Sa Dashboard-a** — ispiti za koje si upisan/a se pojavljuju u tabu **Ispiti**. Klikni `Uđi` kad je ispit aktivan i tajmer je krenuo.
-2. **Preko broja indeksa** — za javne prave ispite koristi `Pristupi po indeksu` opciju na login stranici. Uneseš broj indeksa i ID ispita koji ti je dao asistent. Bez prethodnog upisa.
+1. **Sa Dashboard-a.** Upisani ispiti su u tabu **Ispiti**. Klikni `Uđi` kad je ispit aktivan.
+2. **Preko indeksa.** Za javne prave ispite koristi `Pristupi po indeksu` na login stranici. Ukucaj indeks i ID ispita. Bez upisa.
 
-## Polaganje ispita
+## Tokom ispita
 
-- **Tajmer** — vrh ekrana. Postaje crven ispod 60 s. Sat se pauzira ako asistent aktivira lockdown.
-- **Navigacija** — levo/desno između pitanja ili kroz mrežu pitanja sa strane. Zeleno = odgovoreno, sivo = neodgovoreno.
-- **Auto-save** — odgovori se čuvaju svakih 30 sekundi i pri svakom kliku. Možeš refresh-ovati ili nakratko izgubiti vezu bez gubitka napretka.
-- **Predaja** — finalna predaja radi samo sa poslednjeg pitanja. Ako slučajno zatvoriš tab, tvoji odgovori do poslednjeg snimanja su sačuvani; otvaranjem ispita opet nastavljaš pokušaj.
-- **Beleške** — bočni panel je tvoj privatni notes. Ne predaje se zajedno sa odgovorima. Koristi za računanje.
+| Stvar | Napomena |
+|---|---|
+| Tajmer | Vrh ekrana. Crven ispod 60s. Pauzira se za vreme lockdown-a. |
+| Navigacija | Strelice ili mreža sa strane. Zeleno = odgovoreno, sivo = ne. |
+| Auto-save | Svakih 30s i na svaki klik. Refresh-safe. |
+| Predaja | Radi samo sa poslednjeg pitanja. Tab se zatvori slučajno: odgovori do poslednjeg snimanja su sačuvani. Otvori ispit ponovo da nastaviš. |
+| Beleške | Bočni panel. Privatni notes. Ne predaje se. |
 
-## Režim vežbe
+## Vežba
 
-Tab **Vežba** na Dashboard-u uvek pokazuje ugrađen demo ispit, plus bilo koji javni vežba ispit koji su tvoji asistenti objavili. Pokušaji na vežbi se boduju ali ne računaju se nigde — služe da se navikneš na format.
+**Vežba** tab pokazuje ugrađen demo plus svaki javni vežba ispit koji su asistenti objavili. Vežba pokušaji se boduju ali ne računaju se nigde. Koristi ih za upoznavanje sa formatom.
 
 ## Rezultati
 
-- **Pravi ispiti** — vidljivi tek kad asistent zatvori ispit, ne odmah po predaji. Vidiš svoj rezultat, prolaz/pad i (ako je `Pregled odgovora` uključen za taj ispit) koja pitanja si pogrešio/la, sa otkrivenim tačnim odgovorom.
-- **Vežba ispiti** — vidljivi odmah po predaji.
+Pravi ispiti: vidljivi tek kad asistent zatvori ispit. Vidiš rezultat, prolaz ili pad, i (ako je **Pregled odgovora** uključen) koja pitanja si pogrešio/la i tačan odgovor.
+
+Vežba ispiti: vidljivi odmah po predaji.
 
 ## Problemi tokom ispita
 
-- **Crveni "Lockdown" ekran** — asistent je pauzirao ispit (problem sa mrežom, incident u sali). Tajmer ti je takođe pauziran. Sačekaj da poruka nestane, nemoj da refresh-uješ.
-- **"Propustio/la si početak"** — tajmer ispita je krenuo pre nego što si pristupio/la. Postoji dugme `Zahtev za naknadan ulazak` — slanjem ga stavljaš svoje ime u asistentov red za odobravanje; oni mogu da odobre i pokrenu tvoj tajmer.
-- **Izgubljena veza** — stranica će automatski da se rekonektuje i sinhronizuje napredak. Ako ne uradi za ~30 s, refresh stranice; tvoji sačuvani odgovori su i dalje tu.
+- **Crveni lockdown ekran.** Asistent je pauzirao ispit. Tajmer ti je pauziran. Sačekaj, ne refresh-uj.
+- **Propustio/la si početak.** Klikni `Zahtev za naknadan ulazak`. Ide u red asistenta. Oni odobravaju i pokreću ti tajmer.
+- **Izgubljena veza.** Stranica se automatski rekonektuje. Ako ne za 30s, refresh. Sačuvani odgovori ostaju.

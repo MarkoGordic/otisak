@@ -483,7 +483,7 @@ const en = {
   'room.finishAll': 'Finish for all',
   'room.finishAll.title': 'Finish exam for all students?',
   'room.finishAll.body': 'This stops the timer and auto-submits every open attempt. Points are computed from already-saved answers.',
-  'room.finishAll.warning': 'This is permanent — a finished exam cannot be reopened.',
+  'room.finishAll.warning': 'This is permanent. A finished exam cannot be reopened.',
   'room.finishAll.redirectLabel': 'Send students back to the home page',
   'room.finishAll.redirectHint': 'Students see a brief notice and get bounced back. Without this option they land on the results screen.',
   'room.finishAll.confirm': 'Yes, finish for all',

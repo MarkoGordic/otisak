@@ -1,11 +1,11 @@
-# OTISAK — Question authoring guide
+# OTISAK Question authoring guide
 
 This document describes the data model and JSON shape for **bank questions** and **exam questions** in OTISAK so that humans, scripts, or AI assistants can author them consistently.
 
 There are two storage areas:
 
-- **Question Bank** (`otisak_question_bank`) — reusable questions tagged per subject. Used to seed exams via `tag_rules` or copied directly into an exam.
-- **Exam questions** (`otisak_questions`) — questions attached to a specific exam (either copied from the bank or authored inline).
+- **Question Bank** (`otisak_question_bank`). Reusable questions tagged per subject. Used to seed exams via `tag_rules` or copied directly into an exam.
+- **Exam questions** (`otisak_questions`). Questions attached to a specific exam (either copied from the bank or authored inline).
 
 The bank UI lives at `/questions`. Inline exam questions are managed under `/manage/<exam_id>/questions`.
 
@@ -21,7 +21,7 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 | `code` | Multiple-choice with a code snippet (syntax-highlighted). |
 | `image` | Multiple-choice with an image (uploaded or external URL). |
 | `open_text` | Free-text answer. Optional AI grading. |
-| `ordering` | Drag-and-drop ordering of items. *(exam-only — bank UI does not yet expose)* |
+| `ordering` | Drag-and-drop ordering of items. *(exam-only; bank UI does not yet expose)* |
 | `matching` | Match left items to right items. *(exam-only)* |
 | `fill_blank` | Fill-in-the-blanks with multiple positions. *(exam-only)* |
 
@@ -31,7 +31,7 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 
 ```jsonc
 {
-  "subject_id": "uuid",         // bank only — links to a subject
+  "subject_id": "uuid",         // bank only: links to a subject
   "type": "text|code|image|open_text|ordering|matching|fill_blank",
   "text": "Question prompt shown to the student",
   "points": 2,                   // integer ≥ 0
@@ -44,7 +44,7 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 
 ---
 
-## `text` — multiple choice
+## `text`: multiple choice
 
 ```jsonc
 {
@@ -66,13 +66,13 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
   - `true` → student sees checkboxes and can pick any subset.
   - `false` (or omitted with only 1 `is_correct: true`) → student sees radios.
   - If omitted entirely, the server falls back to "any question with 2+ `is_correct: true` answers becomes multi". Old fixtures keep working but **new JSON should always be explicit** so single-correct questions with one is_correct stay single even after an answer list edit.
-- Do **not** add `(više tačnih odgovora)` (or any "select all that apply" hint) to `text` — the UI already shows the "Označite sve tačne odgovore" prompt when `multi_answer` is true.
+- Do **not** add `(više tačnih odgovora)` (or any "select all that apply" hint) to `text`. The UI already shows the "Označite sve tačne odgovore" prompt when `multi_answer` is true.
 - Grading honours `partial_scoring` on the exam.
 - `position` is optional; if omitted, the array order is used.
 
 ---
 
-## `code` — multiple choice with code snippet
+## `code`: multiple choice with code snippet
 
 ```jsonc
 {
@@ -94,7 +94,7 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 
 ---
 
-## `image` — multiple choice with image
+## `image`: multiple choice with image
 
 ```jsonc
 {
@@ -115,7 +115,7 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 
 ---
 
-## `open_text` — free-text (AI-graded)
+## `open_text`: free-text (AI-graded)
 
 ```jsonc
 {
@@ -209,7 +209,7 @@ DELETE /api/otisak/exams/<exam_id>/questions?id=<uuid>
 
 When asking another AI to produce questions, prompt with this template:
 
-> Generate `N` `<type>` questions on `<subject>`. Output a JSON array of objects matching the OTISAK question shape (see `docs/QUESTIONS.md`). Use `tags` for sub-topics. Points should be `<P>` per question. For multi-select use multiple `is_correct: true` entries. Avoid culturally-specific or copyrighted material. Do not include any explanatory prose — just the JSON array.
+> Generate `N` `<type>` questions on `<subject>`. Output a JSON array of objects matching the OTISAK question shape (see `docs/QUESTIONS.md`). Use `tags` for sub-topics. Points should be `<P>` per question. For multi-select use multiple `is_correct: true` entries. Avoid culturally-specific or copyrighted material. Do not include any explanatory prose, just the JSON array.
 
 Then verify each entry passes a quick sanity check:
 
@@ -230,6 +230,6 @@ node -e '
 
 - Keep `text` short and specific. Use code snippets for the technical detail.
 - Tag every question. Tags are how the question bank stays useful at scale.
-- Aim for distractors (wrong answers) that are *plausible*, not absurd — that's where learning happens.
+- Aim for distractors (wrong answers) that are *plausible*, not absurd. That's where learning happens.
 - Set `partial_scoring` on the exam if you want fractional credit on multi-select / ordering / matching / fill_blank.
-- Negative points (`negative_points_*` on the exam) discourage wild guessing — opt in per exam.
+- Negative points (`negative_points_*` on the exam) discourage wild guessing. Opt in per exam.

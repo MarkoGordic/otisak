@@ -1,7 +1,7 @@
 {
   "version": 1,
   "exam": {
-    "title": "Šaljivi test — crtani junaci",
+    "title": "Šaljivi test: crtani junaci",
     "description": "Sedam pitanja o najpoznatijim crtanim likovima. Mešavina single-select i multi-select.",
     "duration_minutes": 10,
     "pass_threshold": 50,
