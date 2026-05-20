@@ -106,4 +106,6 @@ otisak/
 
 ## License
 
-Private.
+MIT — see [`LICENSE`](LICENSE). All runtime dependencies are MIT-compatible
+(MIT / ISC / Apache-2.0 / BSD / 0BSD / BlueOak-1.0.0); their license notices
+ship inside `node_modules` in the runtime image.
