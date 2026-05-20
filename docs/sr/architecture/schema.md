@@ -1,6 +1,6 @@
 # Šema baze
 
-Sve tabele su definisane u `init.sql`. Migracije u `server/src/db/migrations.ts` `ALTER`-uju preko toga.
+Sve tabele su definisane u `init.sql`. Migracije u `server/src/db/migrations.ts` rade `ALTER` preko toga.
 
 ## Identitet
 
@@ -8,32 +8,32 @@ Sve tabele su definisane u `init.sql`. Migracije u `server/src/db/migrations.ts`
 
 | Kolona | Napomena |
 |---|---|
-| `id` | UUID PK. |
+| `id` | UUID, primarni ključ. |
 | `email` | UNIQUE NOT NULL. |
-| `password_hash` | Bcrypt. Rundi 10 (CSV) ili 12 (ručno). |
-| `name`, `index_number` | Nullable. |
+| `password_hash` | Bcrypt. Rundi 10 (uvoz iz CSV-a) ili 12 (ručno). |
+| `name`, `index_number` | Mogu biti `NULL`. |
 | `role` | `admin`, `assistant`, `student`. |
-| `is_active` | Soft delete. `requireAuth` odbija neaktivne. |
-| `last_login_at` | Ažurira se pri loginu. |
+| `is_active` | Mekano brisanje. `requireAuth` odbija neaktivne. |
+| `last_login_at` | Ažurira se pri prijavi. |
 
 Indeksi: `email`, `role`.
 
 ### `subject_assignments`
 
-Povezuje asistente sa predmetima. Unique `(user_id, subject_id)`.
+Povezuje asistente sa predmetima. Jedinstven par `(user_id, subject_id)`.
 
 | Kolona | Napomena |
 |---|---|
-| `user_id` | FK users. |
-| `subject_id` | FK otisak_subjects. |
-| `role` | `professor` ili `assistant`. UI danas vodi samo `assistant`. |
-| `assigned_by` | FK users. Audit. |
+| `user_id` | Strani ključ na `users`. |
+| `subject_id` | Strani ključ na `otisak_subjects`. |
+| `role` | `professor` ili `assistant`. Sučelje danas koristi samo `assistant`. |
+| `assigned_by` | Strani ključ na `users`. Trag o dodeli. |
 
 ## Sadržaj ispita
 
 ### `otisak_subjects`
 
-Polja: `name`, `code` (kratki id na karticama ispita), `description`.
+Polja: `name`, `code` (kratki identifikator na karticama ispita), `description`.
 
 ### `otisak_exams`
 
@@ -41,54 +41,54 @@ Velika tabela. Glavne kolone:
 
 | Kolona | Napomena |
 |---|---|
-| `title` | Slobodan tekst. Koristi se kao dedupe ključ od `ensureDemoExam`. |
-| `subject_id` | Obavezno za nove ispite. Stari redovi mogu biti null. |
+| `title` | Slobodan tekst. `ensureDemoExam` ga koristi za prepoznavanje duplikata. |
+| `subject_id` | Obavezno za nove ispite. Stari redovi mogu biti `NULL`. |
 | `status` | `draft`, `scheduled`, `active`, `completed`, `archived`. |
 | `exam_mode` | `real` ili `practice`. |
-| `duration_minutes`, `pass_threshold`, `max_points` | Standardno. |
-| `allow_review`, `shuffle_questions`, `shuffle_answers`, `partial_scoring` | Toggleri. |
-| `self_service`, `is_public` | Vidljivost vežbe. Practice default oba true. |
-| `negative_points_enabled/value/threshold` | Penalty config. |
-| `uses_question_bank` | Ako true, pitanja dolaze iz banke kroz `otisak_exam_tag_rules`. |
-| `parent_exam_id` | Koristi se za vežbe instance. |
-| `exam_started_at` | Null dok se ne klikne **Pokreni tajmer**. |
-| `extra_seconds` | Promene tajmera uživo. |
+| `duration_minutes`, `pass_threshold`, `max_points` | Standardna podešavanja. |
+| `allow_review`, `shuffle_questions`, `shuffle_answers`, `partial_scoring` | Prekidači. |
+| `self_service`, `is_public` | Vidljivost vežbe. Vežba podrazumeva oba `true`. |
+| `negative_points_enabled/value/threshold` | Podešavanja penala. |
+| `uses_question_bank` | Ako je `true`, pitanja stižu iz banke kroz `otisak_exam_tag_rules`. |
+| `parent_exam_id` | Koristi se za vežba primerke. |
+| `exam_started_at` | `NULL` dok asistent ne klikne **Pokreni tajmer**. |
+| `extra_seconds` | Izmene vremena uživo. |
 
 Indeksi: `status`, `subject_id`, `parent_exam_id`.
 
-Blokada `completed`/`archived` u `active` živi u `updateOtisakExamStatus` u DB funkciji, ne kao constraint.
+Zabrana prelaska `completed`/`archived` u `active` živi u `updateOtisakExamStatus` u DB sloju, ne kao ograničenje u bazi.
 
 ### `otisak_questions`
 
-Inline pitanja.
+Pitanja vezana za sam ispit.
 
 | Kolona | Napomena |
 |---|---|
-| `exam_id` | Cascade. |
+| `exam_id` | Lančano brisanje. |
 | `type` | `text`, `code`, `image`, `open_text`, `ordering`, `matching`, `fill_blank`. |
-| `text` | Max 8000 karaktera. |
-| `content` | Type-specific payload. `code`: JSON `{ snippet, language }`. `image`: URL ili data URL. |
-| `points` | Numeric. CHECK `>= 0`. |
+| `text` | Najviše 8000 znakova. |
+| `content` | Sadržaj zavisan od tipa. `code`: JSON `{ snippet, language }`. `image`: URL ili data URL. |
+| `points` | Broj. CHECK `>= 0`. |
 | `position` | Redosled unutar ispita. |
-| `multi_answer` | Autoritativan flag. Ne izvodi se. |
-| `bank_question_id` | Postavljen ako je kopirano iz banke. |
+| `multi_answer` | Merodavna oznaka. Ne izvodi se iz drugih polja. |
+| `bank_question_id` | Postavljen ako je pitanje kopija iz banke. |
 
-Field-length caps takođe enforced u `createOtisakQuestion`.
+Ograničenja dužine polja se proveravaju i u `createOtisakQuestion`.
 
 ### `otisak_answers`
 
 | Kolona | Napomena |
 |---|---|
-| `question_id` | Cascade. |
-| `text`, `is_correct`, `position` | Standardno. Više `is_correct=true` dozvoljeno. |
+| `question_id` | Lančano brisanje. |
+| `text`, `is_correct`, `position` | Standardno. Više `is_correct=true` je dozvoljeno. |
 
-Za `open_text`: nema redova. Za `ordering`: redosled u `position`, `is_correct` uvek true.
+Za `open_text`: nema redova. Za `ordering`: redosled je u `position`, `is_correct` je uvek `true`.
 
 ## Banka pitanja
 
-`otisak_question_bank` ogledalo `otisak_questions` ali vezano za predmet sa `tags TEXT[]` nizom (GIN indeksiranim). `otisak_question_bank_answers` ogledalo `otisak_answers`. `otisak_exam_tag_rules` povezuje bank-backed ispit sa bankom kroz tag pravila.
+`otisak_question_bank` je istog oblika kao `otisak_questions`, ali je vezana za predmet i ima niz `tags TEXT[]` (indeksiran GIN-om). `otisak_question_bank_answers` prati `otisak_answers`. `otisak_exam_tag_rules` povezuje ispit iz banke sa bankom kroz pravila po oznakama.
 
-Kad student krene praksu bank-backed ispita, server materijalizuje dete-ispit pod `otisak_exams` (`parent_exam_id` postavljen) i kopira N pitanja iz banke u `otisak_questions`.
+Kad student krene vežbu ispita iz banke, server pravi dete-ispit u `otisak_exams` (sa popunjenim `parent_exam_id`) i kopira N pitanja iz banke u `otisak_questions`.
 
 ## Pokušaji
 
@@ -96,57 +96,57 @@ Kad student krene praksu bank-backed ispita, server materijalizuje dete-ispit po
 
 | Kolona | Napomena |
 |---|---|
-| `exam_id`, `user_id` | Cascade. |
-| `started_at`, `finished_at` | Timestamps. |
-| `submitted` | True posle predaje ili `finish-all`. |
-| `total_points`, `max_points` | Računato pri predaji. |
-| `time_spent_seconds` | Iz activity intervala. |
+| `exam_id`, `user_id` | Lančano brisanje. |
+| `started_at`, `finished_at` | Vremenske oznake. |
+| `submitted` | `true` posle predaje ili `finish-all`. |
+| `total_points`, `max_points` | Računaju se pri predaji. |
+| `time_spent_seconds` | Iz dnevnika aktivnosti. |
 | `ai_grading_status` | `pending`, `grading`, `graded`, `partial`. |
-| `is_practice` | True za dete-ispite vežbe. |
-| `shuffle_seed` | Per-attempt. Stabilan preko refresh-a. |
+| `is_practice` | `true` za vežba dete-ispite. |
+| `shuffle_seed` | Po pokušaju. Stabilno pri osvežavanju strane. |
 
-Nema unique `(exam_id, user_id)`. Više pokušaja na vežba ispitu je normalno (svako dete ima svoj red).
+Nema jedinstvenog para `(exam_id, user_id)`. Više pokušaja vežba ispita je očekivano (svako dete ima svoj red).
 
 Indeksi: `exam_id`, `user_id`, `(exam_id, started_at DESC)`.
 
 ### `otisak_attempt_answers`
 
-Unique `(attempt_id, question_id)`. Snimanje je upsert.
+Jedinstven par `(attempt_id, question_id)`. Snimanje je upsert.
 
 | Kolona | Napomena |
 |---|---|
-| `selected_answer_id` | Single-answer tipovi. |
-| `selected_answer_ids` | UUID[]. Multi-answer. |
-| `text_answer` | Open-text. |
+| `selected_answer_id` | Tipovi sa jednim odgovorom. |
+| `selected_answer_ids` | `UUID[]`. Tipovi sa više odgovora. |
+| `text_answer` | Otvoreni tekst. |
 | `points_awarded` | Posle ocenjivanja. |
-| `ai_grading_status`, `ai_feedback`, `ai_graded_at` | AI-ocenjeni odgovori. |
+| `ai_grading_status`, `ai_feedback`, `ai_graded_at` | Za AI-ocenjena pitanja. |
 
-## Uživo ispit
+## Tokom ispita
 
 ### `exam_lockdowns`
 
-`is_active=true` kad je pauzirano. Suma `ended_at - started_at` preko zatvorenih redova plus `now - started_at` za bilo koji otvoren = ukupna pauza. Pauza se dodaje nazad na svaki studentov deadline.
+`is_active=true` dok je pauzirano. Zbir `ended_at - started_at` po zatvorenim redovima plus `now - started_at` za otvoren red daje ukupnu pauzu. Pauza se dodaje na svaki studentov rok.
 
 ### `exam_requests`
 
-Red zahteva studenata koji čekaju asistenta. Danas samo `late_join`. `type` i `payload` su generic. Unique partial indeks: jedan pending zahtev tog tipa po `(exam, user)`.
+Red zahteva studenata koji čekaju asistenta. Danas se koristi samo `late_join`. `type` i `payload` su uopšteni. Delimičan jedinstven indeks: jedan zahtev na čekanju datog tipa po paru `(exam, user)`.
 
 ### `otisak_exam_events`, `exam_activity_log`
 
-- `otisak_exam_events`. Grubo: ispit krenuo, student ušao, lockdown se menja.
-- `exam_activity_log`. Fino per-attempt: pitanje viđeno, odgovor promenjen, save trigerovan. Koristi se za per-student izveštaj.
+- `otisak_exam_events`. Krupni događaji: ispit krenuo, student ušao, zabrana rada se promenila.
+- `exam_activity_log`. Sitni događaji po pokušaju: pitanje pregledano, odgovor promenjen, snimanje pokrenuto. Iz ovoga se pravi izveštaj po studentu.
 
 ## Podešavanja i meta
 
-- `app_settings`. Key-value. Danas samo `practice_mode_enabled`. Vidi [`../admin/settings.md`](../admin/settings.md).
-- `migrations`. Jedan red po primenjenoj migraciji. Informativan.
+- `app_settings`. Parovi ključ–vrednost. Danas se koristi samo `practice_mode_enabled`. Vidi [`../admin/settings.md`](../admin/settings.md).
+- `migrations`. Jedan red po primenjenoj migraciji. Informativno.
 
-## Kaskade
+## Lančana brisanja
 
-- Brisanje korisnika: kaskada na enrollments, attempts, AI ključeve.
-- Brisanje predmeta: kaskada na ispite, banka pitanja, dodele.
-- Brisanje ispita: kaskada na pitanja, pokušaje, lockdown, zahteve, aktivnost.
+- Brisanje korisnika: lančano brisanje upisa, pokušaja, AI ključeva.
+- Brisanje predmeta: lančano brisanje ispita, pitanja iz banke, dodela.
+- Brisanje ispita: lančano brisanje pitanja, pokušaja, zabrana rada, zahteva, aktivnosti.
 
-Hard-delete sa kaskadama je namerno. Soft-delete bi naduvao tabele.
+Tvrdo brisanje sa lančanim je namerno. Mekano brisanje bi naduvalo tabele.
 
-Za istoriju obrisanog ispita: eksportuj ZIP rezultata prvo.
+Za istoriju obrisanog ispita: pre brisanja izvezi ZIP rezultata.

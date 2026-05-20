@@ -1,72 +1,72 @@
 # Pravljenje ispita
 
-Importuješ iz JSON-a? Skoči na [JSON import](#json-import).
+Uvoziš iz JSON-a? Pređi na [Uvoz iz JSON-a](#uvoz-iz-json-a).
 
-## Kreiranje
+## Pravljenje
 
 `/manage`, **Nov ispit**. Polja:
 
-- **Naslov**. Studenti vide.
-- **Predmet**. Obavezno. Dropdown pokazuje tvoje dodeljene predmete. Admin vidi sve.
-- **Trajanje**. Minuti. Default 60.
-- **Mod**. `real` ili `practice`. Practice default `self_service = true` i `is_public = true`. Real default oba off.
+- **Naslov**. Studenti ga vide.
+- **Predmet**. Obavezno. Padajući meni pokazuje tvoje dodeljene predmete. Admin vidi sve.
+- **Trajanje**. U minutima. Podrazumevano 60.
+- **Režim**. `real` ili `practice`. Vežba podrazumeva `self_service = true` i `is_public = true`. Pravi ispit ima oba isključena.
 
 Čuva se kao `draft`.
 
-## Panel podešavanja
+## Panel sa podešavanjima
 
-`/manage/:id/edit` otvara editor. Podešavanja su pri vrhu.
+`/manage/:id/edit` otvara uređivač. Podešavanja su pri vrhu.
 
 | Podešavanje | Efekat |
 |---|---|
-| Naslov | Može da se menja dok ispit nije active. |
+| Naslov | Može da se menja dok ispit nije aktivan. |
 | Opis | Prikazuje se na ekranu za pristup. |
-| Trajanje (min) | Dužina tajmera. |
-| Prag prolaza (%) | Označava prolaz ili pad. Ne blokira predaju. |
-| Mod | `real` ili `practice`. Promena okreće `self_service` i `is_public` da se slažu. |
+| Trajanje (min) | Dužina trajanja. |
+| Prag prolaza (%) | Označava prolaz ili pad. Ne sprečava predaju. |
+| Režim | `real` ili `practice`. Promena obrće i `self_service` i `is_public` tako da se slažu. |
 | Pregled odgovora | Studenti vide tačne odgovore na ekranu rezultata posle zatvaranja ispita. |
-| Promešaj pitanja | Nasumičan redosled po pokušaju. Seedovano da refresh ne meša ponovo. |
-| Promešaj odgovore | Nasumičan redosled opcija unutar pitanja. Isti seed. |
-| Parcijalno ocenjivanje | Multi-correct pitanja dobijaju proporcionalne poene umesto sve-ili-ništa. |
+| Promešaj pitanja | Nasumičan redosled po pokušaju. Seme je stabilno, pa osvežavanje ne meša ponovo. |
+| Promešaj odgovore | Nasumičan redosled opcija unutar pitanja. Isto seme. |
+| Parcijalno ocenjivanje | Pitanja sa više tačnih odgovora dobijaju srazmeran broj poena umesto sve-ili-ništa. |
 | Negativni poeni | Vidi ispod. |
 
-**Sačuvaj podešavanja** čuva promenu.
+**Sačuvaj podešavanja** zapisuje promenu.
 
 ### Negativni poeni
 
-Off po default-u. Kad je on, posle `negative_points_threshold` pogrešnih odgovora svaki sledeći pogrešan oduzima `negative_points_value`. Ukupno nikad ne pada ispod nule.
+Podrazumevano isključeno. Kad je uključeno, posle `negative_points_threshold` pogrešnih odgovora svaki sledeći pogrešan oduzima `negative_points_value`. Ukupno nikad ne pada ispod nule.
 
-Primer: threshold 1, vrednost 0.5. Prvi pogrešan je besplatan. Svaki sledeći košta 0.5.
+Primer: prag 1, vrednost 0.5. Prvi pogrešan je besplatan. Svaki sledeći košta 0.5.
 
 ## Tipovi pitanja
 
-Sedam tipova. Prva tri su uobičajena:
+Sedam tipova. Prva tri se najčešće koriste:
 
 | Tip | Upotreba |
 |---|---|
-| `text` | Multiple choice. Toggle `multi_answer` za checkbox-ove. |
-| `code` | Multiple choice sa syntax-highlighted snippet-om. Bira se jezik. |
-| `image` | Multiple choice sa slikom (fajl ili URL). |
-| `open_text` | Slobodan tekst. AI-ocenjivanje ako napišeš instrukcije; inače ručno. |
-| `ordering` | Student vuče stavke u tačan redosled. |
-| `matching` | Spajanje stavki levo sa desno. |
-| `fill_blank` | Tekst pitanja sa `{{1}}`, `{{2}}` placeholder-ima. Student kuca svaki. |
+| `text` | Više ponuđenih odgovora. Uključi `multi_answer` za polja za štikliranje. |
+| `code` | Više ponuđenih odgovora uz isečak koda sa istaknutom sintaksom. Bira se jezik. |
+| `image` | Više ponuđenih odgovora uz sliku (fajl ili URL). |
+| `open_text` | Slobodan tekst. AI ocenjuje ako napišeš uputstvo za ocenjivanje; inače ručno. |
+| `ordering` | Student prevlači stavke u tačan redosled. |
+| `matching` | Spajanje stavki sa leve i desne strane. |
+| `fill_blank` | Tekst pitanja sa mestima `{{1}}`, `{{2}}`. Student upisuje svako. |
 
-Poslednja tri rade ali im je editor grublji. Testiraj attempt flow pre nego što daš studentima.
+Poslednja tri rade, ali im je uređivač grublji. Probaj putanju kroz pokušaj pre nego što ga daš studentima.
 
-### multi_answer je autoritativan
+### `multi_answer` je merodavan
 
-`multi_answer` flag na pitanju kontroliše radio vs checkbox. Ne izvodi se iz "koliko je tačnih". Uključi flag za checkbox. Off sa više tačnih odgovora prikazuje radio; student bira samo jedan.
+Polje `multi_answer` na pitanju određuje radio prekidače ili polja za štikliranje. Ne izvodi se iz "koliko ih je tačno". Uključi ga za polja za štikliranje. Ako je isključen, a označiš više tačnih odgovora, prikazuju se radio prekidači i student može da izabere samo jedan.
 
-## Inline vs bank-backed
+## Pitanja na ispitu ili iz banke
 
-**Inline (default)**. Pitanja žive na ispitu. Lista u `/manage/:id/edit` je ono što studenti vide. Za male ispite (< ~30 pitanja), reusable šablone, punu kontrolu.
+**Na ispitu (podrazumevano)**. Pitanja žive uz sam ispit. Lista u `/manage/:id/edit` je ono što studenti vide. Koristi se za male ispite (manje od oko 30 pitanja), za predloške koji se ponovo koriste i za punu kontrolu.
 
-**Bank-backed**. Postavi `uses_question_bank = true`. Dodaj tag pravila: svako kaže "izvuci N pitanja tagovanih `<tag>` vrednih M poena". Bazen se regeneriše po pokušaju. Za velike banke po temi i različite uzorke po studentu.
+**Iz banke**. Postavi `uses_question_bank = true`. Dodaj pravila po oznakama: svako kaže "izvuci N pitanja sa oznakom `<oznaka>` vrednih M poena". Bazen se ponovo izvlači za svaki pokušaj. Koristi se za velike banke po temi i različite uzorke po studentu.
 
-## JSON import
+## Uvoz iz JSON-a
 
-`/manage`, **Uvezi JSON**. Isti oblik kao export endpoint.
+`/manage`, **Uvezi JSON**. Isti oblik kao putanja za izvoz.
 
 ```json
 {
@@ -84,7 +84,7 @@ Poslednja tri rade ali im je editor grublji. Testiraj attempt flow pre nego što
     "negative_points_enabled": false,
     "negative_points_value": 0,
     "negative_points_threshold": 0,
-    "subject_name": "matchuje case-insensitive"
+    "subject_name": "poklapanje bez razlike u veličini slova"
   },
   "questions": [
     {
@@ -102,16 +102,16 @@ Poslednja tri rade ali im je editor grublji. Testiraj attempt flow pre nego što
 }
 ```
 
-Ako si asistent i matchovani predmet nije tvoj, server vraća `403`.
+Ako si asistent a poklopljeni predmet nije tvoj, server vraća `403`.
 
-`multi_answer` se čuva pri round-tripu ako je prisutan. Stariji fixture-i bez njega padaju na heuristiku "više tačnih znači multi-answer".
+`multi_answer` se čuva pri izvozu pa ponovnom uvozu ako je naveden. Stariji predlošci bez njega koriste pravilo "više tačnih znači multi-answer".
 
 ## Promene životnog ciklusa
 
 Iz reda u `/manage`:
 
-- **Aktiviraj**. `draft` ili `scheduled` u `active`. Studenti mogu da uđu. Tajmer kreće kad klikneš **Pokreni tajmer** u sobi.
+- **Aktiviraj**. `draft` ili `scheduled` u `active`. Studenti mogu da pristupe. Vreme kreće tek kad u sobi klikneš **Pokreni tajmer**.
 - **Završi**. `active` u `completed`. Konačno. Ne može da se vrati.
 - **Arhiviraj**. Sklanja sa glavne liste.
 
-Kad je `completed`, rezultati postaju vidljivi studentima ako je `allow_review` uključen.
+Kad je status `completed`, rezultati postaju vidljivi studentima ako je `allow_review` uključen.

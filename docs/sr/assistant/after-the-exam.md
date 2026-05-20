@@ -1,77 +1,77 @@
 # Posle ispita
 
-Šta da uradiš kad je ispit `completed`.
+Šta da uradiš kad je ispit u statusu `completed`.
 
-## Gde da gledaš
+## Gde gledati
 
-`/manage/:examId` ostaje otvoren posle zatvaranja, sad read-only. Odatle:
+`/manage/:examId` ostaje otvoren posle zatvaranja, sad samo za čitanje. Odatle:
 
-- Live stats panel pokazuje konačne predaje.
-- Dugmad za izvoz su u header-u.
-- Linkovi ka per-student izveštajima su na svakom redu.
+- Tabla napretka pokazuje konačne predaje.
+- Dugmad za izvoz su u zaglavlju.
+- Linkovi do izveštaja po studentu su na svakom redu studenta.
 
 ## Izvoz rezultata
 
-**Rezultati** u header-u skida ZIP sa:
+**Rezultati** u zaglavlju preuzima ZIP sa:
 
-- `results.csv`. Jedan red po studentu: rezultat, max, procenat, prolaz ili pad, vreme, timestamp-i.
-- `results-table.pdf`. Isti podaci u tabeli za štampu.
-- `per-student/`. Jedan PDF po studentu sa odgovorima, tačnim odgovorima i poenima po pitanju.
+- `results.csv`. Jedan red po studentu: rezultat, maksimum, procenat, prolaz ili pad, utrošeno vreme, vremenski pečati.
+- `results-table.pdf`. Isti podaci u tabeli pripremljenoj za štampu.
+- `per-student/`. Jedan PDF po studentu sa njegovim odgovorima, tačnim odgovorima i poenima po pitanju.
 
-ZIP se generiše uživo. Za velike grupe može da potraje minut. Ne refresh-uj.
+ZIP se pravi u trenutku zahteva. Za velike grupe može da potraje minut. Ne osvežavaj stranicu.
 
-Za samo CSV: `GET /api/otisak/manage/:examId/results.csv`.
+Samo za CSV: `GET /api/otisak/manage/:examId/results.csv`.
 
-## Per-student izveštaji
+## Izveštaji po studentu
 
-Klik na red studenta u live stats panelu otvara `/manage/:examId/report/:userId`:
+Klik na red studenta na tabli napretka otvara `/manage/:examId/report/:userId`:
 
-- Svako pitanje sa odgovorom studenta naspram tačnog.
+- Svako pitanje: studentov odgovor naspram tačnog.
 - Dodeljeni poeni po pitanju.
-- Vreme provedeno po pitanju (iz activity log-a).
-- AI feedback ako je ocenjivanje pušteno.
+- Provedeno vreme po pitanju (iz dnevnika aktivnosti).
+- Povratna informacija AI ocenjivača, ako je puštano.
 
 Koristi kad student osporava rezultat.
 
 ## AI ocenjivanje
 
-Open-text odgovore može da ocenjuje Claude ili OpenAI. Dva moda:
+Otvorene odgovore može da ocenjuje Claude ili OpenAI. Dva režima:
 
-### Inline
+### Tokom predaje
 
-AI podešavanja ispita: `grading_mode = inline`. Ocenjivanje se izvršava kao deo predaje. Konačan rezultat je odmah. Latencija predaje raste par sekundi po open-text pitanju.
+AI podešavanja ispita: `grading_mode = inline`. Ocenjivanje se izvršava kao deo predaje. Konačan rezultat je odmah. Kašnjenje predaje raste nekoliko sekundi po otvorenom pitanju.
 
-### Deferred (default)
+### Naknadno (podrazumevano)
 
-Predaja se vraća odmah sa `ai_grading_status = pending` po odgovoru. Status pokušaja je `partial` dok ne pokreneš ocenjivanje.
+Predaja se odmah vraća sa `ai_grading_status = pending` po odgovoru. Status pokušaja je `partial` dok ne pokreneš ocenjivanje.
 
-Pokretanje iz sobe: **Pokreni AI ocenjivanje** u header-u. Server stavlja svaki odgovor u red, zove provider-a, parsira score i feedback, ažurira ukupan rezultat.
+Pokreni iz sobe: **Pokreni AI ocenjivanje** u zaglavlju. Server stavlja svaki odgovor u red, zove provajdera, čita rezultat i povratnu informaciju, i ažurira ukupan rezultat.
 
-Po odgovoru: ~3-5s. Napredak je uživo.
+Po odgovoru: oko 3 do 5 sekundi. Napredak je uživo.
 
-### Konfiguracija provider-a
+### Podešavanje provajdera
 
-Dva načina za API ključ:
+Dva načina da se obezbedi API ključ:
 
-- **Server ključ**. Čuva se na AI podešavanjima ispita. Server plaća ocenjivanje. Postavlja se u `/admin/ai`.
-- **Studentski ključevi**. Postavi `allow_student_api_keys = true` na ispitu. Svaki student prikači svoj ključ iz profila. Plaća ocenjivanje. Za take-home ili vannastavne ispite.
+- **Serverski ključ**. Čuva se na AI podešavanjima ispita. Server plaća ocenjivanje. Postavlja se u `/admin/ai`.
+- **Studentski ključevi**. Postavi `allow_student_api_keys = true` na ispitu. Svaki student zakači svoj ključ iz profila. Plaća ocenjivanje. Korisno za ispite koji se rade kod kuće ili vannastavno.
 
-`max_student_credits` ograničava koliko jedan student može da potroši preko svog ključa u tom ispitu.
+`max_student_credits` ograničava koliko jedan student može da potroši preko svog ključa na tom ispitu.
 
-### Pisanje instrukcija za ocenjivanje
+### Pisanje uputstva za ocenjivanje
 
-Po pitanju. Ide u system prompt za taj poziv.
+Polje je po pitanju. Ide u sistemsku poruku za taj poziv.
 
-Dobro: "Daj 2 poena ako odgovor pominje i stack i heap. 1 poen za jedan. 0 ako nijedan."
+Dobro: "Daj 2 poena ako odgovor pominje i stack i heap. 1 poen ako pominje samo jedno. 0 ako nijedno."
 
 Loše: "Oceni pošteno." "Budi blag."
 
-Grader vraća score i kratak feedback. Oba se čuvaju na `otisak_attempt_answers`.
+Ocenjivač vraća rezultat i kratko obrazloženje. Oba se čuvaju u `otisak_attempt_answers`.
 
 ## Ponovno pokretanje ispita
 
-Red u `/manage` pokazuje **Pokreni ponovo** za `completed` ispite.
+Red u `/manage` pokazuje **Pokreni ponovo** za ispite u statusu `completed`.
 
-Briše sve pokušaje i odgovore za ispit, resetuje `exam_started_at` na null, status nazad na `draft`.
+Briše sve pokušaje i njihove odgovore za ispit, vraća `exam_started_at` na null, vraća status na `draft`.
 
-Destruktivno. Bez undo. Prvo eksportuj ZIP ako želiš istoriju.
+Nepovratno. Bez vraćanja. Prvo izvezi ZIP ako želiš istoriju.

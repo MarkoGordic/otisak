@@ -1,29 +1,29 @@
-# Deploy
+# Postavljanje na server
 
-Jedan Docker image, jedan `docker-compose.yml`. Image nosi API, statički client i (za PDF izvoz) sistemski Chromium. Postgres ide pored.
+Jedna Docker slika, jedan `docker-compose.yml`. Slika sadrži API, statički klijent i (za izvoz u PDF) sistemski Chromium. Postgres ide pored.
 
 ## Dockerfile
 
-Multi-stage:
+Više faza:
 
 ```
-[client-build]   node:20-alpine    Vite client
+[client-build]   node:20-alpine    Vite klijent
 [server-build]   node:20-slim      tsc sa devDeps
-[server-prod]    node:20-slim      samo prod deps
-[runner]         node:20-slim      dist + prod deps + Chromium
+[server-prod]    node:20-slim      samo prod zavisnosti
+[runner]         node:20-slim      dist + prod zavisnosti + Chromium
 ```
 
 Zašto:
 
-- Client builder pokreće `vite build`, daje statičke fajlove. Krajnji image ima samo `dist/`, bez node_modules.
-- Server full install (TypeScript, `@types/*`) samo u build fazi. Runner ima prod install. Ušteđuje ~80 MB.
-- Runner instalira sistemski Chromium i minimum lib-ova. Puppeteer koristi sistemski binary. Bundled Chromium download je isključen preko `PUPPETEER_SKIP_DOWNLOAD=true`.
+- Faza za klijent pokreće `vite build` i daje statičke fajlove. Krajnja slika nosi samo `dist/`, bez `node_modules`.
+- Server ima fazu sa svim zavisnostima (TypeScript, `@types/*`) i fazu sa samo produkcionim zavisnostima. Krajnja slika nosi prod izdanje. Ušteda oko 80 MB.
+- Krajnja slika instalira sistemski Chromium i minimum biblioteka. Puppeteer koristi sistemski binar. Preuzimanje ugrađenog Chromium-a je isključeno kroz `PUPPETEER_SKIP_DOWNLOAD=true`.
 
 ### Važno
 
-- Build context mora da uključuje `client/`, `server/` i `docs/`. Vite glob u `client/src/lib/docs.ts` čita `../../../docs/**/*.md` i traži da `docs/` bude prisutan u build vremenu.
-- `.dockerignore` ne sme blanket da isključi `**/*.md`. Pre je (docs site je tiho šipovao prazan). Sad samo gornji meta fajlovi su isključeni eksplicitno. Komentar u fajlu upozorava sledećeg da ne vrati wildcard.
-- BuildKit cache mounts na `/root/.npm` i `/var/cache/apt` ubrzavaju ponovne build-ove.
+- Kontekst gradnje mora da sadrži `client/`, `server/` i `docs/`. Vite `import.meta.glob` u `client/src/lib/docs.ts` čita `../../../docs/**/*.md` i traži da `docs/` bude prisutan u trenutku gradnje.
+- `.dockerignore` ne sme da isključi `**/*.md` kao šablon. Ranije je (i sajt dokumentacije je tiho putovao prazan). Sad su isključeni samo top-level meta fajlovi. U fajlu postoji upozorenje da se ne vraća šablon.
+- BuildKit cache mounts na `/root/.npm` i `/var/cache/apt` ubrzavaju ponovne gradnje.
 
 ## docker-compose.yml
 
@@ -38,7 +38,7 @@ db:
   healthcheck: pg_isready
 ```
 
-Imenovan volume `pgdata` traje između restart-a. `docker compose down -v` ga briše. `init.sql` se izvršava jednom na praznom data directory-ju; preskočen pri re-up sa podacima.
+Imenovan volumen `pgdata` čuva podatke između restarta. `docker compose down -v` ga briše. `init.sql` se izvršava jednom na praznom direktorijumu; preskače se na narednim pokretanjima.
 
 ### app
 
@@ -53,32 +53,32 @@ app:
     CLIENT_URL: ${CLIENT_URL:-http://localhost:${HOST_PORT:-3000}}
 ```
 
-`HOST_PORT` default 3000. Kontejner uvek sluša na 3001 unutra.
+`HOST_PORT` je podrazumevano 3000. Kontejner uvek sluša na 3001 unutra.
 
-`SESSION_SECRET` je obavezan (`:?`). Server takođe re-checks pri boot-u: minimum 16 karaktera.
+`SESSION_SECRET` je obavezan (`:?`). Server takođe proverava pri pokretanju: mora imati najmanje 16 znakova.
 
 ## deploy.sh
 
-Helper za self-hosted. Radi:
+Pomoćna skripta za samostalno hostovanje. Radi:
 
 1. Bira slobodan `HOST_PORT`.
-2. Generiše 64-char hex `SESSION_SECRET` ako `.env` nema.
-3. Upisuje `.env`.
+2. Pravi 64-znakovni heksadekadni `SESSION_SECRET` ako ga nema u `.env`.
+3. Upisuje u `.env`.
 4. Pokreće `docker compose up -d --build`.
 
-Flag-ovi:
+Opcije:
 
-| Flag | Šta |
+| Opcija | Šta radi |
 |---|---|
-| `--clean` | Briše i volume-e. Destruktivno. |
-| `--port N` | Forsira specifičan port. |
-| `--no-build` | Bez rebuild-a, samo restart. |
+| `--clean` | Briše i volumene. Nepovratno. |
+| `--port N` | Postavlja tačno određen port. |
+| `--no-build` | Bez ponovne gradnje, samo restartuje. |
 
-Ne radi `git pull`. To uradi prvo sam.
+Ne radi `git pull`. To uradi sam pre nje.
 
-## Reverse proxy
+## Obratni proksi
 
-Primer nginx site-a:
+Primer postavke u nginx-u:
 
 ```nginx
 server {
@@ -99,30 +99,30 @@ server {
 }
 ```
 
-`Upgrade`/`Connection` header-i su obavezni za WebSocket na `/ws/exam/:examId`. Caddy i Traefik takođe rade.
+Zaglavlja `Upgrade`/`Connection` su obavezna za WebSocket na `/ws/exam/:examId`. Caddy i Traefik takođe rade.
 
-## Healthcheck
+## Provera ispravnosti
 
-`/api/health` vraća `{ "status": "ok" }` kad je DB konekcija aktivna i bootstrap završen.
+`/api/health` vraća `{ "status": "ok" }` kad je veza ka bazi aktivna i kad je pokretanje završeno.
 
-Compose pollu-je svakih 15s sa 5s timeout-om i 45s start period-om. Start period daje bootstrap-u (migracije, admin seed, demo seed) vreme da završi.
+Compose proverava svakih 15 sekundi sa istekom od 5 sekundi i početnim periodom od 45 sekundi. Početni period daje pokretanju (migracije, posejavanje admina, posejavanje demo-a) vreme da se završi.
 
 ## Ažuriranje
 
-Rutinski (nov kod, bez schema promene):
+Redovno (nov kod, bez promene šeme):
 
 ```bash
 git pull
 docker compose up -d --build app
 ```
 
-Rebuild image-a, recreate kontejnera. DB se ne dira.
+Ponovo gradi sliku i pravi nov kontejner. Baza se ne dira.
 
-Schema promena: migracija ide na sledećem boot-u. Ako padne, nov kontejner ne kreće; stari je već nestao. Planiraj downtime.
+Promena šeme: migracija ide pri sledećem pokretanju. Ako padne, novi kontejner ne kreće; stari je već nestao. Planiraj zastoj.
 
-Destruktivne promene (rename kolone, drop tabele): testiraj na kopiji prvo.
+Nepovratne promene (promena imena kolone, brisanje tabele): testiraj na kopiji pre svega.
 
-## Backup-i
+## Rezervne kopije
 
 Postgres podaci žive u `pgdata`.
 
@@ -131,4 +131,4 @@ docker compose exec db pg_dump -U otisak otisak > backup-$(date +%F).sql
 docker compose exec -T db psql -U otisak otisak < backup-2025-01-01.sql
 ```
 
-Dovoljno za male deploy-e. Za veće, pgBackRest ili WAL-G.
+Dovoljno za manje postavke. Za veće: pgBackRest ili WAL-G.

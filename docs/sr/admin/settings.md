@@ -1,37 +1,37 @@
 # Globalna podešavanja
 
-Ekran: `/admin/settings`. Iza je `app_settings` key-value tabela.
+Ekran: `/admin/settings`. Iza je tabela `app_settings` (parovi ključ–vrednost).
 
-Server drži whitelist ključeva. Ostalo vraća `400 Unknown setting key`. Tako tipfeleri ne pravi đubre u bazi.
+Server drži belu listu ključeva koji smeju da se upisuju. Sve ostalo vraća `400 Unknown setting key`. Time se sprečava da omaška napravi neispravan red u bazi.
 
 ## Režim vežbe
 
-Ključ: `practice_mode_enabled`. Vrednosti: `true` ili `false`. Default `false`.
+Ključ: `practice_mode_enabled`. Vrednosti: `true` ili `false`. Podrazumevano `false`.
 
-- **Off**. Student `/api/otisak/practice` endpoint sakriva privatne vežba ispite. Javni vežba ispiti (ugrađeni demo i sve što je admin označio kao `is_public`) ostaju vidljivi. Dashboard nikad nije potpuno prazan.
-- **On**. **Vežba** tab pokazuje sve self-service vežba ispite na koje je student upisan ili koji su javni.
+- **Isključeno**. Studentska putanja `/api/otisak/practice` skriva privatne vežba-ispite. Javni vežba-ispiti (ugrađeni demo i sve što je admin označio sa `is_public`) ostaju vidljivi. Početni ekran nikad nije sasvim prazan.
+- **Uključeno**. Tab **Vežba** prikazuje sve samostalne vežba-ispite na koje je student upisan ili koji su javni.
 
-Bez efekta na prave ispite.
+Nema uticaja na prave ispite.
 
-## Info kartice
+## Informativne kartice
 
-Stranica ima i dve shortcut kartice (nisu stvarna podešavanja):
+Stranica ima i dva prečice (nisu prava podešavanja):
 
-- **Upravljaj predmetima** na `/subjects`.
-- **Upravljaj korisnicima** na `/admin/users`.
+- **Upravljaj predmetima** vodi na `/subjects`.
+- **Upravljaj korisnicima** vodi na `/admin/users`.
 
-I jednu kartu sa objašnjenjem za lockdown, koji se pokreće iz sobe, ne odavde. Vidi [`../assistant/running-the-room.md`](../assistant/running-the-room.md).
+I jednu karticu sa objašnjenjem zabrane rada, koja se pokreće iz sobe, ne odavde. Vidi [`../assistant/running-the-room.md`](../assistant/running-the-room.md).
 
 ## Dodavanje novog podešavanja
 
 1. Dodaj ključ u `ALLOWED_SETTING_KEYS` u `server/src/routes/admin.ts`.
-2. Čitaj sa `getSetting('tvoj_kljuc')` iz `server/src/db/settings.ts`.
-3. Dodaj karticu na `client/src/pages/AdminSettingsPage.tsx`.
-4. Wire-uj kroz `PATCH /api/admin/settings` sa `{ tvoj_kljuc: vrednost }`.
+2. Pročitaj ga sa `getSetting('tvoj_kljuc')` iz `server/src/db/settings.ts`.
+3. Dodaj karticu u `client/src/pages/AdminSettingsPage.tsx`.
+4. Poveži ga preko `PATCH /api/admin/settings` sa telom `{ tvoj_kljuc: vrednost }`.
 
 ## API
 
-| Endpoint | Body / Upotreba |
+| Putanja | Telo / Upotreba |
 |---|---|
 | `GET /api/admin/settings` | `{ key: value, ... }` |
-| `PATCH /api/admin/settings` | `{ key: value, ... }`. Whitelist-checked. |
+| `PATCH /api/admin/settings` | `{ key: value, ... }`. Proverava se bela lista. |

@@ -2,85 +2,85 @@
 
 Dva sloja, oba se izvršavaju na serveru:
 
-1. **Autentifikacija**. Postoji li validna sesija?
-2. **Autorizacija**. Da li korisnik ima dozvolu za ovu akciju?
+1. **Autentifikacija**. Postoji li ispravna sesija?
+2. **Autorizacija**. Da li ovaj korisnik ima dozvolu za ovu akciju?
 
-Client UI sakriva kontrole na osnovu uloge, ali server je izvor istine.
+Korisnički interfejs sakriva kontrole prema ulozi, ali server je izvor istine.
 
 ## Sesije
 
-HMAC-signed cookie. Payload: `{ user_id, expires_at }`. Signing key: `SESSION_SECRET` env.
+Kolačić potpisan HMAC-om. Sadržaj: `{ user_id, expires_at }`. Ključ za potpis: `SESSION_SECRET` iz okruženja.
 
 Fajlovi:
 
-- `server/src/session.ts`. Kreiranje i parsiranje cookie-a.
-- `server/src/crypto.ts`. HMAC helperi.
-- `server/src/session-tracker.ts`. In-memory mapa `user_id` na aktivnu sesiju. Invalidira druge sesije pri loginu sa novog uređaja.
+- `server/src/session.ts`. Pravljenje i čitanje kolačića.
+- `server/src/crypto.ts`. Pomoćne funkcije za HMAC.
+- `server/src/session-tracker.ts`. Mapa u memoriji od `user_id` do aktivne sesije. Poništava druge sesije pri prijavi sa novog uređaja.
 
-Default-i: TTL 7 dana, HttpOnly, SameSite=lax, Secure u produkciji.
+Podrazumevano: trajanje 7 dana, HttpOnly, SameSite=lax, Secure u produkciji.
 
-Login (`POST /api/auth/login`):
+Prijava (`POST /api/auth/login`):
 
-1. Rate limit: 10 pokušaja u 15 minuta po IP-u.
-2. Pronalazak korisnika po email-u ili broju indeksa.
-3. Bcrypt compare na `password_hash`.
-4. Po uspehu: sesija, cookie, ažuriraj `last_login_at`.
+1. Ograničenje brzine: 10 pokušaja u 15 minuta po IP adresi.
+2. Traži korisnika po email-u ili broju indeksa.
+3. Bcrypt poredi sa `password_hash`.
+4. Posle uspeha: sesija, kolačić, ažuriraj `last_login_at`.
 
-Logout (`POST /api/auth/logout`): briše cookie i tracker.
+Odjava (`POST /api/auth/logout`): briše kolačić i upisnik.
 
 ## requireAuth
 
-`server/src/middleware.ts:requireAuth` na svakoj autentifikovanoj ruti:
+`server/src/middleware.ts:requireAuth` se izvršava na svakoj autentifikovanoj putanji:
 
-1. Parsuje cookie. Nema ili loš potpis: `401`.
-2. Učita korisnika. `is_active = false`: `401`.
-3. Prikači na `req.user`.
+1. Čita kolačić. Nema ga ili je potpis loš: `401`.
+2. Učitava korisnika. `is_active = false`: `401`.
+3. Kači ga na `req.user`.
 
 ## requireRole
 
 `requireRole(roles)` proverava ulogu. Upotreba: `router.use(requireAuth, requireRole(['admin']))`. Vraća `403` ako uloga nije u listi.
 
-## Subject-scoped autorizacija
+## Ograničenje po predmetu
 
-Gate koji scope-uje asistente na njihove dodeljene predmete.
+Sloj koji asistente ograničava na njihove dodeljene predmete.
 
 ### Podaci
 
-`subject_assignments`: `(user_id, subject_id, role)` sa unique `(user_id, subject_id)`. CRUD na `/api/admin/subjects/:subjectId/assignments`.
+`subject_assignments`: `(user_id, subject_id, role)` sa jedinstvenim parom `(user_id, subject_id)`. CRUD putanje su na `/api/admin/subjects/:subjectId/assignments`.
 
-### Helperi (`server/src/db/auth-helpers.ts`)
+### Pomoćne funkcije (`server/src/db/auth-helpers.ts`)
 
-| Helper | Šta |
+| Funkcija | Šta radi |
 |---|---|
-| `isSubjectManageableByUser(userId, subjectId, isAdmin)` | True ako je admin ili ima red u `subject_assignments` za predmet. |
-| `getAssignedSubjectIds(userId)` | Niz subject ID-jeva. |
-| `canUserManageExam(userId, examId, isAdmin)` | Učita `exam.subject_id` pa zove `isSubjectManageableByUser`. False ako ispit nema subject a korisnik nije admin. |
+| `isSubjectManageableByUser(userId, subjectId, isAdmin)` | True ako je admin ili postoji red u `subject_assignments` za taj predmet. |
+| `getAssignedSubjectIds(userId)` | Vraća niz ID-jeva predmeta za korisnika. |
+| `canUserManageExam(userId, examId, isAdmin)` | Učita `exam.subject_id` pa zove `isSubjectManageableByUser`. False ako ispit nema predmet a korisnik nije admin. |
 
-### Gde se svaki izvršava
+### Gde se svaka koristi
 
-| Ruta | Helper |
+| Putanja | Funkcija |
 |---|---|
 | `GET /api/otisak/exams` | `getAssignedSubjectIds` (filtrira listu) |
 | `POST /api/otisak/exams` | `isSubjectManageableByUser(body.subject_id)` |
-| `PATCH /api/otisak/exams` | `canUserManageExam(body.id)`. Ako se menja subject, i njega proveri. |
+| `PATCH /api/otisak/exams` | `canUserManageExam(body.id)`. Ako se menja predmet, proveri i nov. |
 | `DELETE /api/otisak/exams` | `canUserManageExam` |
-| `POST /api/otisak/exams/import-json` | `isSubjectManageableByUser(resolved subject)` |
-| Svi shared writes u `exam.ts` (enroll, questions, start, finish-all, lockdown, requests/decide, adjust-timer) | `assertCanManageExam` (`403` na neuspeh) |
+| `POST /api/otisak/exams/import-json` | `isSubjectManageableByUser(prepoznat predmet)` |
+| Svi deljeni upisi u `exam.ts` (enroll, questions, start, finish-all, lockdown, requests/decide, adjust-timer) | `assertCanManageExam` (vraća `403` pri odbijanju) |
 | `POST /api/otisak/questions` | `isSubjectManageableByUser(body.subject_id)` |
-| `DELETE /api/otisak/questions` | Lookup `subject_id` server-side, pa `isSubjectManageableByUser` |
+| `DELETE /api/otisak/questions` | Pronađi `subject_id` na serveru, pa `isSubjectManageableByUser` |
 
-Server-side lookup je važan. Klijent može da slaže za `subject_id`; server uvek re-derivuje.
+Pronalaženje na serveru je važno. Klijent može da lažira `subject_id`; server uvek izvodi sam.
 
-### Admin shortcut
+### Prečica za admina
 
-Svaki helper short-circuit-uje na `isAdmin = true`. Admin vidi i menja sve.
+Svaka pomoćna funkcija odmah propušta admina (`isAdmin = true`). Admin vidi i menja sve.
 
 ### Zašto ne samo `created_by`?
 
-"Samo kreator može da menja" lomi multi-asistentske predmete. Subject-scoped dodele su pravi oblik: editorska prava pripadaju predmetu, ne pojedinačnom ispitu.
+"Samo onaj ko ga je napravio može da menja" ne radi za predmete sa više asistenata. Dodela po predmetu je pravi oblik: prava izmene pripadaju predmetu, ne pojedinačnom ispitu.
 
-## Skrivanje u UI-ju
+## Sakrivanje u korisničkom interfejsu
 
-Klijent sakriva akcije koje korisnik ne sme. Čisto UX. Svaka gatovana akcija takođe pokreće server proveru. Direktni API poziv ka skrivenoj akciji dobija `403`.
+Klijent sakriva akcije koje korisnik ne sme da uradi. To je čisto pitanje iskustva. Svaka takva akcija svejedno pokreće proveru na serveru. Direktan API poziv ka sakrivenoj akciji dobija `403`.
 
-Primer: `SubjectsPage.tsx` prikazuje **Asistenti** samo za admina. Direktan POST kao non-admin svejedno pada na `requireRole(['admin'])`.
+Primer: `SubjectsPage.tsx` prikazuje **Asistenti** samo za admina. Direktan POST kao neki drugi korisnik svejedno pada na `requireRole(['admin'])`.

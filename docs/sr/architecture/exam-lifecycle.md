@@ -1,6 +1,6 @@
 # Životni ciklus ispita
 
-Od "student ulazi" do "vidim rezultate". Reference su na `server/src/`.
+Od trenutka kad student uđe do trenutka kad vidi rezultate. Reference su u `server/src/`.
 
 ## Pristup
 
@@ -8,98 +8,98 @@ Dva puta. Oba završavaju redom u `otisak_attempts`.
 
 ### Upisan pristup
 
-Student je upisan (admin ga dodao ili je importovan u grupu).
+Student je upisan (admin ga je dodao ili je uvezen u grupu).
 
 1. `POST /exams/:examId/attempt`.
-2. Server proverava: upisan, ispit `active`, nema aktivnog pokušaja.
-3. INSERT `otisak_attempts` sa `started_at = now`, generiše `shuffle_seed`, vraća attempt id i pitanja.
+2. Server proverava: upisan, ispit `active`, nema otvorenog pokušaja.
+3. Upisuje red u `otisak_attempts` sa `started_at = now`, pravi `shuffle_seed`, vraća id pokušaja i pitanja.
 
 ### Pristup preko indeksa
 
 Za javne prave ispite. Student kuca indeks i ID ispita.
 
 1. `POST /exams/:examId/lookup-by-index`.
-2. Server traži korisnika po `index_number` (case-insensitive). Nema: `404`.
-3. Pravi sesiju pa ide put upisanog pristupa.
+2. Server traži korisnika po `index_number` (bez razlike u veličini slova). Nema ga: `404`.
+3. Pravi sesiju i ide putem upisanog pristupa.
 
-Ako je tajmer već krenuo a student nije bio upisan, odgovor je `LATE_JOIN_REQUIRED`. UI pokazuje **Zahtev za naknadan ulazak**.
+Ako je vreme već krenulo a student nije bio upisan, odgovor je `LATE_JOIN_REQUIRED`. Korisničko sučelje pokazuje **Zahtev za naknadan ulazak**.
 
 ## Tokom ispita
 
-`/exam/:examId` radi tri stvari paralelno.
+`/exam/:examId` radi tri stvari uporedno.
 
-### Auto-save
+### Automatsko snimanje
 
-Svaka promena odgovora pravi save. Hard tajmer na 30s. Endpoint: `POST /exams/:examId/answers`. Upsert na `(attempt_id, question_id)`. Konkurentni save-ovi se serializuju na unique constraint-u. Klijent buffer-uje i dedup-uje; pet brzih klikova šalju jedan request.
+Svaka promena odgovora zakazuje snimanje. Postoji i tajmer od 30 sekundi. Putanja: `POST /exams/:examId/answers`. Upis ili izmena na paru `(attempt_id, question_id)`. Istovremena snimanja se ređaju kroz ograničenje jedinstvenosti. Klijent grupiše promene i uklanja duplikate; pet brzih klikova šalje jedan zahtev.
 
-### Activity logging
+### Dnevnik aktivnosti
 
-Klijent batch-uje male event-e svakih 5s. Endpoint: `POST /exams/:examId/events`. Server kapira batch na 500 event-a i potvrđuje da attempt pripada korisniku. Pokreće per-student izveštaj.
+Klijent svakih 5 sekundi šalje skup malih događaja. Putanja: `POST /exams/:examId/events`. Server prihvata najviše 500 događaja po pošiljci i potvrđuje da pokušaj pripada korisniku. Iz ovog dnevnika se pravi izveštaj po studentu.
 
-### Live updates
+### Osvežavanja uživo
 
 WebSocket ka `/ws/exam/:examId`:
 
-| Event | Efekat |
+| Događaj | Posledica |
 |---|---|
-| `exam.started` | Prelaz sa "čekaj" na ekran ispita. |
+| `exam.started` | Prelaz sa ekrana "čekanje" na ekran ispita. |
 | `lockdown.changed` | Pauza ili nastavak. |
-| `exam.finished` | Server-zatvaranje. Ide na rezultate, ili na home ako `redirect_students=true`. |
+| `exam.finished` | Zatvaranje sa servera. Vodi na rezultate, ili na početnu ako je `redirect_students=true`. |
 
-REST fallback: `/lockdown` pollovan svakih 2s.
+Kao rezerva, REST anketira `/lockdown` svake 2 sekunde.
 
-## Tajmer
+## Vreme
 
-Prikaz je klijent-side. Deadline je autoritativan na serveru.
+Prikaz je na klijentu. Rok je merodavan na serveru.
 
 ```
-deadline = exam_started_at
-         + duration_minutes
-         + extra_seconds
-         + paused_seconds (suma svih lockdown trajanja)
+rok = exam_started_at
+    + duration_minutes
+    + extra_seconds
+    + paused_seconds (suma svih trajanja zabrane rada)
 ```
 
-Svaki API odgovor koji sadrži ispit nosi deadline. Klijent veruje.
+Svaki API odgovor koji nosi ispit nosi i rok. Klijent veruje toj vrednosti.
 
-Ako deadline prođe tokom pokušaja, sledeći save poziv se odbacuje i pokušaj se auto-završava.
+Ako rok prođe tokom pokušaja, sledeći poziv za snimanje se odbija i pokušaj se sam završava.
 
 ## Predaja
 
 `POST /exams/:examId/submit` zove `finishAttempt(attempt)`:
 
 1. U transakciji:
-   - Označi `submitted=true`, `finished_at=now`.
-   - Računa `points_awarded` po pitanju iz sačuvanih odgovora.
-   - Primenjuje penal negativnih poena ako je on.
-   - Postavlja `total_points`.
-2. Ako ima open-text pitanja i AI mod je `inline`: ocenjivanje inline.
+   - Postavi `submitted=true`, `finished_at=now`.
+   - Izračunaj `points_awarded` po pitanju iz sačuvanih odgovora.
+   - Primeni penal negativnih poena, ako je uključen.
+   - Postavi `total_points`.
+2. Ako ima otvorenih pitanja a režim AI ocenjivanja je `inline`: oceni odmah.
 3. Inače `ai_grading_status=pending`.
 
-Transakcija čini predaju idempotentnom. Ponovljeni request vidi `submitted=true` i samo vraća postojeći rezultat.
+Transakcija čini predaju idempotentnom. Ponovljeni zahtev vidi `submitted=true` i vraća postojeći rezultat.
 
-## Auto-finish
+## Automatsko završavanje
 
 Dva puta bez klika studenta:
 
-### Istek deadline-a
+### Istek roka
 
-Na svakom save-u ili `/lockdown` poll-u server proverava deadline. Ako je prošao:
+Na svakom snimanju ili anketiranju `/lockdown` server proverava rok. Ako je istekao:
 
 1. `autoFinishIfExpired(attempt)`.
 2. Zove `finishAttempt` sa onim što je sačuvano.
-3. Sledeći klijentski response nosi finished status. Klijent prelazi na rezultate.
+3. Sledeći odgovor klijentu nosi status završeno. Klijent prelazi na rezultate.
 
-### Finish-all
+### Završi za sve
 
 Asistent klikne **Završi**. Server zove `finishExamForEveryone(examId, { redirectStudents })`:
 
 1. Učita nepredate pokušaje.
-2. `finishAttempt` po pokušaju (petlja, ne paralelno: predvidiv DB load).
-3. Postavi status ispita `completed`.
-4. Zatvori aktivan lockdown.
-5. Broadcast `exam.finished`.
+2. Za svaki: `finishAttempt` (u petlji, ne uporedo, da bi opterećenje baze bilo predvidivo).
+3. Postavi status ispita na `completed`.
+4. Zatvori aktivnu zabranu rada.
+5. Pošalje `exam.finished` svima.
 
-Klijenti se prebacuju na rezultate ili home u zavisnosti od flag-a.
+Klijenti se prebacuju na rezultate ili na početnu, u zavisnosti od oznake.
 
 ## Vežba pokušaji
 
@@ -108,24 +108,24 @@ Vežba ispiti se ponašaju drugačije.
 `createPracticeInstance` se izvršava kad student klikne **Pokreni** na vežba ispitu:
 
 1. Učita šablon ispit.
-2. INSERT dete red u `otisak_exams` sa `parent_exam_id = template.id`, `status = active`, `is_practice = true`.
-3. Ako je bank-backed: materijalizuj N pitanja iz banke u dete. Inače: kopiraj inline pitanja iz šablona.
-4. INSERT attempt za korisnika na detetu.
-5. Vrati dete-ispit id. Klijent ide na `/exam/<childId>`.
+2. Upiše dete-red u `otisak_exams` sa `parent_exam_id = template.id`, `status = active`, `is_practice = true`.
+3. Ako je iz banke: izvuče N pitanja iz banke u dete. Inače: kopira pitanja sa šablona.
+4. Upiše pokušaj za korisnika na detetu.
+5. Vrati id dete-ispita. Klijent ide na `/exam/<childId>`.
 
 Svaki vežba pokušaj je samostalan. Šablon se nikad ne menja.
 
-Predaja zatvara samo dete. Šablon ostaje `active`. Rezultati odmah vidljivi (vežba default `allow_review=true`).
+Predaja zatvara samo dete. Šablon ostaje `active`. Rezultati su odmah vidljivi (vežba podrazumeva `allow_review=true`).
 
 ## Rezultati
 
-Pravi ispiti: vidljivi tek kad je ispit `completed`. Dashboard polluje i prikazuje "Rezultati" link kad se status okrene.
+Pravi ispiti: vidljivi tek kad je ispit `completed`. Početna anketira i prikazuje link "Rezultati" kad se status okrene.
 
-Vežba ispiti: dete prelazi na `completed` pri predaji; student vidi rezultat odmah.
+Vežba ispiti: dete prelazi u `completed` pri predaji; student vidi rezultat odmah.
 
 `/exam/:examId/results` učita:
 
 - Pokušaj sa `total_points` i `max_points`.
 - Sva pitanja sa izabranim odgovorima studenta.
-- Ako `allow_review = true`: i tačne odgovore i per-question feedback.
-- AI feedback za AI-ocenjene ako postoji.
+- Ako je `allow_review = true`: i tačne odgovore i komentar po pitanju.
+- Komentar AI ocenjivača za AI-ocenjena pitanja, ako postoji.

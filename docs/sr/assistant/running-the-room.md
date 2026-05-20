@@ -1,81 +1,81 @@
 # Vođenje sobe
 
-Soba je `/manage/:examId`. Dostupna za svaki ispit u `active` statusu. Kontrolni panel tokom ispita.
+Soba je `/manage/:examId`. Dostupna je za svaki ispit u statusu `active`. To je tvoj komandni panel tokom ispita.
 
 ## Raspored
 
 Tri zone:
 
-1. **Header**. Naslov, status, tajmer, glavna dugmad.
-2. **Live stats panel**. Napredak po studentu.
-3. **Red zahteva**. Zahtevi za naknadan ulazak i drugi koji čekaju na tebe.
+1. **Zaglavlje**. Naslov, status, vreme, glavna dugmad.
+2. **Tabla napretka uživo**. Napredak po studentu.
+3. **Red zahteva**. Zahtevi za naknadan ulazak i drugi zahtevi koji čekaju tvoj odgovor.
 
-Podaci se osvežavaju preko WebSocket-a na svaki event (`exam.started`, `student.joined`, `student.submitted`, `request.created`, `lockdown.changed`). REST polling na 5s pada nazad ako socket padne.
+Podaci se osvežavaju preko WebSocket-a na svaki događaj (`exam.started`, `student.joined`, `student.submitted`, `request.created`, `lockdown.changed`). Ako veza padne, REST proverava svakih 5 sekundi kao rezerva.
 
-## Pokretanje tajmera
+## Pokretanje vremena
 
-Kad je ispit `active` ali nije krenuo, soba pokazuje **Pokreni tajmer**.
+Kad je ispit `active` a vreme još nije krenulo, soba pokazuje **Pokreni tajmer**.
 
-Klik postavlja `exam_started_at = now`, računa deadline kao `exam_started_at + duration_minutes`, i broadcast-uje `exam.started`. Studenti se prebacuju sa "čekaj" na ekran ispita.
+Klikom se postavlja `exam_started_at = now`, izračuna se rok kao `exam_started_at + duration_minutes`, i šalje se događaj `exam.started` svima. Studenti se prebacuju sa ekrana "čekanje" na ekran ispita.
 
-Nakon pokretanja, deadline je zaključan.
+Posle pokretanja, rok je zaključan.
 
-## Podešavanje tajmera
+## Podešavanje vremena
 
-**Podesi tajmer** dodaje ili oduzima sekunde. Server menja `extra_seconds` na ispitu. Svaki klijent dobija novi deadline odmah.
+**Podesi tajmer** dodaje ili oduzima sekunde. Server menja `extra_seconds` na ispitu. Svi klijenti odmah dobijaju novi rok.
 
-Pozitivne vrednosti su tipične (mrežni pad, požarni alarm). Negativne su podržane ali retko korisne.
+Pozitivne vrednosti su uobičajene (pad mreže, požarni alarm). Negativne su podržane ali se retko koriste.
 
-## Lockdown
+## Zabrana rada
 
-**Zabrani rad** pauzira ispit:
+**Zabrani rad** zaustavlja ispit:
 
-- Studenti vide crveni full-screen ekran.
-- Tajmer im se pauzira.
+- Studenti vide crveni ekran preko cele površine.
+- Vreme im se pauzira.
 - Unos odgovora je blokiran.
 
-Polje za poruku je opciono, prikazuje se svima.
+Polje za poruku je opciono. Poruka se prikazuje svima.
 
-**Otpusti** sklanja lockdown.
+**Otpusti** sklanja zabranu.
 
-Iza scene: red u `exam_lockdowns`. Vreme pauze se sabira i dodaje nazad na svaki studentov deadline.
+Iza scene: red u tabeli `exam_lockdowns`. Trajanje pauze se sabira i dodaje na svaki studentov rok.
 
-Za: spornu prigovor, lošu mrežu, požarni alarm, bilo šta što treba da zaustavi sat za sve.
+Koristi: za prigovor, lošu mrežu, požarni alarm, sve što zahteva da se vreme zaustavi za sve.
 
 ## Zahtevi za naknadan ulazak
 
-Ako student pokuša da uđe posle starta tajmera, dobija dugme koje pravi zahtev. Sleti u tvoj red sa imenom, indeksom i timestamp-om.
+Ako student pokuša da uđe posle pokretanja vremena, dobija dugme koje pravi zahtev. Zahtev pada u tvoj red sa imenom, brojem indeksa i vremenskim pečatom.
 
-- **Odobri**: server pravi attempt, postavlja deadline na trenutni deadline ispita (student dobija preostalo vreme), pušta ga.
-- **Odbij**: student dobija notifikaciju.
+- **Odobri**: server pravi pokušaj, postavlja rok na trenutni rok ispita (student dobija preostalo vreme), pušta ga.
+- **Odbij**: student dobija obaveštenje.
 
-Zahtevi ostaju pending dok ne odlučiš ili dok se ispit ne zatvori.
+Zahtevi ostaju na čekanju dok ne odlučiš ili dok se ispit ne zatvori.
 
 ## Vidljivost po studentu
 
-Live stats panel pokazuje status:
+Tabla napretka pokazuje status:
 
 | Status | Značenje |
 |---|---|
 | Nije pristupio | Nije ušao. |
-| U toku | Ušao i odgovara. Progress bar = odgovoreno / ukupno. |
-| Predao | Predao. Konačan rezultat prikazan. |
+| U toku | Ušao i odgovara. Traka napretka pokazuje odgovoreno / ukupno. |
+| Predao | Predao. Vidi se konačan rezultat. |
 
-Klik na red otvara per-question napredak i vreme starta.
+Klik na red otvara napredak po pitanju i vreme početka.
 
 ## Zatvaranje ispita
 
 Dve opcije, obe pri dnu sobe:
 
-- **Završi**. Server označava ispit `completed`, predaje nezavršene pokušaje (sa onim što je sačuvano), broadcast-uje `exam.finished`. Studenti izlaze sa ekrana ispita.
-- **Završi sve i preusmeri**. Isto plus `redirect: true` flag koji šalje studente na home umesto na ekran rezultata.
+- **Završi**. Server postavlja status `completed`, predaje nezavršene pokušaje (sa onim što je sačuvano), i šalje `exam.finished` svima. Studenti izlaze sa ekrana ispita.
+- **Završi sve i preusmeri**. Isto, uz oznaku `redirect: true` koja studente vodi na početnu stranu umesto na ekran rezultata.
 
-Obe su konačne. Baza blokira `completed` → `active`.
+Obe su konačne. Baza ne dozvoljava povratak `completed` → `active`.
 
-## Nakon zatvaranja
+## Posle zatvaranja
 
-Read-only, ali možeš:
+Soba je samo za čitanje, ali možeš:
 
-- Da otvoriš per-student izveštaje iz live stats panela.
-- Da eksportuješ CSV i per-student PDF-ove (vidi [`after-the-exam.md`](after-the-exam.md)).
-- Da pokreneš AI ocenjivanje za open-text odgovore ako nisi inline.
+- Da otvoriš izveštaje po studentu sa table napretka.
+- Da izvezeš CSV i PDF po studentu (vidi [`after-the-exam.md`](after-the-exam.md)).
+- Da pokreneš AI ocenjivanje za otvorene odgovore ako nisi koristio inline režim.

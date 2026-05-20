@@ -1,11 +1,11 @@
 # Uputstvo za asistenta
 
-Asistenti vode ispite za predmete na koje su dodeljeni. Bez dodela `/manage` je prazan. Pitaj admina da te doda na tvoj predmet pre svega ostalog.
+Asistenti vode ispite na predmetima na koje su dodeljeni. Bez dodela `/manage` je prazan. Pre svega ostalog, zamoli admina da te doda na tvoj predmet.
 
 ## Stranice
 
-- [Pravljenje ispita](building-an-exam.md). Podešavanja, tipovi pitanja, banka pitanja, JSON import.
-- [Vođenje sobe](running-the-room.md). Napredak uživo, podešavanje tajmera, lockdown, zahtevi za naknadan ulazak.
+- [Pravljenje ispita](building-an-exam.md). Podešavanja, tipovi pitanja, banka pitanja, uvoz iz JSON-a.
+- [Vođenje sobe](running-the-room.md). Napredak uživo, podešavanje vremena, zabrana rada, zahtevi za naknadan ulazak.
 - [Posle ispita](after-the-exam.md). Zatvaranje ispita, izvoz rezultata, AI ocenjivanje za otvorene odgovore.
 
 ## Životni ciklus ispita
@@ -14,21 +14,21 @@ Asistenti vode ispite za predmete na koje su dodeljeni. Bez dodela `/manage` je 
 draft  →  scheduled  →  active  →  completed  →  archived
 ```
 
-- **draft**. Može se menjati.
-- **scheduled**. Opciono zakazan za datum. Upisani studenti vide na Dashboard-u.
-- **active**. Studenti mogu da pristupe. Izbegavaj izmene odavde.
-- **completed**. Konačno. Baza blokira povratak na active.
-- **archived**. Skriven sa glavne liste.
+- **draft**. Može da se menja.
+- **scheduled**. Opciono zakazan za datum. Upisani studenti ga vide na početnoj strani.
+- **active**. Studenti mogu da pristupe. Od tog trenutka izbegavaj izmene.
+- **completed**. Konačno. Baza ne dozvoljava povratak u `active`.
+- **archived**. Sklonjeno sa glavne liste.
 
-Prelaz `completed` → `active` je blokiran na nivou baze. Nijedno UI dugme niti slučajni API poziv ne može da poništi završen ispit.
+Prelaz `completed` → `active` blokiran je na nivou baze. Nijedno dugme u sučelju ni slučajni API poziv ne mogu da ponište završen ispit.
 
-## Dva načina za kreiranje
+## Dva načina pravljenja
 
-1. **Ručno**. `/manage`, **Nov ispit**, pa pitanja na `/manage/:id/edit`.
-2. **JSON import**. `/manage`, **Uvezi JSON**. Isti oblik kao export endpoint. Korisno za ponovno korišćenje prošlogodišnjeg ispita ili prebacivanje između okruženja. `subject_name` u JSON-u se matchuje (case-insensitive) sa jednim od tvojih dodeljenih predmeta.
+1. **Ručno**. `/manage`, **Nov ispit**, zatim pitanja na `/manage/:id/edit`.
+2. **Uvoz iz JSON-a**. `/manage`, **Uvezi JSON**. Isti oblik kao što daje endpoint za izvoz. Korisno za ponovno korišćenje prošlogodišnjeg ispita ili prebacivanje između okruženja. Vrednost `subject_name` iz JSON-a se poklapa (bez razlike u veličini slova) sa nekim od tvojih dodeljenih predmeta.
 
-## Banka pitanja ili inline pitanja
+## Banka pitanja ili pitanja na ispitu
 
-Inline pitanja žive na samom ispitu. `/manage/:id/edit` ih standardno prikazuje.
+Pitanja na ispitu (inline) žive uz sam ispit. `/manage/:id/edit` ih podrazumevano prikazuje.
 
-Bank-backed ispiti izvlače N pitanja iz banke koristeći tag pravila. Bazen se generiše ispočetka za svaki pokušaj. Vidi [`building-an-exam.md`](building-an-exam.md) za izbor.
+Ispiti vezani za banku izvlače N pitanja iz banke po pravilima nad oznakama. Bazen se ponovo izvlači za svaki pokušaj. Vidi [`building-an-exam.md`](building-an-exam.md) za izbor između dva načina.

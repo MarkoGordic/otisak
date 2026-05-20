@@ -10,15 +10,15 @@ Ekran: `/admin/users`. Samo za admina.
 | `assistant` | Upravlja ispitima na dodeljenim predmetima. Vidi [`subjects.md`](subjects.md). |
 | `admin` | Pun pristup. |
 
-Ulogu menjaš iz dropdown-a na redu.
+Ulogu menjaš iz padajućeg menija na redu.
 
 ## Dodavanje jednog korisnika
 
-**Dodaj korisnika** otvara formu: email, lozinka, ime, broj indeksa, uloga. Email i lozinka su obavezni. Poziva `POST /api/auth/register`. Bcrypt 12 rundi.
+**Dodaj korisnika** otvara obrazac: email, lozinka, ime, broj indeksa, uloga. Email i lozinka su obavezni. Poziva `POST /api/auth/register`. Bcrypt 12 rundi.
 
-## CSV bulk import
+## Masovni uvoz studenata iz CSV-a
 
-**Uvezi CSV** bira fajl. Bez header-a, četiri kolone:
+**Uvezi CSV** bira fajl. Bez zaglavlja, četiri kolone:
 
 ```
 id,ime,prezime,indeks
@@ -27,36 +27,36 @@ id,ime,prezime,indeks
 
 Po redu:
 
-1. Indeks u mala slova, belina uklonjena.
-2. Email = `<prezime>.<smer><N>.<godina>@example.edu` ako indeks matchuje `xxNNN-YYYY`, inače `<indeks>@example.edu`.
-3. Postojeći korisnici (po indeksu ili email-u) se preskaču, ne prepisuju.
-4. Default lozinka: `changeme`. Bcrypt 10 rundi.
+1. Indeks se prevodi u mala slova; razmaci se uklanjaju.
+2. Email = `<prezime>.<smer><N>.<godina>@example.edu` ako se indeks poklapa sa `xxNNN-YYYY`. Inače `<indeks>@example.edu`.
+3. Postojeći korisnici (poznati po indeksu ili email-u) se preskaču; ništa se ne prepisuje.
+4. Podrazumevana lozinka: `changeme`. Bcrypt 10 rundi.
 
-Radi u grupama od 25. Sažetak na kraju: koliko kreirano, koliko preskočeno, razlozi.
+Radi u grupama od 25 redova. Na kraju vidiš sažetak: koliko je napravljeno, koliko preskočeno i razloge.
 
 ## Izmena
 
-Ikonica olovke. Modal menja ime, email, indeks, ulogu, `is_active`.
+Ikonica olovke otvara izmenu. Menja se ime, email, indeks, uloga, `is_active`.
 
-Email se proverava na duplikate. Duplikat: `409` + toast `users.emailExists`.
+Email se proverava na duplikate. Ako postoji, server vraća `409` i prikazuje poruku `users.emailExists`.
 
-`is_active = false` blokira login ali čuva podatke.
+`is_active = false` blokira prijavu, a podaci se čuvaju.
 
-## Reset lozinke
+## Resetovanje lozinke
 
-Ikonica ključa. Minimum 6 karaktera. Bcrypt 10 rundi. Reci korisniku van aplikacije.
+Ikonica ključa. Najmanje 6 karaktera. Bcrypt 10 rundi. Novu lozinku saopšti korisniku van aplikacije.
 
 ## Pretraga i filter
 
-- Pretraga: matchuje ime, email, indeks (case-insensitive).
-- Dropdown za ulogu: filtrira na jednu.
-- Paginacija: 50 po strani.
+- Polje za pretragu: poklapa po imenu, email-u, indeksu (bez razlike u veličini slova).
+- Padajući meni za ulogu: sužava na jednu ulogu.
+- Stranica drži po 50 redova.
 
 ## API
 
-| Endpoint | Body / Upotreba |
+| Putanja | Telo / Upotreba |
 |---|---|
-| `GET /api/admin/users` | Lista. Heševi uklonjeni. |
+| `GET /api/admin/users` | Lista. Heševi lozinki su uklonjeni. |
 | `PATCH /api/admin/users` | `{ id, name?, email?, role?, index_number?, is_active? }` |
 | `PATCH /api/admin/users/password` | `{ id, password }` |
 | `POST /api/admin/users/import-csv` | `{ csv: "..." }` |
