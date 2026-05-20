@@ -17,7 +17,7 @@ import historyRoutes from './routes/history';
 import { setupWebSocket } from './ws/events';
 import { startLiveStatsAggregator, stopLiveStatsAggregator } from './ws/liveStatsAggregator';
 import { startExamExpiryWatcher, stopExamExpiryWatcher } from './jobs/examExpiryWatcher';
-import { ensureBootstrapAdmin } from './bootstrap';
+import { ensureBootstrapAdmin, ensureDemoExam } from './bootstrap';
 import { runMigrations } from './db/migrations';
 import { closePool } from './db/client';
 import { assertSessionSecretIsSafe } from './session';
@@ -140,6 +140,7 @@ async function start(): Promise<void> {
   // un-migrated DB (which would surface as cryptic SQL errors at runtime).
   await runMigrations();
   await ensureBootstrapAdmin();
+  await ensureDemoExam();
 
   const server = http.createServer(app);
   const wss = setupWebSocket(server);

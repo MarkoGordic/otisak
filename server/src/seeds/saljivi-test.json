@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "exam": {
+    "title": "Šaljivi test — crtani junaci",
+    "description": "Sedam pitanja o najpoznatijim crtanim likovima. Mešavina single-select i multi-select.",
+    "duration_minutes": 10,
+    "pass_threshold": 50,
+    "exam_mode": "real",
+    "allow_review": true,
+    "shuffle_questions": true,
+    "shuffle_answers": true,
+    "partial_scoring": true,
+    "negative_points_enabled": false,
+    "negative_points_value": 0,
+    "negative_points_threshold": 0
+  },
+  "questions": [
+    {
+      "type": "text",
+      "text": "Najbolji prijatelj Mikija Mausa je:",
+      "points": 1,
+      "position": 0,
+      "answers": [
+        { "text": "Šilja",        "is_correct": true,  "position": 0 },
+        { "text": "Baja Patak",   "is_correct": false, "position": 1 },
+        { "text": "Pera Detlić",  "is_correct": false, "position": 2 },
+        { "text": "Garfild",      "is_correct": false, "position": 3 },
+        { "text": "Bagz Bani",    "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Koji od navedenih likova pripadaju Diznijevom univerzumu?",
+      "points": 1,
+      "position": 1,
+      "answers": [
+        { "text": "Miki Maus",    "is_correct": true,  "position": 0 },
+        { "text": "Patak Dača",   "is_correct": true,  "position": 1 },
+        { "text": "Šilja",        "is_correct": true,  "position": 2 },
+        { "text": "Garfild",      "is_correct": false, "position": 3 },
+        { "text": "Bagz Bani",    "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Koliko sinovaca ima Patak Dača?",
+      "points": 1,
+      "position": 2,
+      "answers": [
+        { "text": "1",  "is_correct": false, "position": 0 },
+        { "text": "2",  "is_correct": false, "position": 1 },
+        { "text": "3",  "is_correct": true,  "position": 2 },
+        { "text": "5",  "is_correct": false, "position": 3 },
+        { "text": "7",  "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Imena sinovaca Patka Dače (srpski prevod) su:",
+      "points": 1,
+      "position": 3,
+      "answers": [
+        { "text": "Raja",  "is_correct": true,  "position": 0 },
+        { "text": "Gaja",  "is_correct": true,  "position": 1 },
+        { "text": "Vlaja", "is_correct": true,  "position": 2 },
+        { "text": "Pera",  "is_correct": false, "position": 3 },
+        { "text": "Maja",  "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "U Diznijevim crtaćima, Pluto je:",
+      "points": 1,
+      "position": 4,
+      "answers": [
+        { "text": "mačka",          "is_correct": false, "position": 0 },
+        { "text": "papagaj",        "is_correct": false, "position": 1 },
+        { "text": "pas",            "is_correct": true,  "position": 2 },
+        { "text": "patuljak",       "is_correct": false, "position": 3 },
+        { "text": "vanzemaljac",    "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Po čemu je sve poznat Patak Dača?",
+      "points": 1,
+      "position": 5,
+      "answers": [
+        { "text": "kratkim fitiljem (lako se naljuti)",         "is_correct": true,  "position": 0 },
+        { "text": "plavom mornarskom bluzom i crvenom mašnom",  "is_correct": true,  "position": 1 },
+        { "text": "karakterističnim kvakanjem",                 "is_correct": true,  "position": 2 },
+        { "text": "doktoratom iz astrofizike sa Harvarda",      "is_correct": false, "position": 3 },
+        { "text": "tečnim govorom sedam stranih jezika",        "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Najbogatiji patak u Diznijevom univerzumu je:",
+      "points": 1,
+      "position": 6,
+      "answers": [
+        { "text": "Patak Dača",          "is_correct": false, "position": 0 },
+        { "text": "Baja Patak",          "is_correct": true,  "position": 1 },
+        { "text": "Patka Dejzi",         "is_correct": false, "position": 2 },
+        { "text": "Mini Maus",           "is_correct": false, "position": 3 },
+        { "text": "nijedan od navedenih", "is_correct": false, "position": 4 }
+      ]
+    }
+  ]
+}

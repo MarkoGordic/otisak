@@ -13,15 +13,24 @@ router.get('/', async (req: Request, res: Response) => {
     const user = req.user!;
     const { subject_id } = req.query;
 
-    // Check if practice mode is enabled for students
+    const exams = await getSelfServicePracticeExams(user.id, subject_id as string | undefined);
+
+    // When practice mode is globally disabled we still expose public
+    // practice exams (the built-in demo, anything an admin chose to leave
+    // public) so the dashboard never goes completely empty. Private
+    // practice exams stay hidden until the toggle is on.
     if (user.role === 'student') {
       const practiceEnabled = await getSetting('practice_mode_enabled');
       if (practiceEnabled === 'false') {
-        return res.json({ exams: [], practice_disabled: true });
+        const publicOnly = exams.filter((e) => e.is_public);
+        return res.json({
+          exams: publicOnly,
+          practice_disabled: true,
+          public_only: true,
+        });
       }
     }
 
-    const exams = await getSelfServicePracticeExams(user.id, subject_id as string | undefined);
     return res.json({ exams });
   } catch (error) {
     console.error('Get practice exams error:', error);
