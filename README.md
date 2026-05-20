@@ -100,6 +100,12 @@ otisak/
 | `CLIENT_URL` | no | `http://localhost:$HOST_PORT` | Used for CORS. |
 | `BOOTSTRAP_ADMIN_EMAIL` | no | `admin@otisak.local` | First-run admin only; ignored once the row exists. |
 
+## Documentation
+
+End-user and architecture documentation lives in [`docs/`](docs/), organized
+by audience: [admin](docs/admin/), [assistant](docs/assistant/),
+[student](docs/student/), [architecture](docs/architecture/).
+
 ## Deploy
 
 `deploy.sh` provisions `.env`, generates a `SESSION_SECRET`, picks a free `HOST_PORT`, builds the image, and runs `docker compose up -d`. Run it on the target host and point any reverse proxy (nginx, Caddy, Traefik) at the chosen port. The container exposes `/api/health` for healthchecks.
