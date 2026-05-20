@@ -2,12 +2,13 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2, Plus, Users, Upload, Search,
-  ChevronLeft, ChevronRight,
+  ChevronLeft, ChevronRight, Pencil, Key,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
+import { useToast } from '../components/Toast';
 
 type UserData = {
   id: string;
@@ -25,6 +26,7 @@ type UserInfo = { name?: string; role?: string; avatar_url?: string };
 export default function AdminUsersPage() {
   const navigate = useNavigate();
   const { t } = useLang();
+  const toast = useToast();
   const [currentUser, setCurrentUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<UserData[]>([]);
@@ -42,6 +44,11 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'assistant' | 'admin'>('all');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
+
+  // Edit + password modals share the "currently targeted user" so the row
+  // action buttons stay simple ("open with this user").
+  const [editTarget, setEditTarget] = useState<UserData | null>(null);
+  const [passwordTarget, setPasswordTarget] = useState<UserData | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -84,13 +91,17 @@ export default function AdminUsersPage() {
       if (res.ok) {
         setShowCreate(false);
         setNewEmail(''); setNewPassword(''); setNewName(''); setNewRole('student'); setNewIndex('');
+        toast.success(t('users.createSuccess'));
         loadUsers();
       } else {
-        const d = await res.json();
-        alert(d.error || 'Failed to create user');
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('users.createFailed'));
       }
-    } catch { alert('Error creating user'); }
-    finally { setCreating(false); }
+    } catch {
+      toast.error(t('users.createFailed'));
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleImportFile = async (file: File | null) => {
@@ -103,7 +114,7 @@ export default function AdminUsersPage() {
       const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
       const total = lines.length;
       if (total === 0) {
-        alert(t('users.importFailed'));
+        toast.error(t('users.importFailed'));
         return;
       }
       setImportProgress({ processed: 0, total });
@@ -122,7 +133,7 @@ export default function AdminUsersPage() {
         });
         const d = await res.json();
         if (!res.ok) {
-          alert(d.error || t('users.importFailed'));
+          toast.error(d.error || t('users.importFailed'));
           break;
         }
         if (d.items?.created) allCreated.push(...d.items.created);
@@ -138,7 +149,7 @@ export default function AdminUsersPage() {
       });
       loadUsers();
     } catch (e) {
-      alert((e as Error).message || t('users.importFailed'));
+      toast.error((e as Error).message || t('users.importFailed'));
     } finally {
       setImporting(false);
       setImportProgress(null);
@@ -146,13 +157,23 @@ export default function AdminUsersPage() {
   };
 
   const handleRoleChange = async (userId: string, newRole: string) => {
-    await fetch('/api/admin/users', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ id: userId, role: newRole }),
-    });
-    loadUsers();
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: userId, role: newRole }),
+      });
+      if (res.ok) {
+        toast.success(t('users.roleChanged'));
+        loadUsers();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('users.roleChangeFailed'));
+      }
+    } catch {
+      toast.error(t('users.roleChangeFailed'));
+    }
   };
 
   if (!currentUser) {
@@ -246,7 +267,6 @@ export default function AdminUsersPage() {
               </div>
             )}
 
-            {/* Search + role filter \u2014 keeps the list snappy at scale by trimming what we render */}
             {!loading && (
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <div className="relative flex-1 min-w-[220px] max-w-[420px]">
@@ -282,6 +302,8 @@ export default function AdminUsersPage() {
                 pageSize={PAGE_SIZE}
                 onPageChange={setPage}
                 onRoleChange={handleRoleChange}
+                onEdit={setEditTarget}
+                onSetPassword={setPasswordTarget}
                 t={t}
               />
             )}
@@ -290,7 +312,6 @@ export default function AdminUsersPage() {
         </main>
       </div>
 
-      {/* Create Modal */}
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
@@ -313,6 +334,24 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
+
+      {editTarget && (
+        <EditUserModal
+          user={editTarget}
+          onClose={() => setEditTarget(null)}
+          onSaved={(updated) => {
+            setEditTarget(null);
+            setUsers((arr) => arr.map((u) => (u.id === updated.id ? { ...u, ...updated } : u)));
+          }}
+        />
+      )}
+
+      {passwordTarget && (
+        <PasswordModal
+          user={passwordTarget}
+          onClose={() => setPasswordTarget(null)}
+        />
+      )}
     </div>
   );
 }
@@ -327,10 +366,12 @@ type UserListProps = {
   pageSize: number;
   onPageChange: (p: number) => void;
   onRoleChange: (id: string, role: string) => void;
+  onEdit: (u: UserData) => void;
+  onSetPassword: (u: UserData) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange, onRoleChange, t }: UserListProps) {
+function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange, onRoleChange, onEdit, onSetPassword, t }: UserListProps) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
@@ -356,11 +397,21 @@ function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange,
         <div className="w-32">{t('users.index')}</div>
         <div className="w-36">{t('users.role')}</div>
         <div className="w-32">{t('users.lastLogin')}</div>
+        <div className="w-24 text-right">{t('users.edit')}</div>
       </div>
       {slice.length === 0 ? (
         <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('users.noResults')}</div>
       ) : (
-        slice.map((u) => <UserRow key={u.id} user={u} onRoleChange={onRoleChange} t={t} />)
+        slice.map((u) => (
+          <UserRow
+            key={u.id}
+            user={u}
+            onRoleChange={onRoleChange}
+            onEdit={onEdit}
+            onSetPassword={onSetPassword}
+            t={t}
+          />
+        ))
       )}
 
       {filtered.length > pageSize && (
@@ -397,10 +448,12 @@ const UserList = React.memo(UserListImpl);
 type UserRowProps = {
   user: UserData;
   onRoleChange: (id: string, role: string) => void;
+  onEdit: (u: UserData) => void;
+  onSetPassword: (u: UserData) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function UserRowImpl({ user, onRoleChange, t }: UserRowProps) {
+function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, t }: UserRowProps) {
   return (
     <div className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
       <div className="flex-1 min-w-0">
@@ -422,7 +475,157 @@ function UserRowImpl({ user, onRoleChange, t }: UserRowProps) {
       <div className="w-32 text-xs text-[var(--text-muted)]">
         {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : t('users.never')}
       </div>
+      <div className="w-24 flex items-center justify-end gap-1">
+        <button
+          type="button"
+          title={t('users.edit')}
+          onClick={() => onEdit(user)}
+          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-accent hover:bg-[var(--bg-tertiary)]"
+        >
+          <Pencil size={14} />
+        </button>
+        <button
+          type="button"
+          title={t('users.setPassword')}
+          onClick={() => onSetPassword(user)}
+          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-accent hover:bg-[var(--bg-tertiary)]"
+        >
+          <Key size={14} />
+        </button>
+      </div>
     </div>
   );
 }
 const UserRow = React.memo(UserRowImpl);
+
+// ----- Modals -----
+
+function EditUserModal({
+  user,
+  onClose,
+  onSaved,
+}: {
+  user: UserData;
+  onClose: () => void;
+  onSaved: (u: UserData) => void;
+}) {
+  const { t } = useLang();
+  const toast = useToast();
+  const [name, setName] = useState(user.name ?? '');
+  const [email, setEmail] = useState(user.email);
+  const [indexNumber, setIndexNumber] = useState(user.index_number ?? '');
+  const [role, setRole] = useState(user.role);
+  const [isActive, setIsActive] = useState(user.is_active);
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: user.id,
+          name: name.trim() || null,
+          email: email.trim(),
+          index_number: indexNumber.trim() || null,
+          role,
+          is_active: isActive,
+        }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(d.error || t('users.saveFailed'));
+        return;
+      }
+      toast.success(t('users.saveSuccess'));
+      onSaved(d.user as UserData);
+    } catch {
+      toast.error(t('users.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
+        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('users.editTitle')}</h2>
+        <div className="space-y-3">
+          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.name')} />
+          <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.email')} />
+          <input value={indexNumber} onChange={(e) => setIndexNumber(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.indexNumber')} />
+          <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
+            <option value="student">{t('users.student')}</option>
+            <option value="assistant">{t('users.assistant')}</option>
+            <option value="admin">{t('users.admin')}</option>
+          </select>
+          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
+            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+            {t('users.statusActive')}
+          </label>
+        </div>
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>{t('users.cancel')}</Button>
+          <Button variant="primary" loading={saving} onClick={handleSave}>{t('users.save')}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PasswordModal({ user, onClose }: { user: UserData; onClose: () => void }) {
+  const { t } = useLang();
+  const toast = useToast();
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (password.length < 6) {
+      toast.error(t('users.passwordTooShort'));
+      return;
+    }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/admin/users/password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: user.id, password }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(d.error || t('users.passwordFailed'));
+        return;
+      }
+      toast.success(t('users.passwordChanged'));
+      onClose();
+    } catch {
+      toast.error(t('users.passwordFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
+        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-1">{t('users.passwordTitle')}</h2>
+        <p className="text-xs text-[var(--text-muted)] mb-4 truncate">{user.name || user.email}</p>
+        <input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoFocus
+          placeholder={t('users.passwordPlaceholder')}
+          className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+        />
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>{t('users.cancel')}</Button>
+          <Button variant="primary" loading={saving} onClick={handleSave}>{t('users.save')}</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
