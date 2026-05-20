@@ -95,3 +95,34 @@
 
 .animate-fade-in { animation: fade-in 250ms cubic-bezier(0, 0, 0.2, 1); }
 .animate-slide-up { animation: slide-up 250ms cubic-bezier(0, 0, 0.2, 1); }
+
+/* ---------- docs-prose: typography for rendered markdown in /docs ---------- */
+/* Scoped class so we don't accidentally restyle other pages' content. */
+.docs-prose { color: var(--text-primary); font-size: 15px; line-height: 1.65; }
+.docs-prose > * + * { margin-top: 1em; }
+.docs-prose h1 { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 0; margin-bottom: 0.25em; }
+.docs-prose h2 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.015em; margin-top: 2em; margin-bottom: 0.25em; padding-bottom: 0.35em; border-bottom: 1px solid var(--border-subtle); }
+.docs-prose h3 { font-size: 1.15rem; font-weight: 600; margin-top: 1.6em; margin-bottom: 0.2em; }
+.docs-prose h4 { font-size: 1rem; font-weight: 600; margin-top: 1.4em; margin-bottom: 0.15em; }
+.docs-prose p { color: var(--text-secondary); }
+.docs-prose a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; transition: border-color 120ms ease; }
+.docs-prose a:hover { border-bottom-color: var(--accent); }
+.docs-prose ul, .docs-prose ol { padding-left: 1.5em; color: var(--text-secondary); }
+.docs-prose ul { list-style: disc; }
+.docs-prose ol { list-style: decimal; }
+.docs-prose li + li { margin-top: 0.35em; }
+.docs-prose li > p { margin: 0; }
+.docs-prose strong { color: var(--text-primary); font-weight: 600; }
+.docs-prose code { font-family: 'JetBrains Mono', monospace; font-size: 0.875em; padding: 0.15em 0.35em; border-radius: 4px; background: var(--bg-tertiary); color: var(--text-primary); }
+.docs-prose pre { background: var(--bg-tertiary); border: 1px solid var(--border-subtle); border-radius: 10px; padding: 1em 1.25em; overflow-x: auto; font-size: 0.85rem; line-height: 1.55; }
+.docs-prose pre code { background: transparent; padding: 0; border-radius: 0; font-size: inherit; color: var(--text-primary); }
+.docs-prose blockquote { border-left: 3px solid var(--accent); background: var(--accent-light); padding: 0.75em 1em; border-radius: 0 8px 8px 0; color: var(--text-secondary); margin-left: 0; }
+.docs-prose hr { border: 0; border-top: 1px solid var(--border-default); margin: 2em 0; }
+.docs-prose table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+.docs-prose table th, .docs-prose table td { border-bottom: 1px solid var(--border-subtle); padding: 0.55em 0.75em; text-align: left; vertical-align: top; }
+.docs-prose table th { color: var(--text-primary); font-weight: 600; background: var(--bg-tertiary); }
+.docs-prose table td { color: var(--text-secondary); }
+.docs-prose table tr:last-child td { border-bottom: none; }
+.docs-prose img { max-width: 100%; border-radius: 8px; }
+/* Anchor targets get scroll-margin so deep links don't slide under the sticky header. */
+.docs-prose h1, .docs-prose h2, .docs-prose h3, .docs-prose h4 { scroll-margin-top: 5rem; }

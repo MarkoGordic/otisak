@@ -39,6 +39,15 @@ const sr: Record<I18nKey, string> = {
   'nav.home': 'Početna',
   'nav.manage.short': 'Upravljanje',
   'nav.assessmentSystem': 'Sistem za testiranje',
+  'nav.docs': 'Dokumentacija',
+
+  // Docs page
+  'docs.title': 'Dokumentacija',
+  'docs.home': 'Početna',
+  'docs.backToApp': 'Nazad u aplikaciju',
+  'docs.notFoundTitle': 'Stranica nije pronađena',
+  'docs.notFoundBody': 'Ne možemo da pronađemo dokumentaciju za tu putanju na ovom jeziku. Probaj index ili promeni jezik.',
+  'docs.backToIndex': 'Otvori početnu',
 
   // Dashboard
   'dashboard.greeting.morning': 'Dobro jutro',

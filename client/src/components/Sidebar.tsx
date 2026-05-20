@@ -8,6 +8,7 @@ import {
   LogOut,
   BookOpen,
   BookMarked,
+  BookText,
   Sun,
   Moon,
   Languages,
@@ -47,6 +48,8 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
       { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
       { id: 'settings', label: t('nav.settings'), icon: Settings, href: '/admin/settings' },
     ] : []),
+    // Documentation — visible to everyone with a session.
+    { id: 'docs', label: t('nav.docs'), icon: BookText, href: '/docs' },
   ];
 
   const handleLogout = async () => {

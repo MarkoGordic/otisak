@@ -35,6 +35,15 @@ const en = {
   'nav.home': 'Home',
   'nav.manage.short': 'Manage',
   'nav.assessmentSystem': 'Assessment System',
+  'nav.docs': 'Documentation',
+
+  // Docs page
+  'docs.title': 'Documentation',
+  'docs.home': 'Home',
+  'docs.backToApp': 'Back to app',
+  'docs.notFoundTitle': 'Page not found',
+  'docs.notFoundBody': "We couldn't find documentation for that path in this language. Try the index or switch languages.",
+  'docs.backToIndex': 'Open the index',
 
   // Dashboard
   'dashboard.greeting.morning': 'Good morning',

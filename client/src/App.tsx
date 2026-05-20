@@ -15,6 +15,7 @@ import AdminSettingsPage from './pages/AdminSettingsPage';
 import ExamPage from './pages/ExamPage';
 import ResultsPage from './pages/ResultsPage';
 import JoinPage from './pages/JoinPage';
+import DocsPage from './pages/DocsPage';
 
 export default function App() {
   return (
@@ -35,6 +36,10 @@ export default function App() {
         <Route path="/exam/:examId" element={<ExamPage />} />
         <Route path="/exam/:examId/results" element={<ResultsPage />} />
         <Route path="/join/:examId" element={<JoinPage />} />
+        {/* Documentation — public. lang is required in the URL after first hit. */}
+        <Route path="/docs" element={<DocsPage />} />
+        <Route path="/docs/:lang" element={<DocsPage />} />
+        <Route path="/docs/:lang/*" element={<DocsPage />} />
       </Routes>
     </ErrorBoundary>
   );

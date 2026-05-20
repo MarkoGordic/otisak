@@ -38,6 +38,15 @@ const srCyrl: Record<I18nKey, string> = {
   'nav.home': 'Почетна',
   'nav.manage.short': 'Управљање',
   'nav.assessmentSystem': 'Систем за тестирање',
+  'nav.docs': 'Документација',
+
+  // Docs page
+  'docs.title': 'Документација',
+  'docs.home': 'Почетна',
+  'docs.backToApp': 'Назад у апликацију',
+  'docs.notFoundTitle': 'Страница није пронађена',
+  'docs.notFoundBody': 'Не можемо да пронађемо документацију за ту путању на овом језику. Покушај почетну страну или промени језик.',
+  'docs.backToIndex': 'Отвори почетну',
 
   // Dashboard
   'dashboard.greeting.morning': 'Добро јутро',
