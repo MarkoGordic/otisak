@@ -1,21 +1,12 @@
 # OTISAK — Documentation
 
-Documentation is organized by audience. Pick the role you're operating in:
+This documentation is available in two languages:
 
-| Role | Where to start | What's covered |
-|---|---|---|
-| Admin | [`admin/`](admin/) | Users, subjects, assistant assignments, settings, demo seed |
-| Assistant | [`assistant/`](assistant/) | Creating and running exams on assigned subjects |
-| Student | [`student/`](student/) | Joining an exam, the in-exam UI, results, practice mode |
-| Engineer | [`architecture/`](architecture/) | Stack, request flow, schema, deploy |
+- 🇷🇸 **Srpski (latinica)** → [`sr/`](sr/README.md)
+- 🇬🇧 **English** → [`en/`](en/README.md)
 
-For an existing topic that doesn't fit a role:
+In the running app, the same content is available at [`/docs`](../README.md#documentation) with a language switcher.
 
-- [QUESTIONS.md](QUESTIONS.md) — design notes on question-type modelling.
+## Internal design notes
 
-## Conventions
-
-- One audience per folder. Don't mix admin and student instructions in the same file.
-- Each subsection is a separate Markdown file linked from that folder's `README.md`, not a 1000-line monolith.
-- Screenshots go under `docs/_assets/`. Reference them with relative paths.
-- When a feature changes, update its doc page in the **same PR** as the code. Stale documentation is worse than no documentation.
+- [QUESTIONS.md](QUESTIONS.md) — design considerations on question-type modelling (English, internal).
