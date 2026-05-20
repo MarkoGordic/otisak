@@ -222,9 +222,10 @@ export default function ExamEditPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        alert(d.error || t('examEdit.addFailed'));
+        toast.error(d.error || t('examEdit.addFailed'));
         return;
       }
+      toast.success(t('examEdit.questionAdded'));
       resetDraft();
       load();
     } finally {
@@ -234,19 +235,29 @@ export default function ExamEditPage() {
 
   const handleDeleteQuestion = async (qid: string) => {
     if (!confirm(t('examEdit.confirmDelete'))) return;
-    await fetch(`/api/otisak/exams/${examId}/questions`, {
-      method: 'DELETE',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ id: qid }),
-    });
-    setQuestions((qs) => qs.filter((q) => q.id !== qid));
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/questions`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: qid }),
+      });
+      if (res.ok) {
+        toast.success(t('examEdit.questionDeleted'));
+        setQuestions((qs) => qs.filter((q) => q.id !== qid));
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('examEdit.questionDeleteFailed'));
+      }
+    } catch {
+      toast.error(t('examEdit.questionDeleteFailed'));
+    }
   };
 
   const handleImageFile = (file: File | null) => {
     if (!file) return;
-    if (!file.type.startsWith('image/')) { alert(t('questions.imageInvalidType')); return; }
-    if (file.size > 4 * 1024 * 1024) { alert(t('questions.imageTooBig')); return; }
+    if (!file.type.startsWith('image/')) { toast.error(t('questions.imageInvalidType')); return; }
+    if (file.size > 4 * 1024 * 1024) { toast.error(t('questions.imageTooBig')); return; }
     const reader = new FileReader();
     reader.onload = () => { if (typeof reader.result === 'string') setDraftImage(reader.result); };
     reader.readAsDataURL(file);

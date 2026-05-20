@@ -20,6 +20,7 @@ import {
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
+import { useToast } from '../components/Toast';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Dropdown } from '../components/ui/Dropdown';
@@ -98,6 +99,7 @@ function formatCountdown(ms: number) {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { t } = useLang();
+  const toast = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [exams, setExams] = useState<OtisakExamWithSubject[]>([]);
@@ -162,15 +164,15 @@ export default function DashboardPage() {
       });
       if (!res.ok) {
         const err = await res.json();
-        alert(err.error || 'Error starting practice exam.');
+        toast.error(err.error || t('manage.statusFailed'));
         return;
       }
       const data = await res.json();
       const newExamId = data.exam?.id || data.child_exam?.id;
-      if (!newExamId) { alert('Error starting practice exam.'); return; }
+      if (!newExamId) { toast.error(t('manage.statusFailed')); return; }
       navigate(`/exam/${newExamId}`);
     } catch {
-      alert('Error starting practice exam.');
+      toast.error(t('manage.statusFailed'));
     } finally {
       setStartingPractice(null);
     }

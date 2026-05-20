@@ -8,6 +8,7 @@ import { CodeBlock } from '../components/otisak';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
+import { useToast } from '../components/Toast';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Dropdown } from '../components/ui/Dropdown';
@@ -38,6 +39,7 @@ const typeIcons: Record<string, React.ReactNode> = {
 export default function QuestionBankPage() {
   const navigate = useNavigate();
   const { t } = useLang();
+  const toast = useToast();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -128,11 +130,11 @@ export default function QuestionBankPage() {
   const handleCreate = async () => {
     if (!newText.trim() || !selectedSubject) return;
     if (newType === 'code' && !newCodeSnippet.trim()) {
-      alert(t('questions.codeRequired'));
+      toast.error(t('questions.codeRequired'));
       return;
     }
     if (newType === 'image' && !newImageUrl.trim()) {
-      alert(t('questions.imageRequired'));
+      toast.error(t('questions.imageRequired'));
       return;
     }
     setCreating(true);
@@ -156,13 +158,17 @@ export default function QuestionBankPage() {
       if (res.ok) {
         setShowCreate(false);
         resetForm();
+        toast.success(t('examEdit.questionAdded'));
         loadQuestions();
       } else {
         const d = await res.json();
-        alert(d.error || 'Failed to create question');
+        toast.error(d.error || t('examEdit.addFailed'));
       }
-    } catch { alert('Error'); }
-    finally { setCreating(false); }
+    } catch {
+      toast.error(t('examEdit.addFailed'));
+    } finally {
+      setCreating(false);
+    }
   };
 
   const handleImageFile = (file: File | null) => {
@@ -187,8 +193,18 @@ export default function QuestionBankPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm(t('questions.deleteConfirm'))) return;
-    await fetch(`/api/otisak/questions?id=${id}`, { method: 'DELETE', credentials: 'include' });
-    loadQuestions();
+    try {
+      const res = await fetch(`/api/otisak/questions?id=${id}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        toast.success(t('examEdit.questionDeleted'));
+        loadQuestions();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('examEdit.questionDeleteFailed'));
+      }
+    } catch {
+      toast.error(t('examEdit.questionDeleteFailed'));
+    }
   };
 
   if (!user || loading) {

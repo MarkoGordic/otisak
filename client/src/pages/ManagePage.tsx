@@ -9,6 +9,7 @@ import {
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
+import { useToast } from '../components/Toast';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Dropdown } from '../components/ui/Dropdown';
@@ -21,6 +22,7 @@ type Subject = { id: string; name: string; code: string | null };
 export default function ManagePage() {
   const navigate = useNavigate();
   const { t } = useLang();
+  const toast = useToast();
 
   const STATUS_OPTIONS = [
     { value: 'all', label: t('manage.allStatuses') },
@@ -111,26 +113,51 @@ export default function ManagePage() {
         setNewTitle('');
         setNewSubjectId('');
         setNewDuration('60');
+        toast.success(t('manage.createSuccess'));
         loadData();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('manage.createFailed'));
       }
-    } catch (e) { console.error(e); }
-    finally { setCreating(false); }
+    } catch {
+      toast.error(t('manage.createFailed'));
+    } finally { setCreating(false); }
   };
 
   const handleStatusChange = async (examId: string, newStatus: string) => {
-    await fetch('/api/otisak/exams', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ id: examId, status: newStatus }),
-    });
-    loadData();
+    try {
+      const res = await fetch('/api/otisak/exams', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: examId, status: newStatus }),
+      });
+      if (res.ok) {
+        toast.success(t('manage.statusChanged'));
+        loadData();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('manage.statusFailed'));
+      }
+    } catch {
+      toast.error(t('manage.statusFailed'));
+    }
   };
 
   const handleDelete = async (examId: string) => {
     if (!confirm(t('manage.deleteConfirm'))) return;
-    await fetch(`/api/otisak/exams?id=${examId}`, { method: 'DELETE', credentials: 'include' });
-    loadData();
+    try {
+      const res = await fetch(`/api/otisak/exams?id=${examId}`, { method: 'DELETE', credentials: 'include' });
+      if (res.ok) {
+        toast.success(t('manage.deleteSuccess'));
+        loadData();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('manage.deleteFailed'));
+      }
+    } catch {
+      toast.error(t('manage.deleteFailed'));
+    }
   };
 
   const filteredExams = exams.filter((e) => statusFilter === 'all' || e.status === statusFilter);
@@ -179,12 +206,13 @@ export default function ManagePage() {
                         });
                         if (!res.ok) {
                           const d = await res.json().catch(() => ({}));
-                          alert(d.error || t('manage.importFailed'));
+                          toast.error(d.error || t('manage.importFailed'));
                           return;
                         }
+                        toast.success(t('manage.importSuccess'));
                         loadData();
                       } catch (err) {
-                        alert((err as Error).message || t('manage.importFailed'));
+                        toast.error((err as Error).message || t('manage.importFailed'));
                       }
                     }}
                   />
