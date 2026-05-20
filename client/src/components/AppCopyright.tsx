@@ -7,9 +7,7 @@ export function AppCopyright({ className = '' }: { className?: string }) {
     <div
       className={`text-[10px] tracking-wide text-[var(--text-muted)] opacity-70 select-none ${className}`}
     >
-      © Marko Gordić <span className="opacity-50 mx-1">|</span>
-       <span className="opacity-50 mx-1">|</span>
-      ACS
+      © Marko Gordić
     </div>
   );
 }

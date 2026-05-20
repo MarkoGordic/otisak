@@ -99,7 +99,7 @@ router.patch('/users/password', async (req: Request, res: Response) => {
 
 // POST /admin/users/import-csv
 // Body: { csv: "id,ime,prezime,indeks\n..." }
-// Default password for every imported user: "ftn".
+// Default password for every imported user: "changeme".
 // Email is synthesised from the index (e.g. ra1-2025@example.edu) so
 // it stays unique and the row can be re-found later.
 router.post('/users/import-csv', async (req: Request, res: Response) => {
