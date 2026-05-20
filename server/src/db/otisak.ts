@@ -77,7 +77,7 @@ export async function deleteOtisakSubject(id: string): Promise<void> {
 // ========================================
 
 export async function getOtisakExams(
-  filters?: { status?: string; subject_id?: string; exam_mode?: string }
+  filters?: { status?: string; subject_id?: string; exam_mode?: string; subject_ids?: string[] }
 ): Promise<OtisakExamWithSubject[]> {
   let sql = `
     SELECT e.*, s.name as subject_name, s.code as subject_code,
@@ -99,6 +99,18 @@ export async function getOtisakExams(
   if (filters?.exam_mode) {
     conditions.push(`e.exam_mode = $${params.length + 1}`);
     params.push(filters.exam_mode);
+  }
+  // Hard filter for assistants: only exams belonging to subjects the user
+  // is assigned to. Empty array → no exams (the route layer is responsible
+  // for short-circuiting when an assistant has zero assignments, but we
+  // still guard here so a programmer error doesn't leak the whole table).
+  if (filters?.subject_ids) {
+    if (filters.subject_ids.length === 0) {
+      conditions.push('FALSE');
+    } else {
+      conditions.push(`e.subject_id = ANY($${params.length + 1}::uuid[])`);
+      params.push(filters.subject_ids);
+    }
   }
 
   sql += ' WHERE ' + conditions.join(' AND ');

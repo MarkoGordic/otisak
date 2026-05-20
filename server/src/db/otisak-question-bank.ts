@@ -126,25 +126,10 @@ export async function getManageableOtisakSubjects(userId: string, isAdmin: boole
   return result.rows;
 }
 
-export async function isSubjectManageableByUser(userId: string, subjectId: string, isAdmin: boolean): Promise<boolean> {
-  if (isAdmin) {
-    const subject = await query<{ id: string }>(
-      'SELECT id FROM otisak_subjects WHERE id = $1 LIMIT 1',
-      [subjectId]
-    );
-    return subject.rows.length > 0;
-  }
-
-  const assignment = await query<{ id: string }>(
-    `SELECT sa.id
-     FROM subject_assignments sa
-     WHERE sa.user_id = $1 AND sa.subject_id = $2
-     LIMIT 1`,
-    [userId, subjectId]
-  );
-
-  return assignment.rows.length > 0;
-}
+// Re-export the canonical implementation from auth-helpers so the question
+// bank code keeps its existing import surface while the gating logic lives
+// in one place.
+export { isSubjectManageableByUser } from './auth-helpers';
 
 export async function getOtisakQuestionBankQuestions(params: {
   subjectId: string;

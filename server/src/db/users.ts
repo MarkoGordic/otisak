@@ -60,13 +60,14 @@ export async function createUser(data: {
 
 export async function updateUser(
   userId: string,
-  data: { name?: string; role?: string; index_number?: string; is_active?: boolean }
+  data: { name?: string | null; email?: string; role?: string; index_number?: string | null; is_active?: boolean }
 ): Promise<User | null> {
   const fields: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
 
   if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
+  if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email); }
   if (data.role !== undefined) { fields.push(`role = $${idx++}`); values.push(data.role); }
   if (data.index_number !== undefined) { fields.push(`index_number = $${idx++}`); values.push(data.index_number); }
   if (data.is_active !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.is_active); }
@@ -80,4 +81,12 @@ export async function updateUser(
     values
   );
   return result.rows[0] || null;
+}
+
+export async function updateUserPasswordHash(userId: string, passwordHash: string): Promise<boolean> {
+  const result = await query(
+    'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
+    [passwordHash, userId]
+  );
+  return (result.rowCount ?? 0) > 0;
 }
