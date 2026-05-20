@@ -1,108 +1,108 @@
 # OTISAK
 
-**Automated Test and Integrated Scoring Assessment Kernel**
+A self-hosted exam and assessment platform. Runs in two containers (Postgres + a Node service that serves the API and the static client) and bootstraps an admin account on first start.
 
-A standalone exam and assessment platform built with Next.js 14, PostgreSQL, and Docker. Supports 7 question types, AI grading, question banks, practice mode, and role-based access for admins, assistants, and students.
-
-## Quick Start
+## Quick start
 
 ```bash
+cp .env.example .env
+# set SESSION_SECRET to a 64-char random hex (the server refuses to boot without it)
 docker compose up --build
 ```
 
-App runs at `http://localhost:3000`. Database is automatically initialized with a default admin account.
+The app is exposed on `HOST_PORT` (default `3000`). On first boot the server bootstraps an `admin@otisak.local` account with a random password and prints it once to the container logs:
 
-**Default admin login:**
-- Email: `admin@otisak.local`
-- Password: `admin123`
+```
+docker compose logs app | grep -A2 'admin account bootstrapped'
+```
+
+A built-in practice exam (the "Šaljivi test" demo) is seeded on the same boot and shows up in the **Vežba** tab on the dashboard.
+
+## Stack
+
+- **Client** — Vite + React 18 + TypeScript + Tailwind, no SSR
+- **Server** — Express + WebSocket (`ws`) on top of `pg`, no ORM
+- **DB** — PostgreSQL 16; schema in [`init.sql`](init.sql), idempotent in-app migrations on every boot
+- **Deploy** — one Dockerfile (multi-stage), one `docker-compose.yml`
+
+## Roles
+
+| Role | Can |
+|---|---|
+| **admin** | everything: users, subjects, all exams, all questions |
+| **assistant** | manage exams and bank questions on subjects they're assigned to |
+| **student** | take exams they're enrolled in, plus any public practice exam |
+
+Subject assignments are managed by admins from the **Predmeti** page (`Asistenti` button on each subject). Assistants only see and mutate exams whose `subject_id` is in their assignment list — enforced at the route level, not just the UI.
+
+## Features
+
+- Seven question types: single-/multi-choice, code (highlighted), image, open-text (AI-graded), ordering, matching, fill-in-the-blank
+- Configurable per-exam: duration, pass threshold, shuffling, partial scoring, negative points
+- Lifecycle: draft → scheduled → active → completed → archived (completed and archived can't be reopened)
+- Live room view for admins/assistants: per-student progress, lockdown toggle, timer adjustments, late-join request queue
+- Auto-save during the attempt; idempotent submit on reconnect
+- CSV bulk-import for students; per-user edit, role change, and password reset from the admin UI
+- Per-exam JSON export/import for backup or moving between instances
+- AI-grading scaffolding for open-text answers (Claude / OpenAI), with optional student-supplied API keys and credit limits
+- Built-in toast feedback on every mutation, no native `alert()` dialogs
 
 ## Development
 
 ```bash
-# Start only the database
+# Postgres only
 docker compose up db -d
 
-# Copy env and install
-cp .env.example .env
-npm install
-npm run dev
+# Server (Express, watches src/)
+cd server && npm install && npm run dev   # http://localhost:3001
+
+# Client (Vite, proxies /api to the server)
+cd client && npm install && npm run dev   # http://localhost:5173
 ```
 
-## Features
+Type-checking the whole repo:
 
-### Roles
-- **Admin** - Full system access, user management, all exam operations
-- **Assistant** - Manage exams, questions, enrollments, view reports
-- **Student** - Take exams, view results, access practice mode
+```bash
+( cd server && npx tsc --noEmit ) && ( cd client && npx tsc --noEmit )
+```
 
-### Exam System
-- 7 question types: multiple choice, code (syntax highlighted), image, open text (AI graded), ordering, matching, fill-in-the-blank
-- Configurable exam settings: duration, pass threshold, shuffle, negative points, partial scoring
-- Exam lifecycle: draft > scheduled > active > completed > archived
-- Auto-save every 30 seconds during exams
-- Countdown timer with visual urgency indicator (turns red under 60s)
-- Scratch notes panel for student calculations (not submitted)
-- Bulk student enrollment by index number pattern
+The client's i18n locale files (`client/src/lib/i18n/{en,sr,sr-cyrl}.ts`) are typed against a shared `I18nKey` union, so adding a key to one without the others fails the typecheck.
 
-### Question Bank
-- Centralized question repository per subject
-- Tag-based organization and search
-- Tag rules for dynamic exam generation from the bank
-- Import/export support
-
-### Practice Mode
-- Self-service practice exams
-- Template-based generation with randomized questions from the bank
-- Separate tracking from real exams
-
-### AI Grading
-- Infrastructure for Claude and OpenAI grading of open-text answers
-- Immediate or deferred grading modes
-- Student API key support with credit limits
-
-### UI
-- Dark and light theme with toggle (defaults to dark)
-- Responsive design for mobile and desktop
-- Animated transitions with Framer Motion
-
-## Tech Stack
-
-- **Frontend:** Next.js 14, React 18, TypeScript, Tailwind CSS, Framer Motion
-- **Backend:** Next.js API Routes, PostgreSQL (via `pg` driver)
-- **Auth:** bcrypt password hashing, HMAC-signed session cookies
-- **Deployment:** Docker Compose (PostgreSQL 16 + standalone Next.js)
-
-## Project Structure
+## Layout
 
 ```
 otisak/
-├── src/
-│   ├── app/                    # Next.js App Router
-│   │   ├── api/                # API routes (auth, exams, subjects, questions)
-│   │   ├── dashboard/          # Student/admin dashboard
-│   │   ├── exam/[examId]/      # Exam taking and results pages
-│   │   ├── manage/             # Exam management (admin/assistant)
-│   │   ├── questions/          # Question bank (admin/assistant)
-│   │   ├── admin/users/        # User management (admin only)
-│   │   └── login/              # Login page
-│   ├── components/
-│   │   ├── otisak/             # Exam UI (header, timer, nav, answer options, code block)
-│   │   └── ui/                 # Shared components (badge, button, dropdown, tabs)
-│   └── lib/
-│       └── db/                 # Database operations and types
-├── init.sql                    # Database schema and seed data
-├── Dockerfile                  # Multi-stage production build
-├── docker-compose.yml          # PostgreSQL + app
-└── .env.example                # Environment variables template
+├── client/                       # Vite + React app
+│   └── src/
+│       ├── pages/                # route components
+│       ├── components/           # ui/, otisak/ (exam-taking widgets), Toast, Sidebar
+│       └── lib/i18n/             # sr-Latn / sr-Cyrl / en, with type-checked keys
+├── server/                       # Express + pg
+│   └── src/
+│       ├── routes/               # auth, admin, exams, exam, questions, subjects, practice, history
+│       ├── db/                   # query helpers, types, auth-helpers, migrations
+│       ├── lib/                  # importExam, finishExam, studentReport
+│       ├── seeds/saljivi-test.json
+│       ├── bootstrap.ts          # ensureBootstrapAdmin + ensureDemoExam
+│       └── ws/                   # exam event broadcast, live-stats aggregator
+├── init.sql                      # full schema, applied by the Postgres image on first run
+├── Dockerfile                    # client build → server build → trimmed runtime
+└── docker-compose.yml
 ```
 
-## Environment Variables
+## Environment
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `DATABASE_URL` | PostgreSQL connection string | `postgresql://otisak:otisak@localhost:5432/otisak` |
-| `SESSION_SECRET` | Secret for signing session cookies | (required) |
-| `BASE_URL` | Application base URL | `http://localhost:3000` |
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `SESSION_SECRET` | yes | — | Min 16 chars; HMACs the session cookie. Server refuses to start otherwise. |
+| `DATABASE_URL` | yes | `postgresql://otisak:otisak@db:5432/otisak` | |
+| `HOST_PORT` | no | `3000` | Compose maps this to the container's `3001`. |
+| `CLIENT_URL` | no | `http://localhost:$HOST_PORT` | Used for CORS. |
+| `BOOTSTRAP_ADMIN_EMAIL` | no | `admin@otisak.local` | First-run admin only; ignored once the row exists. |
+
+## Deploy
+
+`deploy.sh` provisions `.env`, generates a `SESSION_SECRET`, picks a free `HOST_PORT`, builds the image, and runs `docker compose up -d`. Run it on the target host and point any reverse proxy (nginx, Caddy, Traefik) at the chosen port. The container exposes `/api/health` for healthchecks.
 
 ## License
 
