@@ -23,11 +23,13 @@
 **/Thumbs.db
 **/*.swp
 
-# Docs and meta — not needed at runtime
-*.md
-**/*.md
-DEPLOYMENT.md
-README.md
+# Top-level meta — not needed at runtime.
+# IMPORTANT: do NOT blanket-exclude **/*.md. The client bundles docs/**/*.md
+# at build time (via import.meta.glob) to render them at /docs in the app —
+# a wildcard exclusion here silently produces an empty docs site.
+/README.md
+/DEPLOYMENT.md
+/CHANGELOG.md
 
 # Docker / deploy meta — not needed inside the image
 Dockerfile

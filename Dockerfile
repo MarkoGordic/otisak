@@ -16,11 +16,16 @@
 # Stage 1: Build client (Vite + Tailwind)
 # ========================================
 FROM node:20-alpine AS client-build
-WORKDIR /app/client
-COPY client/package.json client/package-lock.json* ./
+WORKDIR /app
+COPY client/package.json client/package-lock.json* ./client/
 RUN --mount=type=cache,target=/root/.npm \
-    npm ci --no-audit --no-fund
-COPY client/ ./
+    cd client && npm ci --no-audit --no-fund
+COPY client/ ./client/
+# Bilingual docs ship inside the client bundle: vite's import.meta.glob in
+# client/src/lib/docs.ts reads from ../../../docs/**/*.md, so docs/ has to
+# be physically present next to client/ at build time.
+COPY docs/ ./docs/
+WORKDIR /app/client
 RUN npm run build
 
 # ========================================

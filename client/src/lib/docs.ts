@@ -4,9 +4,11 @@
 // fetches, no separate server route. Dev mode reads the files live (HMR
 // on save) thanks to server.fs.allow in vite.config.ts.
 //
-// Keys end up looking like "../../docs/en/admin/README.md" — we normalize
-// them into a structured tree below.
-const RAW_FILES = import.meta.glob<string>('../../docs/**/*.md', {
+// Keys end up looking like "../../../docs/en/admin/README.md" — we normalize
+// them into a structured tree below. The path is three levels up because
+// this file lives at client/src/lib/, and the docs/ tree is at the repo
+// root next to client/.
+const RAW_FILES = import.meta.glob<string>('../../../docs/**/*.md', {
   query: '?raw',
   import: 'default',
   eager: true,
