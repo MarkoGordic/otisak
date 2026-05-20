@@ -4,6 +4,8 @@ import {
   createOtisakQuestionBankQuestion,
   deleteOtisakQuestionBankQuestion,
 } from '../db/otisak-question-bank';
+import { isSubjectManageableByUser } from '../db/auth-helpers';
+import { query } from '../db/client';
 import { requireAuth, requireRole } from '../middleware';
 
 const router = Router();
@@ -39,11 +41,18 @@ router.get('/', async (req: Request, res: Response) => {
 router.post('/', async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
+    const user = req.user!;
+    const isAdmin = user.role === 'admin';
+    if (typeof body.subject_id !== 'string' || !body.subject_id) {
+      return res.status(400).json({ error: 'subject_id is required' });
+    }
+    const allowed = await isSubjectManageableByUser(user.id, body.subject_id, isAdmin);
+    if (!allowed) return res.status(403).json({ error: 'Not assigned to this subject' });
     if (typeof body.image_url === 'string' && body.image_url.length > 0) {
       const v = validateImageUrl(body.image_url);
       if (!v.ok) return res.status(400).json({ error: v.error });
     }
-    const question = await createOtisakQuestionBankQuestion(body, req.user!.id);
+    const question = await createOtisakQuestionBankQuestion(body, user.id);
     return res.json(question);
   } catch (error) {
     console.error('Create question error:', error);
@@ -70,6 +79,21 @@ router.delete('/', async (req: Request, res: Response) => {
     if (!id) {
       return res.status(400).json({ error: 'Question id is required' });
     }
+
+    const user = req.user!;
+    const isAdmin = user.role === 'admin';
+    // Look up the question's subject so we can confirm the deleter is
+    // assigned to it. Avoids relying on the client to send the subject_id
+    // (which would be trivially spoofable).
+    const owning = await query<{ subject_id: string }>(
+      'SELECT subject_id FROM otisak_question_bank WHERE id = $1 LIMIT 1',
+      [id]
+    );
+    if (!owning.rows[0]) {
+      return res.status(404).json({ error: 'Question not found' });
+    }
+    const allowed = await isSubjectManageableByUser(user.id, owning.rows[0].subject_id, isAdmin);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized to delete this question' });
 
     const deleted = await deleteOtisakQuestionBankQuestion(id);
     if (!deleted) {

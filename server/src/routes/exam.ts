@@ -42,12 +42,27 @@ import archiver from 'archiver';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { markSessionActive, isLockedByOtherSession } from '../session-tracker';
 import { requireAuth, requireRole } from '../middleware';
+import { canUserManageExam } from '../db/auth-helpers';
 
 const router = Router({ mergeParams: true });
 
 // Helper function to get examId from params
 function getExamId(req: Request): string {
   return req.params.examId;
+}
+
+// Gate any mutation route that admins+assistants share: admins are always
+// allowed; assistants must be assigned to the exam's subject. Sends the
+// response on rejection and returns false so the caller can early-exit.
+async function assertCanManageExam(req: Request, res: Response, examId: string): Promise<boolean> {
+  const user = req.user!;
+  if (user.role === 'admin') return true;
+  const allowed = await canUserManageExam(user.id, examId, false);
+  if (!allowed) {
+    res.status(403).json({ error: 'Not authorized to manage this exam' });
+    return false;
+  }
+  return true;
 }
 
 // Tiny in-memory cache for high-frequency polling endpoints. 1s TTL keeps the load
@@ -526,6 +541,7 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
 router.post('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const { user_ids, pattern, course_code, year, from_number, to_number } = req.body;
 
     // Enroll by pattern
@@ -650,6 +666,7 @@ router.get('/questions', requireAuth, requireRole(['admin', 'assistant']), async
 router.post('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const question = await createOtisakQuestion(examId, req.body);
     return res.json(question);
   } catch (error) {
@@ -667,6 +684,8 @@ router.post('/questions', requireAuth, requireRole(['admin', 'assistant']), asyn
 // DELETE /exams/:examId/questions - admin/assistant, delete question
 router.delete('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const { id } = req.body;
     if (!id) {
       return res.status(400).json({ error: 'Question id is required' });
@@ -898,6 +917,7 @@ router.get('/live-stats', requireAuth, requireRole(['admin', 'assistant']), asyn
 router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const exam = await startExamTimer(examId);
     if (!exam) {
       return res.status(400).json({ error: 'Exam not found or not active' });
@@ -928,6 +948,7 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
 router.post('/finish-all', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const redirectStudents = req.body?.redirect_students === true;
     const result = await finishExamForEveryone(examId, {
       redirectStudents,
@@ -965,6 +986,7 @@ router.get('/lockdown', async (req: Request, res: Response) => {
 router.post('/lockdown', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const { lock, message } = req.body;
 
     if (lock) {
@@ -1075,6 +1097,7 @@ router.get('/requests/mine', requireAuth, async (req: Request, res: Response) =>
 router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const requestId = req.params.id;
     const { decision, note } = req.body || {};
 
@@ -1114,6 +1137,7 @@ router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistan
 router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const { delta_seconds } = req.body || {};
 
     const delta = Number(delta_seconds);

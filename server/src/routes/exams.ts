@@ -7,10 +7,14 @@ import {
   updateOtisakExam,
   deleteOtisakExam,
   setExamTagRules,
-  createOtisakQuestion,
 } from '../db/otisak';
-import { query } from '../db/client';
 import { requireAuth, requireRole } from '../middleware';
+import {
+  canUserManageExam,
+  getAssignedSubjectIds,
+  isSubjectManageableByUser,
+} from '../db/auth-helpers';
+import { importExamFromJson, resolveSubjectIdByName } from '../lib/importExam';
 
 const router = Router();
 
@@ -37,7 +41,7 @@ router.get('/active', async (_req: Request, res: Response) => {
 router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user!;
-    if (user.role === 'admin' || user.role === 'assistant') {
+    if (user.role === 'admin') {
       const { status, subject_id, exam_mode } = req.query;
       const exams = await getOtisakExams({
         status: status as string | undefined,
@@ -45,10 +49,23 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
         exam_mode: exam_mode as string | undefined,
       });
       return res.json({ exams });
-    } else {
-      const exams = await getExamsForUser(user.id);
+    }
+    if (user.role === 'assistant') {
+      // Assistants only see exams attached to subjects they're assigned to.
+      // Empty assignment list → empty result (the helper short-circuits
+      // before hitting the DB on the worst case).
+      const subjectIds = await getAssignedSubjectIds(user.id);
+      const { status, subject_id, exam_mode } = req.query;
+      const exams = await getOtisakExams({
+        status: status as string | undefined,
+        subject_id: subject_id as string | undefined,
+        exam_mode: exam_mode as string | undefined,
+        subject_ids: subjectIds,
+      });
       return res.json({ exams });
     }
+    const exams = await getExamsForUser(user.id);
+    return res.json({ exams });
   } catch (error) {
     console.error('Get exams error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -58,9 +75,22 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 // POST /exams
 router.post('/', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
-    const exam = await createOtisakExam(req.body, req.user!.id);
+    const user = req.user!;
+    const isAdmin = user.role === 'admin';
+    const subjectId = typeof req.body?.subject_id === 'string' ? req.body.subject_id : null;
 
-    // Set tag rules if provided
+    // Assistants must own (be assigned to) the subject they're creating an
+    // exam under. Without a subject, no scope to enforce — admin only.
+    if (!isAdmin) {
+      if (!subjectId) {
+        return res.status(400).json({ error: 'subject_id is required for assistants' });
+      }
+      const ok = await isSubjectManageableByUser(user.id, subjectId, false);
+      if (!ok) return res.status(403).json({ error: 'Not assigned to this subject' });
+    }
+
+    const exam = await createOtisakExam(req.body, user.id);
+
     if (req.body.tag_rules && Array.isArray(req.body.tag_rules)) {
       await setExamTagRules(exam.id, req.body.tag_rules);
     }
@@ -78,6 +108,19 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
     const { id, status, tag_rules, ...fields } = req.body;
     if (!id) {
       return res.status(400).json({ error: 'Exam id is required' });
+    }
+
+    const user = req.user!;
+    const isAdmin = user.role === 'admin';
+    const allowed = await canUserManageExam(user.id, id, isAdmin);
+    if (!allowed) return res.status(403).json({ error: 'Not authorized to manage this exam' });
+
+    // If an assistant is trying to MOVE this exam to a different subject,
+    // they must also be assigned to the target subject — otherwise they
+    // could lift an exam out of their scope.
+    if (!isAdmin && typeof fields.subject_id === 'string' && fields.subject_id) {
+      const ok = await isSubjectManageableByUser(user.id, fields.subject_id, false);
+      if (!ok) return res.status(403).json({ error: 'Not assigned to target subject' });
     }
 
     let result = null;
@@ -116,68 +159,21 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
     if (typeof body !== 'object' || !body.exam || !Array.isArray(body.questions)) {
       return res.status(400).json({ error: 'Invalid exam JSON: missing exam or questions' });
     }
-    const examIn = body.exam;
-    if (typeof examIn.title !== 'string' || !examIn.title.trim()) {
-      return res.status(400).json({ error: 'exam.title is required' });
+
+    const user = req.user!;
+    const isAdmin = user.role === 'admin';
+    const subjectId = await resolveSubjectIdByName(body.exam.subject_name as string | undefined);
+
+    if (!isAdmin) {
+      if (!subjectId) {
+        return res.status(400).json({ error: 'Assistants must import into a known subject (set exam.subject_name)' });
+      }
+      const ok = await isSubjectManageableByUser(user.id, subjectId, false);
+      if (!ok) return res.status(403).json({ error: 'Not assigned to this subject' });
     }
 
-    // Resolve subject_id from subject_name if present.
-    let subjectId: string | null = null;
-    if (typeof examIn.subject_name === 'string' && examIn.subject_name.trim()) {
-      const sub = await query<{ id: string }>(
-        'SELECT id FROM otisak_subjects WHERE LOWER(name) = LOWER($1) LIMIT 1',
-        [examIn.subject_name.trim()]
-      );
-      subjectId = sub.rows[0]?.id ?? null;
-    }
-
-    const exam = await createOtisakExam({
-      title: examIn.title.trim(),
-      description: typeof examIn.description === 'string' ? examIn.description : null,
-      duration_minutes: Number(examIn.duration_minutes) || 60,
-      pass_threshold: Number(examIn.pass_threshold) || 50,
-      exam_mode: examIn.exam_mode === 'practice' ? 'practice' : 'real',
-      allow_review: !!examIn.allow_review,
-      shuffle_questions: !!examIn.shuffle_questions,
-      shuffle_answers: !!examIn.shuffle_answers,
-      partial_scoring: !!examIn.partial_scoring,
-      negative_points_enabled: !!examIn.negative_points_enabled,
-      negative_points_value: Number(examIn.negative_points_value) || 0,
-      negative_points_threshold: Number(examIn.negative_points_threshold) || 0,
-      subject_id: subjectId,
-    } as never, req.user!.id);
-
-    let createdQuestions = 0;
-    for (const q of body.questions) {
-      if (!q || typeof q.type !== 'string' || typeof q.text !== 'string') continue;
-      // JSON authors decide single vs multi explicitly via "multi_answer": true|false.
-      // If the field is missing, fall back to "derive from is_correct count" inside
-      // createOtisakQuestion — keeps old fixtures working without surprises.
-      const multiAnswer = typeof q.multi_answer === 'boolean' ? q.multi_answer : undefined;
-      await createOtisakQuestion(exam.id, {
-        type: q.type,
-        text: q.text,
-        content: q.content ?? null,
-        points: Number(q.points) || 0,
-        position: typeof q.position === 'number' ? q.position : undefined,
-        explanation: q.explanation ?? null,
-        ai_grading_instructions: q.ai_grading_instructions ?? null,
-        multi_answer: multiAnswer,
-        answers: Array.isArray(q.answers)
-          ? q.answers
-              .filter((a: unknown): a is { text: string; is_correct?: boolean; position?: number } =>
-                typeof a === 'object' && a !== null && typeof (a as { text?: unknown }).text === 'string')
-              .map((a: { text: string; is_correct?: boolean; position?: number }, i: number) => ({
-                text: a.text,
-                is_correct: !!a.is_correct,
-                position: typeof a.position === 'number' ? a.position : i,
-              }))
-          : [],
-      } as never);
-      createdQuestions++;
-    }
-
-    return res.json({ exam, questions: createdQuestions });
+    const result = await importExamFromJson(body, user.id, { subject_id: subjectId });
+    return res.json({ exam: result.exam, questions: result.questions });
   } catch (error) {
     console.error('Import exam JSON error:', error);
     return res.status(500).json({ error: (error as Error).message || 'Internal server error' });
@@ -191,6 +187,10 @@ router.delete('/', requireAuth, requireRole(['admin', 'assistant']), async (req:
     if (!id) {
       return res.status(400).json({ error: 'Exam id is required' });
     }
+
+    const user = req.user!;
+    const allowed = await canUserManageExam(user.id, id, user.role === 'admin');
+    if (!allowed) return res.status(403).json({ error: 'Not authorized to manage this exam' });
 
     const deleted = await deleteOtisakExam(id);
     if (!deleted) {

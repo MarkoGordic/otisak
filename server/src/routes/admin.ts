@@ -1,9 +1,19 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { getAllUsers, updateUser } from '../db/users';
+import { getAllUsers, updateUser, updateUserPasswordHash } from '../db/users';
 import { getAllSettings, setSetting } from '../db/settings';
 import { requireAuth, requireRole } from '../middleware';
 import { query } from '../db/client';
+import {
+  listSubjectAssignments,
+  assignUserToSubject,
+  unassignUserFromSubject,
+} from '../db/auth-helpers';
+
+// Email format check shared by the create/update endpoints. Deliberately
+// loose — the DB has a UNIQUE constraint on the actual address, this just
+// stops obvious typos from reaching the insert.
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const router = Router();
 
@@ -25,12 +35,37 @@ router.get('/users', async (_req: Request, res: Response) => {
 // PATCH /admin/users
 router.patch('/users', async (req: Request, res: Response) => {
   try {
-    const { id, name, role, index_number, is_active } = req.body;
+    const { id, name, email, role, index_number, is_active } = req.body;
     if (!id) {
       return res.status(400).json({ error: 'User id is required' });
     }
 
-    const updated = await updateUser(id, { name, role, index_number, is_active });
+    // Email is the one field that can collide because of the UNIQUE
+    // constraint. Pre-check so we can surface a friendly 409 instead of a
+    // raw constraint violation from Postgres.
+    let normalizedEmail: string | undefined;
+    if (email !== undefined) {
+      const trimmed = String(email).trim().toLowerCase();
+      if (!EMAIL_RE.test(trimmed)) {
+        return res.status(400).json({ error: 'Invalid email format' });
+      }
+      const dup = await query<{ id: string }>(
+        'SELECT id FROM users WHERE email = $1 AND id <> $2 LIMIT 1',
+        [trimmed, id]
+      );
+      if (dup.rows[0]) {
+        return res.status(409).json({ error: 'Email already exists' });
+      }
+      normalizedEmail = trimmed;
+    }
+
+    const updated = await updateUser(id, {
+      name,
+      email: normalizedEmail,
+      role,
+      index_number,
+      is_active,
+    });
     if (!updated) {
       return res.status(404).json({ error: 'User not found or no changes' });
     }
@@ -39,6 +74,25 @@ router.patch('/users', async (req: Request, res: Response) => {
     return res.json({ user: rest });
   } catch (error) {
     console.error('Update user error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /admin/users/password — set a new password for any user.
+// Body: { id, password }. Minimum length 6 to match the create flow.
+router.patch('/users/password', async (req: Request, res: Response) => {
+  try {
+    const { id, password } = req.body || {};
+    if (!id) return res.status(400).json({ error: 'User id is required' });
+    if (typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+    const hash = await bcrypt.hash(password, 10);
+    const ok = await updateUserPasswordHash(id, hash);
+    if (!ok) return res.status(404).json({ error: 'User not found' });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Update user password error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -219,6 +273,58 @@ router.patch('/settings', async (req: Request, res: Response) => {
     return res.json({ settings });
   } catch (error) {
     console.error('Update settings error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ----- subject assignments -----
+// These endpoints power the "Asistenti" panel on /subjects. Admin-only:
+// asistents themselves can see what they're assigned to via the implicit
+// filter on /api/otisak/exams (they don't get to add or remove anyone).
+
+// GET /admin/subjects/:subjectId/assignments
+router.get('/subjects/:subjectId/assignments', async (req: Request, res: Response) => {
+  try {
+    const { subjectId } = req.params;
+    if (!subjectId) return res.status(400).json({ error: 'subjectId is required' });
+    const assignments = await listSubjectAssignments(subjectId);
+    return res.json({ assignments });
+  } catch (error) {
+    console.error('List assignments error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /admin/subjects/:subjectId/assignments — body { user_id, role? }
+// Role defaults to 'assistant' (the only one wired up on the client today,
+// but the schema allows 'professor' so we accept it).
+router.post('/subjects/:subjectId/assignments', async (req: Request, res: Response) => {
+  try {
+    const { subjectId } = req.params;
+    const { user_id, role } = req.body || {};
+    if (!subjectId || !user_id) {
+      return res.status(400).json({ error: 'subjectId and user_id are required' });
+    }
+    const finalRole: 'professor' | 'assistant' = role === 'professor' ? 'professor' : 'assistant';
+    await assignUserToSubject(user_id, subjectId, finalRole, req.user!.id);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Create assignment error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// DELETE /admin/subjects/:subjectId/assignments/:userId
+router.delete('/subjects/:subjectId/assignments/:userId', async (req: Request, res: Response) => {
+  try {
+    const { subjectId, userId } = req.params;
+    if (!subjectId || !userId) {
+      return res.status(400).json({ error: 'subjectId and userId are required' });
+    }
+    await unassignUserFromSubject(userId, subjectId);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Delete assignment error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
