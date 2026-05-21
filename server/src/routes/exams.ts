@@ -5,8 +5,8 @@ import {
   createOtisakExam,
   updateOtisakExamStatus,
   updateOtisakExam,
-  deleteOtisakExam,
   setExamTagRules,
+  getOtisakExamById,
   DemoExamLockedError,
 } from '../db/otisak';
 import { requireAuth, requireRole } from '../middleware';
@@ -16,6 +16,7 @@ import {
   isSubjectManageableByUser,
 } from '../db/auth-helpers';
 import { importExamFromJson, resolveSubjectIdByName } from '../lib/importExam';
+import { finishExamForEveryone } from '../lib/finishExam';
 
 const router = Router();
 
@@ -126,7 +127,33 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
 
     let result = null;
 
-    if (status) {
+    if (status === 'completed' || status === 'archived') {
+      // Flipping to completed/archived implies "exam is over". Auto-submit
+      // every still-open attempt so the live-stats table doesn't keep
+      // showing students as "in progress" after the exam is officially
+      // closed. finishExamForEveryone also ends any active lockdown and
+      // broadcasts exam.finished so connected clients drop out of the
+      // exam UI. For 'archived' we suppress the broadcast (the exam is
+      // already being put away; no need to spam everyone) and then flip
+      // the status from 'completed' to 'archived' as a second step.
+      const fin = await finishExamForEveryone(id, {
+        redirectStudents: false,
+        broadcast: status === 'completed',
+      });
+      if (!fin.ok) {
+        if (fin.error === 'DEMO_EXAM_LOCKED') {
+          return res.status(409).json({ error: 'DEMO_EXAM_LOCKED' });
+        }
+        return res.status(fin.status).json({ error: fin.error });
+      }
+      if (status === 'archived') {
+        result = await updateOtisakExamStatus(id, 'archived');
+      } else {
+        // finishExamForEveryone has already set status to 'completed'.
+        // Re-fetch so the response carries the canonical row.
+        result = await getOtisakExamById(id);
+      }
+    } else if (status) {
       result = await updateOtisakExamStatus(id, status);
     }
 
@@ -199,30 +226,15 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
   }
 });
 
-// DELETE /exams
-router.delete('/', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
-  try {
-    const id = (req.query.id as string | undefined) || req.body?.id;
-    if (!id) {
-      return res.status(400).json({ error: 'Exam id is required' });
-    }
-
-    const user = req.user!;
-    const allowed = await canUserManageExam(user.id, id, user.role === 'admin');
-    if (!allowed) return res.status(403).json({ error: 'Not authorized to manage this exam' });
-
-    const deleted = await deleteOtisakExam(id);
-    if (!deleted) {
-      return res.status(404).json({ error: 'Exam not found' });
-    }
-    return res.json({ success: true });
-  } catch (error) {
-    if (error instanceof DemoExamLockedError) {
-      return res.status(409).json({ error: 'DEMO_EXAM_LOCKED' });
-    }
-    console.error('Delete exam error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
-  }
+// DELETE /exams — disabled. Exams are not deletable, period. Once an exam
+// has any attempts, deletion would silently destroy student data and audit
+// trail; for empty drafts the saved-up clicks aren't worth the risk either.
+// Use 'archived' status (PATCH) to take an exam out of the active list.
+//
+// The route is left in place so a stray client request gets a clean 410
+// instead of a confusing 404. The actual DB function is no longer reached.
+router.delete('/', requireAuth, requireRole(['admin', 'assistant']), async (_req: Request, res: Response) => {
+  return res.status(410).json({ error: 'EXAM_DELETE_DISABLED' });
 });
 
 export default router;

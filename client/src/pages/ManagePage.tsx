@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Loader2, Plus, Settings, Trash2, Play, Pause, Archive,
+  Loader2, Plus, Settings, Play, Pause, Archive,
   FileText, Clock, CalendarIcon, Radio,
   Download, Upload, Pencil, Package,
 } from 'lucide-react';
@@ -150,22 +150,6 @@ export default function ManagePage() {
     }
   };
 
-  const handleDelete = async (examId: string) => {
-    if (!confirm(t('manage.deleteConfirm'))) return;
-    try {
-      const res = await fetch(`/api/otisak/exams?id=${examId}`, { method: 'DELETE', credentials: 'include' });
-      if (res.ok) {
-        toast.success(t('manage.deleteSuccess'));
-        loadData();
-      } else {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d.error === 'DEMO_EXAM_LOCKED' ? t('manage.demoLocked') : (d.error || t('manage.deleteFailed')));
-      }
-    } catch {
-      toast.error(t('manage.deleteFailed'));
-    }
-  };
-
   const handleImport = async () => {
     if (!importFile) return;
     setImporting(true);
@@ -310,9 +294,6 @@ export default function ManagePage() {
                             {action.label}
                           </Button>
                         ))}
-                        <Button variant="ghost" size="sm" onClick={() => handleDelete(exam.id)} className="text-danger hover:bg-danger-light">
-                          <Trash2 size={14} />
-                        </Button>
                       </div>
                     </div>
                   </motion.div>
