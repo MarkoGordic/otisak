@@ -22,6 +22,9 @@ export type ExamTimerState = {
   totalSeconds: number;
   expired: boolean;
   paused: boolean;
+  // True when the exam hasn't been started yet (startedAt is null). The
+  // display reflects the configured duration but is not ticking.
+  notStarted: boolean;
 };
 
 // Single source of truth for the exam timer used by ExamPage (student view) and RoomPage
@@ -39,12 +42,12 @@ export function useExamTimer({
   const firedExpiryRef = useRef(false);
 
   const calculate = useCallback(() => {
-    if (!startedAt) return 0;
+    // Exam hasn't started yet (admin hasn't clicked "Pokreni tajmer"). Show
+    // the configured duration as a static placeholder instead of 00:00. The
+    // expiry callback is also gated below so it can't fire in this state.
+    if (!startedAt) return Math.max(0, durationSeconds + extraSeconds);
     const startMs = new Date(startedAt).getTime();
-    // Malformed startedAt produces NaN; downstream Math.max(0, NaN) is NaN
-    // and the timer renders "NaN:NaN". Treat as "not started" instead so the
-    // exam UI stays usable and the consumer can see startedAt isn't valid.
-    if (!Number.isFinite(startMs)) return 0;
+    if (!Number.isFinite(startMs)) return Math.max(0, durationSeconds + extraSeconds);
     const totalMs = (durationSeconds + extraSeconds) * 1000;
     const elapsed = Math.max(0, Date.now() - startMs - pausedSeconds * 1000);
     return Math.max(0, Math.floor((totalMs - elapsed) / 1000));
@@ -92,8 +95,11 @@ export function useExamTimer({
     minutes: Math.floor((safeTotal % 3600) / 60),
     seconds: safeTotal % 60,
     totalSeconds: safeTotal,
+    // Only count as expired if the exam actually started. Before start, the
+    // display shows the configured duration but is not "expired".
     expired: safeTotal <= 0 && !!startedAt,
     paused,
+    notStarted: !startedAt,
   };
 }
 

@@ -816,7 +816,11 @@ export default function ExamPage() {
           attempt && exam ? (
             <OtisakTimer
               durationSeconds={exam.duration_minutes * 60 + Number(exam.extra_seconds || 0)}
-              startedAt={(exam.exam_started_at || attempt.started_at) as unknown as string}
+              // Source of truth is the exam's exam_started_at. Null until the
+              // admin clicks "Pokreni tajmer". Don't fall back to
+              // attempt.started_at — that would start the countdown the
+              // moment the student joins, not when the exam starts.
+              startedAt={exam.exam_started_at ? (exam.exam_started_at as unknown as string) : null}
               pausedSeconds={pausedSeconds}
               paused={lockdown}
               onExpire={handleTimerExpire}

@@ -4,7 +4,12 @@ import { useTheme } from '../ThemeProvider';
 
 interface TimerProps {
   durationSeconds: number;
-  startedAt: string;
+  // ISO timestamp of when the admin started the exam (exam.exam_started_at).
+  // Null while the exam is in the lobby phase. While null the timer shows the
+  // full configured duration as a static placeholder and does NOT count down.
+  // Never substitute attempt.started_at here — that would start the countdown
+  // the moment the student joins, not when the exam actually starts.
+  startedAt: string | null;
   pausedSeconds?: number;
   paused?: boolean;
   onExpire?: () => void;
@@ -23,10 +28,11 @@ export function OtisakTimer({
   onExpireRef.current = onExpire;
 
   const calculateRemaining = useCallback(() => {
+    // Exam hasn't started. Display the configured duration as a static
+    // placeholder and don't tick or expire.
+    if (!startedAt) return durationSeconds;
     const startMs = new Date(startedAt).getTime();
-    // Malformed startedAt yields NaN; treat as "not started yet" instead of
-    // letting NaN propagate into the rendered digits.
-    if (!Number.isFinite(startMs)) return 0;
+    if (!Number.isFinite(startMs)) return durationSeconds;
     const endMs = startMs + durationSeconds * 1000;
     const elapsed = Math.max(0, Date.now() - startMs - pausedSeconds * 1000);
     return Math.max(0, Math.floor((endMs - startMs - elapsed) / 1000));
@@ -36,6 +42,12 @@ export function OtisakTimer({
 
   useEffect(() => {
     if (paused) return;
+    // Pre-start: keep the display synced to the configured duration (in case
+    // duration changes from above) but don't tick and don't fire expiry.
+    if (!startedAt) {
+      setTimeLeft(calculateRemaining());
+      return;
+    }
     if (timeLeft <= 0) {
       onExpireRef.current?.();
       return;
@@ -49,7 +61,7 @@ export function OtisakTimer({
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [timeLeft, calculateRemaining, paused]);
+  }, [timeLeft, calculateRemaining, paused, startedAt]);
 
   // When paused, recompute once and freeze the display at the current value
   useEffect(() => {
@@ -63,22 +75,29 @@ export function OtisakTimer({
   const seconds = timeLeft % 60;
   const fmt = (n: number) => n.toString().padStart(2, '0');
 
-  const isLow = !paused && timeLeft < 60;
-  const digitColor = paused
-    ? 'text-sky-300'
-    : isLow
-      ? 'text-red-500 animate-pulse'
-      : 'text-green-500';
-  const sepColor = paused
-    ? 'text-sky-300/70'
-    : isLow
-      ? 'text-red-500/70'
-      : 'text-green-500/70';
-  const glow = paused
-    ? 'drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]'
-    : isLow
-      ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]'
-      : 'drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]';
+  const notStarted = !startedAt;
+  const isLow = !paused && !notStarted && timeLeft < 60;
+  const digitColor = notStarted
+    ? 'text-slate-400'
+    : paused
+      ? 'text-sky-300'
+      : isLow
+        ? 'text-red-500 animate-pulse'
+        : 'text-green-500';
+  const sepColor = notStarted
+    ? 'text-slate-400/70'
+    : paused
+      ? 'text-sky-300/70'
+      : isLow
+        ? 'text-red-500/70'
+        : 'text-green-500/70';
+  const glow = notStarted
+    ? 'drop-shadow-[0_0_8px_rgba(148,163,184,0.35)]'
+    : paused
+      ? 'drop-shadow-[0_0_8px_rgba(56,189,248,0.5)]'
+      : isLow
+        ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]'
+        : 'drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]';
 
   // Local theme — only used to swap the digit-box surface; the foreground color is
   // already encoded in `digitColor` (green/red/sky) and works against both surfaces.
@@ -100,8 +119,8 @@ export function OtisakTimer({
 
   const Separator = () => (
     <motion.span
-      animate={paused ? { opacity: 0.6 } : { opacity: [1, 0.4, 1] }}
-      transition={paused ? { duration: 0 } : { duration: 1, repeat: Infinity }}
+      animate={(paused || notStarted) ? { opacity: 0.6 } : { opacity: [1, 0.4, 1] }}
+      transition={(paused || notStarted) ? { duration: 0 } : { duration: 1, repeat: Infinity }}
       className={`text-lg sm:text-2xl font-bold pb-1 ${sepColor}`}
     >
       :

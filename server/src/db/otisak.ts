@@ -1216,13 +1216,19 @@ export async function getExamAttemptsSummary(
   finished_at: Date | null;
   time_spent_seconds: number;
 }>> {
+  // Non-student attempts (assistant or admin opening the exam to test it,
+  // for example) are excluded from the listing. They count as test traffic
+  // and shouldn't appear as real results.
   const result = await query(
     `SELECT a.user_id, u.name as user_name, u.email as user_email, u.index_number,
             a.total_points, a.max_points, a.submitted, a.started_at, a.finished_at, a.time_spent_seconds
      FROM otisak_attempts a
      JOIN users u ON a.user_id = u.id
-     WHERE a.exam_id = $1
-        OR a.exam_id IN (SELECT id FROM otisak_exams WHERE parent_exam_id = $1)
+     WHERE u.role = 'student'
+       AND (
+         a.exam_id = $1
+         OR a.exam_id IN (SELECT id FROM otisak_exams WHERE parent_exam_id = $1)
+       )
      ORDER BY a.total_points DESC, a.started_at ASC`,
     [examId]
   );
@@ -1398,6 +1404,7 @@ export async function getLiveExamStats(examId: string): Promise<{
      FROM otisak_attempts a
      JOIN users u ON a.user_id = u.id
      WHERE a.exam_id = $1
+       AND u.role = 'student'
      ORDER BY a.started_at ASC`,
     [examId, SUSPICIOUS_TYPES]
   );

@@ -759,13 +759,15 @@ router.post('/join', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'User not found' });
     }
 
-    // No-double-login enforcement, scoped to ACTIVE TEST RUNS only.
-    // If the student already has an unsubmitted attempt and another browser
-    // is currently driving it, reject the second /join. The lobby phase
-    // (no attempt yet) stays unrestricted so a student can switch devices
-    // before the exam starts.
-    const existingActive = await getActiveAttempt(examId, fullUser.id);
-    if (existingActive) {
+    // No-double-login enforcement. Covers BOTH the lobby/waiting phase (no
+    // attempt yet, student is just sitting on the join screen) and the
+    // running exam phase (attempt exists). The earlier "lobby is OK to
+    // switch devices" carve-out was a cheating risk: a student could sit
+    // on PC A in waiting and join from PC B to have a second runner once
+    // the timer started. The session-tracker entry goes stale after
+    // STALE_MS of no heartbeat, so an honest device-switch (broken PC,
+    // browser crash) is still recoverable after a few minutes.
+    {
       const incomingCookie = req.cookies?.[SESSION_COOKIE];
       const incomingSession = incomingCookie ? parseSessionCookie(incomingCookie) : null;
       const incomingSessionId = incomingSession?.id ?? null;
@@ -853,6 +855,21 @@ router.get('/room-status', async (req: Request, res: Response) => {
     const exam = await getCachedExam(examId);
     if (!exam) {
       return res.status(404).json({ error: 'Exam not found' });
+    }
+
+    // Heartbeat the session-tracker if the caller is a logged-in student in
+    // the lobby. /room-status is the only request a waiting student fires
+    // (every 2 seconds while the lobby waits for the timer to start), and
+    // without this their session-tracker entry would go stale after
+    // STALE_MS and another device could grab the lock. Public route stays
+    // public; we just opportunistically refresh the lock when the cookie
+    // is present.
+    const cookieValue = req.cookies?.[SESSION_COOKIE];
+    if (cookieValue) {
+      const session = parseSessionCookie(cookieValue);
+      if (session?.user?.id && session.id) {
+        markSessionActive(session.user.id, session.id);
+      }
     }
 
     const lockdown = await getActiveLockdown(examId);
