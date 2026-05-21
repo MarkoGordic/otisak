@@ -23,6 +23,7 @@ import type {
 } from '../lib/types';
 
 type UserInfo = {
+  id?: string;
   name?: string;
   email?: string;
   avatar_url?: string;
@@ -238,6 +239,7 @@ export default function ExamPage() {
 
         if (mounted) {
           setUser({
+            id: sessionData.user?.id,
             name: sessionData.user?.name,
             email: sessionData.user?.email,
             avatar_url: sessionData.user?.avatar_url,
@@ -451,6 +453,14 @@ export default function ExamPage() {
       } else {
         toast.info(t('exam.toast.finishedByAdmin'));
         navigate(`/exam/${examId}/results`, { replace: true });
+      }
+    } else if (evt.type === 'student.kicked') {
+      // The room broadcasts kicks to everyone; only act if it's me.
+      // Tabs that aren't this student just ignore the event.
+      const targetUserId = (evt as unknown as { user_id?: string }).user_id;
+      if (targetUserId && user?.id && targetUserId === user.id) {
+        toast.warning(t('exam.toast.kicked'));
+        navigate('/', { replace: true });
       }
     } else if (evt.type === 'exam.started' || evt.type === 'request.decided') {
       // Trigger a refetch of /exams/:id so the lobby/awaiting-approval flow advances immediately.

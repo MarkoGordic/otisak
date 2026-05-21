@@ -503,6 +503,12 @@ const sr: Record<I18nKey, string> = {
   'exam.toast.timerAdded': 'Asistent je dodao {minutes} min.',
   'exam.toast.timerRemoved': 'Asistent je oduzeo {minutes} min.',
   'exam.toast.finishedByAdmin': 'Asistent je završio ispit.',
+  'exam.toast.kicked': 'Asistent te je izbacio iz ispita.',
+  'room.kick': 'Izbaci sa ispita',
+  'room.kickConfirm': 'Izbaciti studenta {name} iz ispita? Njegov pokušaj se predaje sa odgovorima koje je do sada uneo.',
+  'room.kickFailed': 'Nije moguće izbaciti studenta.',
+  'room.kickToast': 'Student {name} je izbačen iz ispita.',
+  'room.viewReport': 'Otvori izveštaj',
   'exam.toast.finishedRedirect': 'Asistent je završio ispit. Vrati se na početnu...',
 
   // Lockdown / pause

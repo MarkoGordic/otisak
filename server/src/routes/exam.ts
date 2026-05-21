@@ -40,7 +40,7 @@ import { buildStudentReportHTML, buildResultsTableHTML, renderHtmlToPdf } from '
 import { finishExamForEveryone } from '../lib/finishExam';
 import archiver from 'archiver';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
-import { markSessionActive, isLockedByOtherSession } from '../session-tracker';
+import { markSessionActive, isLockedByOtherSession, clearSessionForUser } from '../session-tracker';
 import { requireAuth, requireRole } from '../middleware';
 import { canUserManageExam } from '../db/auth-helpers';
 
@@ -1196,6 +1196,61 @@ router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), a
     });
   } catch (error) {
     console.error('Adjust timer error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// ============================================================================
+// KICK — admin/assistant removes a specific student from the running exam
+// ============================================================================
+
+// POST /exams/:examId/kick — body { user_id }
+// Finishes the student's attempt (if any) with whatever they had saved so the
+// row stays in the results table, clears the student's device-lock so they
+// can navigate freely, and broadcasts student.kicked so the target's browser
+// drops out of the exam UI and lands on the home/picker screen.
+//
+// The kicked student can't re-enter THIS exam (GET /exams/:examId sees their
+// submitted attempt and routes them straight to results), but they can pick
+// a different active exam from the home page if there is one.
+router.post('/kick', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
+
+    const { user_id } = req.body || {};
+    if (typeof user_id !== 'string' || !user_id) {
+      return res.status(400).json({ error: 'user_id is required' });
+    }
+
+    const attempt = await getActiveAttempt(examId, user_id);
+    if (attempt) {
+      // Score with whatever they had at the moment of the kick. Same path
+      // /finish-all uses for unsubmitted attempts.
+      const elapsed = Math.max(1, Math.floor((Date.now() - new Date(attempt.started_at).getTime()) / 1000));
+      try {
+        await finishAttempt(attempt.id, elapsed);
+      } catch (err) {
+        console.error('kick: finishAttempt failed for', attempt.id, err);
+      }
+    }
+
+    // Release the session-tracker entry so the kicked student isn't stuck
+    // unable to log into any other exam from another device.
+    clearSessionForUser(user_id);
+
+    broadcastExamEvent(examId, {
+      type: 'student.kicked',
+      user_id,
+    });
+
+    // Refresh the live-stats cache so the room's participant list reflects
+    // the new submitted=true state without waiting for the next 5s poll.
+    refreshLiveStatsNow(examId).catch((err) => console.error('kick: refreshLiveStatsNow failed', err));
+
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Kick error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

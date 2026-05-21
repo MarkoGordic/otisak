@@ -500,6 +500,12 @@ const en = {
   'exam.toast.timerRemoved': 'Assistant removed {minutes} min.',
   'exam.toast.finishedByAdmin': 'The assistant has finished the exam.',
   'exam.toast.finishedRedirect': 'The assistant has finished the exam. Returning home...',
+  'exam.toast.kicked': 'The assistant has removed you from this exam.',
+  'room.kick': 'Remove from exam',
+  'room.kickConfirm': 'Remove {name} from this exam? Their attempt will be submitted with whatever they answered so far.',
+  'room.kickFailed': 'Could not remove the student.',
+  'room.kickToast': '{name} has been removed from the exam.',
+  'room.viewReport': 'Open report',
 
   // Lockdown / pause
   'lockdown.title': 'PAUSED',

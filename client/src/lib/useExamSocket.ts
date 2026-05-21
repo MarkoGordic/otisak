@@ -12,7 +12,8 @@ export type ExamWsEvent =
   | { type: 'exam.finished'; redirect: boolean; finished_count: number }
   | { type: 'exam.submitted'; user_id: string; finished_count: number; total_participants: number }
   | { type: 'exam.progress'; user_id: string; answered_count: number; total_questions: number; time_spent_seconds: number }
-  | { type: 'student.joined'; user_id: string };
+  | { type: 'student.joined'; user_id: string }
+  | { type: 'student.kicked'; user_id: string };
 
 export type UseExamSocketResult = {
   connected: boolean;

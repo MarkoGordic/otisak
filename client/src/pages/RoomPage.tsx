@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Loader2, Users, Play, Pause, Copy, Check, Link2, UserCheck, ArrowLeft,
   Fingerprint, Radio, ShieldOff, ShieldAlert, FileText,
-  Plus, Minus, X, UserPlus, Timer as TimerIcon, AlertTriangle, Wifi, WifiOff,
+  Plus, Minus, X, UserPlus, UserX, Timer as TimerIcon, AlertTriangle, Wifi, WifiOff,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -240,6 +240,27 @@ export default function ExamRoomPage() {
       toast.error(t('room.toast.finishFailed'));
     } finally {
       setFinishing(false);
+    }
+  };
+
+  const handleKickStudent = async (userId: string, displayName: string) => {
+    if (!confirm(t('room.kickConfirm', { name: displayName }))) return;
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/kick`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ user_id: userId }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('room.kickFailed'));
+        return;
+      }
+      toast.success(t('room.kickToast', { name: displayName }));
+      loadRoom();
+    } catch {
+      toast.error(t('room.kickFailed'));
     }
   };
 
@@ -548,17 +569,30 @@ export default function ExamRoomPage() {
                           </div>
                         )}
                       </div>
-                      {started && (
-                        <div className="w-10 flex justify-center">
+                      <div className="w-20 flex justify-end items-center gap-1">
+                        {started && (
                           <button
                             onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
                             className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent hover:bg-accent-light transition-colors"
-                            title={t('room.requests.title')}
+                            title={t('room.viewReport')}
                           >
                             <FileText size={14} />
                           </button>
-                        </div>
-                      )}
+                        )}
+                        {/* Kick is available while a student is on-screen: from the
+                            moment they join through the running exam, but not after
+                            they've already submitted (no point) or before they joined
+                            (no row in the participants list anyway). */}
+                        {!submitted && (
+                          <button
+                            onClick={() => handleKickStudent(p.user_id, p.name || p.email)}
+                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger hover:bg-danger-light transition-colors"
+                            title={t('room.kick')}
+                          >
+                            <UserX size={14} />
+                          </button>
+                        )}
+                      </div>
                     </motion.div>
                   );
                 })}

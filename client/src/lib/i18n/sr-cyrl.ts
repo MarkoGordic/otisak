@@ -502,6 +502,12 @@ const srCyrl: Record<I18nKey, string> = {
   'exam.toast.timerAdded': 'Асистент је додао {minutes} мин.',
   'exam.toast.timerRemoved': 'Асистент је одузео {minutes} мин.',
   'exam.toast.finishedByAdmin': 'Асистент је завршио испит.',
+  'exam.toast.kicked': 'Асистент те је избацио из испита.',
+  'room.kick': 'Избаци са испита',
+  'room.kickConfirm': 'Избацити студента {name} из испита? Његов покушај се предаје са одговорима које је до сада унео.',
+  'room.kickFailed': 'Није могуће избацити студента.',
+  'room.kickToast': 'Студент {name} је избачен из испита.',
+  'room.viewReport': 'Отвори извештај',
   'exam.toast.finishedRedirect': 'Асистент је завршио испит. Врати се на почетну...',
 
   // Lockdown / pause
