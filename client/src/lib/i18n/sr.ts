@@ -227,6 +227,12 @@ const sr: Record<I18nKey, string> = {
   'manage.statusChanged': 'Status ispita je ažuriran.',
   'manage.statusFailed': 'Promena statusa nije uspela.',
   'manage.importSuccess': 'Ispit je uvezen.',
+  'manage.importJsonTitle': 'Uvoz ispita iz JSON-a',
+  'manage.importJsonHelp': 'Izaberi JSON fajl izvezen iz aplikacije i predmet pod koji ide novi ispit.',
+  'manage.importJsonFile': 'JSON fajl',
+  'manage.importJsonPick': 'Izaberi fajl…',
+  'manage.importJsonSubjectFromFile': 'Koristi predmet iz fajla',
+  'manage.importJsonSubjectHint': 'Ako ostane ovako, server pokušava da poklopi polje subject_name iz JSON-a sa postojećim predmetima.',
   'manage.createSuccess': 'Ispit je napravljen.',
   'manage.createFailed': 'Pravljenje ispita nije uspelo.',
   'settings.saveSuccess': 'Podešavanja su sačuvana.',
@@ -525,6 +531,18 @@ const sr: Record<I18nKey, string> = {
 
   // Footer
   'footer.warning': 'Varanje je strogo zabranjeno. Sva aktivnost se prati i beleži. Kršenje vodi disciplinskom postupku.',
+
+  // Account (samostalna promena lozinke)
+  'account.changePassword': 'Promeni lozinku',
+  'account.changePasswordTitle': 'Promena lozinke',
+  'account.currentPasswordPlaceholder': 'Trenutna lozinka',
+  'account.newPasswordPlaceholder': 'Nova lozinka (najmanje 6 znakova)',
+  'account.confirmPasswordPlaceholder': 'Potvrdi novu lozinku',
+  'account.passwordChanged': 'Lozinka je promenjena.',
+  'account.passwordChangeFailed': 'Promena lozinke nije uspela.',
+  'account.passwordTooShort': 'Nova lozinka mora imati najmanje 6 znakova.',
+  'account.passwordMismatch': 'Polja za novu lozinku se ne poklapaju.',
+  'account.passwordSame': 'Nova lozinka mora biti drugačija od trenutne.',
 
   // Common
   'common.cancel': 'Otkaži',

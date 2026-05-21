@@ -226,6 +226,12 @@ const srCyrl: Record<I18nKey, string> = {
   'manage.statusChanged': 'Статус испита је ажуриран.',
   'manage.statusFailed': 'Промена статуса није успела.',
   'manage.importSuccess': 'Испит је увезен.',
+  'manage.importJsonTitle': 'Увоз испита из JSON-а',
+  'manage.importJsonHelp': 'Изабери JSON фајл извезен из апликације и предмет под који иде нови испит.',
+  'manage.importJsonFile': 'JSON фајл',
+  'manage.importJsonPick': 'Изабери фајл…',
+  'manage.importJsonSubjectFromFile': 'Користи предмет из фајла',
+  'manage.importJsonSubjectHint': 'Ако остане овако, сервер покушава да поклопи поље subject_name из JSON-а са постојећим предметима.',
   'manage.createSuccess': 'Испит је направљен.',
   'manage.createFailed': 'Прављење испита није успело.',
   'settings.saveSuccess': 'Подешавања су сачувана.',
@@ -524,6 +530,18 @@ const srCyrl: Record<I18nKey, string> = {
 
   // Footer
   'footer.warning': 'Варање је строго забрањено. Сва активност се прати и бележи. Кршење води дисциплинском поступку.',
+
+  // Налог (самостална промена лозинке)
+  'account.changePassword': 'Промени лозинку',
+  'account.changePasswordTitle': 'Промена лозинке',
+  'account.currentPasswordPlaceholder': 'Тренутна лозинка',
+  'account.newPasswordPlaceholder': 'Нова лозинка (најмање 6 знакова)',
+  'account.confirmPasswordPlaceholder': 'Потврди нову лозинку',
+  'account.passwordChanged': 'Лозинка је промењена.',
+  'account.passwordChangeFailed': 'Промена лозинке није успела.',
+  'account.passwordTooShort': 'Нова лозинка мора имати најмање 6 знакова.',
+  'account.passwordMismatch': 'Поља за нову лозинку се не поклапају.',
+  'account.passwordSame': 'Нова лозинка мора бити другачија од тренутне.',
 
   // Common
   'common.cancel': 'Откажи',

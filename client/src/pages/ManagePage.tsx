@@ -58,6 +58,12 @@ export default function ManagePage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [showCreateModal, setShowCreateModal] = useState(false);
 
+  // Import form
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importSubjectId, setImportSubjectId] = useState('');
+  const [importing, setImporting] = useState(false);
+
   // Create form
   const [newTitle, setNewTitle] = useState('');
   const [newSubjectId, setNewSubjectId] = useState('');
@@ -160,6 +166,38 @@ export default function ManagePage() {
     }
   };
 
+  const handleImport = async () => {
+    if (!importFile) return;
+    setImporting(true);
+    try {
+      const text = await importFile.text();
+      const json = JSON.parse(text);
+      // Explicit subject pick from the dialog wins over whatever the JSON
+      // carries in exam.subject_name. The server enforces the same rule.
+      const body = importSubjectId ? { ...json, subject_id: importSubjectId } : json;
+      const res = await fetch('/api/otisak/exams/import-json', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('manage.importFailed'));
+        return;
+      }
+      toast.success(t('manage.importSuccess'));
+      setShowImportModal(false);
+      setImportFile(null);
+      setImportSubjectId('');
+      loadData();
+    } catch (err) {
+      toast.error((err as Error).message || t('manage.importFailed'));
+    } finally {
+      setImporting(false);
+    }
+  };
+
   const filteredExams = exams.filter((e) => statusFilter === 'all' || e.status === statusFilter);
 
   if (!user) {
@@ -186,40 +224,13 @@ export default function ManagePage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <label className="cursor-pointer">
-                  <input
-                    type="file"
-                    accept="application/json,.json"
-                    className="hidden"
-                    onChange={async (e) => {
-                      const f = e.target.files?.[0];
-                      e.target.value = '';
-                      if (!f) return;
-                      try {
-                        const text = await f.text();
-                        const json = JSON.parse(text);
-                        const res = await fetch('/api/otisak/exams/import-json', {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/json' },
-                          credentials: 'include',
-                          body: JSON.stringify(json),
-                        });
-                        if (!res.ok) {
-                          const d = await res.json().catch(() => ({}));
-                          toast.error(d.error || t('manage.importFailed'));
-                          return;
-                        }
-                        toast.success(t('manage.importSuccess'));
-                        loadData();
-                      } catch (err) {
-                        toast.error((err as Error).message || t('manage.importFailed'));
-                      }
-                    }}
-                  />
-                  <span className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors">
-                    <Upload size={14} />{t('manage.importJson')}
-                  </span>
-                </label>
+                <Button
+                  variant="secondary"
+                  leftIcon={<Upload size={14} />}
+                  onClick={() => { setImportFile(null); setImportSubjectId(''); setShowImportModal(true); }}
+                >
+                  {t('manage.importJson')}
+                </Button>
                 <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreateModal(true)}>
                   {t('manage.newExam')}
                 </Button>
@@ -316,6 +327,48 @@ export default function ManagePage() {
       </div>
 
       {/* Create Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
+            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-1">{t('manage.importJsonTitle')}</h2>
+            <p className="text-xs text-[var(--text-muted)] mb-4">{t('manage.importJsonHelp')}</p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.importJsonFile')}</label>
+                <label className="block">
+                  <input
+                    type="file"
+                    accept="application/json,.json"
+                    className="hidden"
+                    onChange={(e) => setImportFile(e.target.files?.[0] || null)}
+                  />
+                  <span className="inline-flex items-center gap-2 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm cursor-pointer hover:border-accent transition-colors w-full">
+                    <Upload size={14} className="text-[var(--text-muted)]" />
+                    <span className="truncate">{importFile ? importFile.name : t('manage.importJsonPick')}</span>
+                  </span>
+                </label>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.subject')}</label>
+                <Dropdown
+                  options={[
+                    { value: '', label: t('manage.importJsonSubjectFromFile') },
+                    ...subjects.map((s) => ({ value: s.id, label: s.name })),
+                  ]}
+                  value={importSubjectId}
+                  onChange={setImportSubjectId}
+                />
+                <p className="text-[11px] text-[var(--text-muted)] mt-1">{t('manage.importJsonSubjectHint')}</p>
+              </div>
+            </div>
+            <div className="flex items-center justify-end gap-3 mt-6">
+              <Button variant="secondary" onClick={() => setShowImportModal(false)} disabled={importing}>{t('manage.cancel')}</Button>
+              <Button variant="primary" loading={importing} disabled={!importFile} onClick={handleImport}>{t('manage.importJson')}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showCreateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">

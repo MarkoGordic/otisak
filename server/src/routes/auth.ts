@@ -1,7 +1,7 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import { findUserByEmail, updateLastLogin, createUser } from '../db/users';
+import { findUserByEmail, findUserById, updateLastLogin, createUser, updateUserPasswordHash } from '../db/users';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth, requireRole } from '../middleware';
 
@@ -106,6 +106,49 @@ router.get('/session', async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error('Session error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /auth/password - self-service password change for the current user.
+// Verifies the current password first so a hijacked session can't lock the
+// real owner out by quietly rotating credentials. Rate limited to soak up
+// any "try-many-current-passwords" attempt against a stolen session cookie.
+const passwordChangeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: 'Too many password change attempts. Try again in 15 minutes.' },
+});
+
+router.patch('/password', passwordChangeLimiter, requireAuth, async (req: Request, res: Response) => {
+  try {
+    const { current_password, new_password } = req.body || {};
+    if (typeof current_password !== 'string' || typeof new_password !== 'string') {
+      return res.status(400).json({ error: 'current_password and new_password are required' });
+    }
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+    if (new_password === current_password) {
+      return res.status(400).json({ error: 'New password must differ from the current one' });
+    }
+
+    // Re-fetch the user so we get the full row including password_hash. The
+    // session middleware only attaches the user identity, not the hash.
+    const fresh = await findUserById(req.user!.id);
+    if (!fresh) return res.status(404).json({ error: 'User not found' });
+
+    const valid = await bcrypt.compare(current_password, fresh.password_hash);
+    if (!valid) return res.status(400).json({ error: 'Current password is wrong' });
+
+    const hash = await bcrypt.hash(new_password, 10);
+    await updateUserPasswordHash(fresh.id, hash);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Self password change error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

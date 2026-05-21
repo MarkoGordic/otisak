@@ -223,6 +223,12 @@ const en = {
   'manage.statusChanged': 'Exam status updated.',
   'manage.statusFailed': 'Failed to update exam status.',
   'manage.importSuccess': 'Exam imported.',
+  'manage.importJsonTitle': 'Import exam from JSON',
+  'manage.importJsonHelp': 'Pick a JSON file exported from this app, and choose the subject for the new exam.',
+  'manage.importJsonFile': 'JSON file',
+  'manage.importJsonPick': 'Choose a file…',
+  'manage.importJsonSubjectFromFile': 'Use the subject from the file',
+  'manage.importJsonSubjectHint': 'If left as default, the subject_name field from the JSON is matched against existing subjects.',
   'manage.createSuccess': 'Exam created.',
   'manage.createFailed': 'Failed to create exam.',
   'settings.saveSuccess': 'Settings saved.',
@@ -521,6 +527,18 @@ const en = {
 
   // Footer
   'footer.warning': 'Cheating is strictly prohibited. All activity is monitored and logged. Violations result in disciplinary action.',
+
+  // Account (self-service)
+  'account.changePassword': 'Change password',
+  'account.changePasswordTitle': 'Change your password',
+  'account.currentPasswordPlaceholder': 'Current password',
+  'account.newPasswordPlaceholder': 'New password (at least 6 characters)',
+  'account.confirmPasswordPlaceholder': 'Confirm new password',
+  'account.passwordChanged': 'Password changed.',
+  'account.passwordChangeFailed': 'Could not change password.',
+  'account.passwordTooShort': 'New password must be at least 6 characters.',
+  'account.passwordMismatch': 'The two new password fields do not match.',
+  'account.passwordSame': 'New password must be different from the current one.',
 
   // Common
   'common.cancel': 'Cancel',

@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Fingerprint,
@@ -12,9 +13,12 @@ import {
   Sun,
   Moon,
   Languages,
+  Key,
 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';
+import { useToast } from './Toast';
+import { Button } from './ui/Button';
 import { nextLocale } from '../lib/i18n';
 
 type SidebarProps = {
@@ -56,6 +60,8 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     navigate('/admin');
   };
+
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   return (
     <aside className="fixed left-0 top-0 bottom-0 w-[260px] bg-[var(--bg-elevated)] border-r border-[var(--border-default)] hidden lg:flex flex-col z-30">
@@ -122,6 +128,13 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
             <div className="text-[11px] text-[var(--text-muted)] capitalize">{userRole}</div>
           </div>
           <button
+            onClick={() => setShowPasswordModal(true)}
+            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent hover:bg-accent-light transition-colors"
+            title={t('account.changePassword')}
+          >
+            <Key size={16} />
+          </button>
+          <button
             onClick={handleLogout}
             className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-danger hover:bg-danger-light transition-colors"
             title={t('nav.signOut')}
@@ -130,7 +143,83 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
           </button>
         </div>
       </div>
+      {showPasswordModal && (
+        <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
+      )}
     </aside>
+  );
+}
+
+// Lives in Sidebar.tsx because the button that opens it does too. Keeps the
+// state local to one component; no global context needed for a single dialog.
+function ChangePasswordModal({ onClose }: { onClose: () => void }) {
+  const { t } = useLang();
+  const toast = useToast();
+  const [current, setCurrent] = useState('');
+  const [next, setNext] = useState('');
+  const [confirm, setConfirm] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (next.length < 6) { toast.error(t('account.passwordTooShort')); return; }
+    if (next !== confirm) { toast.error(t('account.passwordMismatch')); return; }
+    if (next === current) { toast.error(t('account.passwordSame')); return; }
+    setSaving(true);
+    try {
+      const res = await fetch('/api/auth/password', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ current_password: current, new_password: next }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(d.error || t('account.passwordChangeFailed'));
+        return;
+      }
+      toast.success(t('account.passwordChanged'));
+      onClose();
+    } catch {
+      toast.error(t('account.passwordChangeFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
+        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('account.changePasswordTitle')}</h2>
+        <div className="space-y-3">
+          <input
+            type="password"
+            value={current}
+            onChange={(e) => setCurrent(e.target.value)}
+            autoFocus
+            placeholder={t('account.currentPasswordPlaceholder')}
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+          />
+          <input
+            type="password"
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            placeholder={t('account.newPasswordPlaceholder')}
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+          />
+          <input
+            type="password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            placeholder={t('account.confirmPasswordPlaceholder')}
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+          />
+        </div>
+        <div className="flex items-center justify-end gap-3 mt-6">
+          <Button variant="secondary" onClick={onClose} disabled={saving}>{t('common.cancel')}</Button>
+          <Button variant="primary" loading={saving} onClick={handleSave}>{t('common.save')}</Button>
+        </div>
+      </div>
+    </div>
   );
 }
 

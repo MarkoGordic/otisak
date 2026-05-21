@@ -151,8 +151,13 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
 // POST /exams/import-json - admin/assistant, create a new exam from a JSON dump
 // Mirrors the shape produced by GET /exams/:id/export-json:
 //   { version: 1, exam: { title, ... }, questions: [{ type, text, ... answers: [...] }] }
-// If exam.subject_name is provided we try to match an existing subject by name (case-insensitive),
-// otherwise the new exam is created without a subject.
+// Subject resolution order:
+//   1. Explicit `subject_id` on the request body (sent by the import dialog).
+//      Wins over anything in the JSON payload itself. This lets the assistant
+//      reassign on import without editing the file.
+//   2. Otherwise fall back to matching `exam.subject_name` from the JSON
+//      against an existing subject by name (case-insensitive).
+//   3. Otherwise no subject (admin-only — assistants need a subject).
 router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
@@ -162,14 +167,24 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
 
     const user = req.user!;
     const isAdmin = user.role === 'admin';
-    const subjectId = await resolveSubjectIdByName(body.exam.subject_name as string | undefined);
+
+    const explicitSubjectId = typeof body.subject_id === 'string' && body.subject_id
+      ? body.subject_id
+      : null;
+    const subjectId = explicitSubjectId
+      ?? await resolveSubjectIdByName(body.exam.subject_name as string | undefined);
 
     if (!isAdmin) {
       if (!subjectId) {
-        return res.status(400).json({ error: 'Assistants must import into a known subject (set exam.subject_name)' });
+        return res.status(400).json({ error: 'Assistants must import into a known subject (pick one in the dialog or set exam.subject_name)' });
       }
       const ok = await isSubjectManageableByUser(user.id, subjectId, false);
       if (!ok) return res.status(403).json({ error: 'Not assigned to this subject' });
+    } else if (explicitSubjectId) {
+      // For admins, still 400 if they passed a subject_id that doesn't exist —
+      // otherwise the row would be silently dropped into "no subject".
+      const ok = await isSubjectManageableByUser(user.id, explicitSubjectId, true);
+      if (!ok) return res.status(400).json({ error: 'Selected subject does not exist' });
     }
 
     const result = await importExamFromJson(body, user.id, { subject_id: subjectId });
