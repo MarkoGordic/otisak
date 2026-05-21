@@ -7,6 +7,7 @@ import {
   updateOtisakExam,
   deleteOtisakExam,
   setExamTagRules,
+  DemoExamLockedError,
 } from '../db/otisak';
 import { requireAuth, requireRole } from '../middleware';
 import {
@@ -143,6 +144,9 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
 
     return res.json(result);
   } catch (error) {
+    if (error instanceof DemoExamLockedError) {
+      return res.status(409).json({ error: 'DEMO_EXAM_LOCKED' });
+    }
     console.error('Update exam error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
@@ -213,6 +217,9 @@ router.delete('/', requireAuth, requireRole(['admin', 'assistant']), async (req:
     }
     return res.json({ success: true });
   } catch (error) {
+    if (error instanceof DemoExamLockedError) {
+      return res.status(409).json({ error: 'DEMO_EXAM_LOCKED' });
+    }
     console.error('Delete exam error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }

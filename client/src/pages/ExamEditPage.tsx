@@ -26,9 +26,12 @@ type Exam = {
   negative_points_value: number;
   negative_points_threshold: number;
   status: string;
+  subject_id?: string | null;
   subject_name?: string | null;
   question_count?: number;
 };
+
+type Subject = { id: string; name: string; code: string | null };
 
 type Answer = { id?: string; text: string; is_correct: boolean; position?: number };
 type Question = {
@@ -64,6 +67,7 @@ export default function ExamEditPage() {
   const [loading, setLoading] = useState(true);
   const [exam, setExam] = useState<Exam | null>(null);
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
   const [savingSettings, setSavingSettings] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -103,9 +107,10 @@ export default function ExamEditPage() {
   const load = useCallback(async () => {
     if (!examId) return;
     try {
-      const [examsRes, qRes] = await Promise.all([
+      const [examsRes, qRes, subjectsRes] = await Promise.all([
         fetch('/api/otisak/exams', { credentials: 'include' }),
         fetch(`/api/otisak/exams/${examId}/questions`, { credentials: 'include' }),
+        fetch('/api/otisak/subjects', { credentials: 'include' }),
       ]);
       if (examsRes.ok) {
         const d = await examsRes.json();
@@ -116,6 +121,10 @@ export default function ExamEditPage() {
         const d = await qRes.json();
         const sorted = (d.questions || []).sort((a: Question, b: Question) => a.position - b.position);
         setQuestions(sorted);
+      }
+      if (subjectsRes.ok) {
+        const d = await subjectsRes.json();
+        setSubjects(d.subjects || []);
       }
     } finally {
       setLoading(false);
@@ -139,6 +148,10 @@ export default function ExamEditPage() {
           duration_minutes: Number(exam.duration_minutes) || 60,
           pass_threshold: Number(exam.pass_threshold) || 50,
           exam_mode: exam.exam_mode,
+          // Pass null through explicitly so an admin can detach the exam
+          // from any subject. Assistants can't reach null here because the
+          // server rejects an empty subject_id from non-admins anyway.
+          subject_id: exam.subject_id ?? null,
           allow_review: exam.allow_review,
           shuffle_questions: exam.shuffle_questions,
           shuffle_answers: exam.shuffle_answers,
@@ -159,6 +172,11 @@ export default function ExamEditPage() {
       // *display* the chosen value but nothing in the UI confirmed the save.
       const saved = await res.json().catch(() => null);
       if (saved && typeof saved === 'object') {
+        // updateOtisakExam returns the raw row, which doesn't include
+        // subject_name (that's a JOIN field). Look it up from the local
+        // subjects list to keep the breadcrumb / labels in sync.
+        const newSubjectId = (saved as { subject_id?: string | null }).subject_id ?? null;
+        const matched = newSubjectId ? subjects.find((s) => s.id === newSubjectId) : null;
         setExam((prev) => prev ? {
           ...prev,
           title: typeof saved.title === 'string' ? saved.title : prev.title,
@@ -166,6 +184,8 @@ export default function ExamEditPage() {
           duration_minutes: Number(saved.duration_minutes ?? prev.duration_minutes),
           pass_threshold: Number(saved.pass_threshold ?? prev.pass_threshold),
           exam_mode: saved.exam_mode === 'practice' ? 'practice' : 'real',
+          subject_id: newSubjectId,
+          subject_name: matched ? matched.name : null,
           allow_review: !!saved.allow_review,
           shuffle_questions: !!saved.shuffle_questions,
           shuffle_answers: !!saved.shuffle_answers,
@@ -347,6 +367,18 @@ export default function ExamEditPage() {
                     <select value={exam.exam_mode} onChange={(e) => setExam({ ...exam, exam_mode: e.target.value as Exam['exam_mode'] })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
                       <option value="real">{t('examEdit.modeReal')}</option>
                       <option value="practice">{t('examEdit.modePractice')}</option>
+                    </select>
+                  </Field>
+                  <Field label={t('examEdit.subject')}>
+                    <select
+                      value={exam.subject_id ?? ''}
+                      onChange={(e) => setExam({ ...exam, subject_id: e.target.value || null })}
+                      className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                    >
+                      <option value="">{t('examEdit.noSubject')}</option>
+                      {subjects.map((s) => (
+                        <option key={s.id} value={s.id}>{s.code ? `${s.name} (${s.code})` : s.name}</option>
+                      ))}
                     </select>
                   </Field>
                   <div className="grid grid-cols-2 gap-2 col-span-1 sm:col-span-2">

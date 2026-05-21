@@ -1,6 +1,7 @@
 import {
   getOtisakExamById,
   updateOtisakExamStatus,
+  DEMO_EXAM_TITLE,
 } from '../db/otisak';
 import { endLockdown, getTotalLockdownPauseSeconds } from '../db/settings';
 import { finishAttempt } from '../db/otisak';
@@ -27,6 +28,13 @@ export async function finishExamForEveryone(
 ): Promise<FinishResult> {
   const exam = await getOtisakExamById(examId);
   if (!exam) return { ok: false, error: 'Exam not found', status: 404 };
+
+  // Demo is pinned. Short-circuit BEFORE submitting any attempts, otherwise
+  // students would be force-submitted but the exam would refuse to flip to
+  // completed and the room would end up in an inconsistent state.
+  if (exam.title === DEMO_EXAM_TITLE) {
+    return { ok: false, error: 'DEMO_EXAM_LOCKED', status: 409 };
+  }
 
   const openRows = await query<{ id: string; started_at: Date }>(
     `SELECT id, started_at FROM otisak_attempts

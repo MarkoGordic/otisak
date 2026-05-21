@@ -168,6 +168,24 @@ export async function createOtisakExam(
   return result.rows[0];
 }
 
+// Title of the seeded demo exam (see server/src/bootstrap.ts:ensureDemoExam).
+// Used to pin the demo: it must stay 'active' and undeletable so first-time
+// students always have something to try, regardless of what an admin clicks
+// in the room view. Identification is by title because the seed itself is
+// the only thing that creates that exact string.
+export const DEMO_EXAM_TITLE = 'Šaljivi test: crtani junaci';
+
+// Sentinel thrown when a mutation touches the seeded demo exam. The route
+// layer catches by message and returns a 409 with a friendly translation.
+export class DemoExamLockedError extends Error {
+  constructor() { super('DEMO_EXAM_LOCKED'); }
+}
+
+export async function isDemoExamId(examId: string): Promise<boolean> {
+  const r = await query<{ title: string }>('SELECT title FROM otisak_exams WHERE id = $1 LIMIT 1', [examId]);
+  return r.rows[0]?.title === DEMO_EXAM_TITLE;
+}
+
 export async function updateOtisakExamStatus(
   examId: string,
   status: OtisakExam['status']
@@ -176,10 +194,21 @@ export async function updateOtisakExamStatus(
   // here at the DB layer so no UI button (or stray API call) can reopen them.
   // Allowed transitions: anything -> draft/scheduled/active/completed/archived
   // EXCEPT (completed|archived) -> active.
-  if (status === 'active') {
-    const cur = await query<{ status: string }>('SELECT status FROM otisak_exams WHERE id = $1', [examId]);
-    const now = cur.rows[0]?.status;
-    if (now === 'completed' || now === 'archived') return null;
+  //
+  // Demo exam: pinned to 'active'. Any move to completed/archived throws so
+  // the demo can't be accidentally retired by clicking "Završi" in the room.
+  const cur = await query<{ status: string; title: string }>(
+    'SELECT status, title FROM otisak_exams WHERE id = $1',
+    [examId],
+  );
+  const row = cur.rows[0];
+  if (!row) return null;
+
+  if (row.title === DEMO_EXAM_TITLE && (status === 'completed' || status === 'archived')) {
+    throw new DemoExamLockedError();
+  }
+  if (status === 'active' && (row.status === 'completed' || row.status === 'archived')) {
+    return null;
   }
   const result = await query<OtisakExam>(
     `UPDATE otisak_exams SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
@@ -236,6 +265,12 @@ export async function updateOtisakExam(
 }
 
 export async function deleteOtisakExam(examId: string): Promise<boolean> {
+  // Block deletion of the seeded demo exam. ensureDemoExam will re-create it
+  // on the next boot anyway, but we'd lose any local edits an admin made to
+  // the demo's questions or settings.
+  if (await isDemoExamId(examId)) {
+    throw new DemoExamLockedError();
+  }
   const result = await query('DELETE FROM otisak_exams WHERE id = $1', [examId]);
   return (result.rowCount ?? 0) > 0;
 }

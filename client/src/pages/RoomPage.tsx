@@ -229,7 +229,7 @@ export default function ExamRoomPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.error || t('room.toast.finishFailed'));
+        toast.error(d.error === 'DEMO_EXAM_LOCKED' ? t('manage.demoLocked') : (d.error || t('room.toast.finishFailed')));
         return;
       }
       const d = await res.json().catch(() => ({}));

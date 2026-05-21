@@ -143,7 +143,7 @@ export default function ManagePage() {
         loadData();
       } else {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.error || t('manage.statusFailed'));
+        toast.error(d.error === 'DEMO_EXAM_LOCKED' ? t('manage.demoLocked') : (d.error || t('manage.statusFailed')));
       }
     } catch {
       toast.error(t('manage.statusFailed'));
@@ -159,7 +159,7 @@ export default function ManagePage() {
         loadData();
       } else {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.error || t('manage.deleteFailed'));
+        toast.error(d.error === 'DEMO_EXAM_LOCKED' ? t('manage.demoLocked') : (d.error || t('manage.deleteFailed')));
       }
     } catch {
       toast.error(t('manage.deleteFailed'));
