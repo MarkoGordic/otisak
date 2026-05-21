@@ -221,6 +221,17 @@ export async function updateOtisakExam(
   examId: string,
   data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'allow_review' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring' | 'exam_mode' | 'subject_id'>>
 ): Promise<OtisakExam | null> {
+  // Block edits that would break the demo lock. The demo is identified by
+  // its title, so renaming it would orphan the lock and let the demo be
+  // finished or deleted. Moving it to a different subject would also break
+  // the Demo subject scoping. Other fields stay editable so admins can tune
+  // duration / pass-threshold / etc on the demo.
+  if (data.title !== undefined || data.subject_id !== undefined) {
+    if (await isDemoExamId(examId)) {
+      throw new DemoExamLockedError();
+    }
+  }
+
   const updates: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
@@ -264,16 +275,9 @@ export async function updateOtisakExam(
   return result.rows[0] || null;
 }
 
-export async function deleteOtisakExam(examId: string): Promise<boolean> {
-  // Block deletion of the seeded demo exam. ensureDemoExam will re-create it
-  // on the next boot anyway, but we'd lose any local edits an admin made to
-  // the demo's questions or settings.
-  if (await isDemoExamId(examId)) {
-    throw new DemoExamLockedError();
-  }
-  const result = await query('DELETE FROM otisak_exams WHERE id = $1', [examId]);
-  return (result.rowCount ?? 0) > 0;
-}
+// deleteOtisakExam used to live here. It was removed alongside the DELETE
+// /api/otisak/exams route — exams are no longer deletable. Use the
+// 'archived' status to take an exam out of the main listing.
 
 // ========================================
 // QUESTIONS
