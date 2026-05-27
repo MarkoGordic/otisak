@@ -16,6 +16,7 @@ import {
   enrollByCourseAndYear,
   getExamEnrollments,
   createOtisakQuestion,
+  updateOtisakQuestion,
   deleteOtisakQuestion,
   joinExamByIndex,
   getExamRoomStatus,
@@ -677,6 +678,35 @@ router.post('/questions', requireAuth, requireRole(['admin', 'assistant']), asyn
       return res.status(400).json({ error: msg });
     }
     console.error('Create question error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /exams/:examId/questions - admin/assistant, update a single question.
+// Body shape: { id: string, ...UpdateOtisakQuestionInput fields }. Mirrors the
+// DELETE handler's "id in body" convention so the client can keep using a
+// single collection URL for create/update/delete. `type` is not editable here
+// (would invalidate answer semantics); change by deleting + recreating.
+router.patch('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
+    const { id, type, ...patch } = req.body || {};
+    if (type !== undefined) {
+      return res.status(400).json({ error: 'Question type is not editable' });
+    }
+    if (!id || typeof id !== 'string') {
+      return res.status(400).json({ error: 'Question id is required' });
+    }
+    const updated = await updateOtisakQuestion(id, patch);
+    if (!updated) return res.status(404).json({ error: 'Question not found' });
+    return res.json(updated);
+  } catch (error) {
+    const msg = (error as Error).message || '';
+    if (/exceeds|required|Invalid/i.test(msg)) {
+      return res.status(400).json({ error: msg });
+    }
+    console.error('Update question error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

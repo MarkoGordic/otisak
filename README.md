@@ -102,9 +102,9 @@ otisak/
 
 ## Documentation
 
-End-user and architecture documentation lives in [`docs/`](docs/), organized
-by audience: [admin](docs/admin/), [assistant](docs/assistant/),
-[student](docs/student/), [architecture](docs/architecture/).
+End-user documentation lives in [`docs/`](docs/) with one page per topic in
+each language: managing exams, running tests, managing users, managing
+subjects. Also served in-app at [`/docs`](/docs).
 
 ## Deploy
 

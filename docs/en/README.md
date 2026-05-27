@@ -1,20 +1,20 @@
 # OTISAK Documentation
 
-Pick the role you're acting in and start there.
+Exam and practice system. This doc set covers everything you need to set up subjects, build exams, run the live room, and manage users.
 
-| Role | Where to go | What's covered |
-|---|---|---|
-| Admin | [`admin/`](admin/) | Users, subjects, assistant assignments, settings, demo exam |
-| Assistant | [`assistant/`](assistant/) | Build and run exams on subjects you're assigned to |
-| Student | [`student/`](student/) | Joining an exam, the exam screen, results, practice |
-| Engineer | [`architecture/`](architecture/) | Stack, request flow, schema, deploy |
+## Contents
 
-## Conventions
+- [Managing exams](exams.md) — creation, settings, question types, the question bank, JSON import, lifecycle, results, and AI grading.
+- [Running and conducting tests](running-tests.md) — the live room, starting the timer, lockdown, late-join requests, removing a student, closing the exam.
+- [Managing users](users.md) — roles, adding users, CSV bulk import, edits, password reset.
+- [Managing subjects](subjects.md) — creating subjects and assigning assistants.
 
-One folder per audience. Don't mix admin and student instructions in the same file.
+## Images
 
-Each topic is its own short page linked from the folder's README. No 1000-line monoliths.
+You can embed images in markdown the usual way:
 
-Screenshots go under `docs/_assets/`. Reference them with relative paths.
+```markdown
+![Caption](../assets/screenshot.png)
+```
 
-When a feature changes, update its page in the same PR. Stale docs are worse than no docs.
+Drop images into `docs/assets/` (shared across languages) or into a folder next to the file and reference them with a relative path.

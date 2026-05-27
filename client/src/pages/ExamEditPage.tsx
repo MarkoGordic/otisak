@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, Plus, Trash2, Code, Image as ImageIcon, FileText, MessageSquare,
-  Settings, Download, Save, ChevronDown, ChevronUp, Upload as UploadIcon,
+  Settings, Download, Save, ChevronDown, ChevronUp, Upload as UploadIcon, Pencil, X, Check,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -71,6 +71,11 @@ export default function ExamEditPage() {
   const [savingSettings, setSavingSettings] = useState(false);
   const [showSettings, setShowSettings] = useState(true);
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  // When a question id is in this map it's being edited; the value is the
+  // working copy of the question fields. Closing/cancelling drops the entry;
+  // saving PATCHes and refetches from the server.
+  const [editDrafts, setEditDrafts] = useState<Record<string, Question>>({});
+  const [savingEdit, setSavingEdit] = useState<Set<string>>(new Set());
 
   // New question draft
   const blankAnswers = (): Answer[] => [
@@ -305,6 +310,139 @@ export default function ExamEditPage() {
     });
   };
 
+  // Open the inline editor for a question. Clones the row so edits don't
+  // mutate the canonical list before save.
+  const beginEdit = (q: Question) => {
+    setExpanded((prev) => new Set(prev).add(q.id));
+    setEditDrafts((prev) => ({
+      ...prev,
+      [q.id]: {
+        ...q,
+        answers: q.answers.map((a) => ({ ...a })),
+      },
+    }));
+  };
+
+  const cancelEdit = (qid: string) => {
+    setEditDrafts((prev) => {
+      const next = { ...prev };
+      delete next[qid];
+      return next;
+    });
+  };
+
+  const patchDraft = (qid: string, patch: Partial<Question>) => {
+    setEditDrafts((prev) => {
+      const draft = prev[qid];
+      if (!draft) return prev;
+      return { ...prev, [qid]: { ...draft, ...patch } };
+    });
+  };
+
+  const patchDraftAnswers = (qid: string, fn: (answers: Answer[]) => Answer[]) => {
+    setEditDrafts((prev) => {
+      const draft = prev[qid];
+      if (!draft) return prev;
+      return { ...prev, [qid]: { ...draft, answers: fn(draft.answers) } };
+    });
+  };
+
+  const handleSaveEdit = async (qid: string) => {
+    const draft = editDrafts[qid];
+    if (!draft) return;
+    if (!draft.text.trim()) {
+      toast.error(t('examEdit.questionTextRequired'));
+      return;
+    }
+    // Build the patch from the draft. We intentionally don't send `type` —
+    // the server rejects type changes (would invalidate answer semantics).
+    const body: Record<string, unknown> = {
+      id: qid,
+      text: draft.text,
+      points: Number(draft.points) || 0,
+      explanation: draft.explanation,
+      ai_grading_instructions: draft.ai_grading_instructions,
+    };
+    if (['text', 'code', 'image'].includes(draft.type)) {
+      body.multi_answer = draft.multi_answer;
+    }
+    // content + answers depend on question type:
+    if (draft.type === 'code' || draft.type === 'image' || draft.type === 'open_text') {
+      body.content = draft.content;
+    }
+    if (draft.type !== 'open_text') {
+      body.answers = draft.answers
+        .filter((a) => a.text.trim())
+        .map((a, i) => ({ text: a.text, is_correct: a.is_correct, position: i }));
+    } else {
+      body.answers = [];
+    }
+
+    setSavingEdit((prev) => new Set(prev).add(qid));
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/questions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('examEdit.questionUpdateFailed'));
+        return;
+      }
+      toast.success(t('examEdit.questionUpdated'));
+      cancelEdit(qid);
+      load();
+    } catch {
+      toast.error(t('examEdit.questionUpdateFailed'));
+    } finally {
+      setSavingEdit((prev) => {
+        const next = new Set(prev);
+        next.delete(qid);
+        return next;
+      });
+    }
+  };
+
+  // Update the snippet/language for a code question while editing. The DB
+  // stores both as a single JSON-encoded `content` field; the editor breaks
+  // them apart for two separate inputs, then re-encodes on every keystroke.
+  const updateCodeDraft = (qid: string, snippet?: string, language?: string) => {
+    const draft = editDrafts[qid];
+    if (!draft) return;
+    let current: { snippet?: string; language?: string } = {};
+    if (draft.content) {
+      try { current = JSON.parse(draft.content); } catch { current = { snippet: draft.content }; }
+    }
+    const next = JSON.stringify({
+      snippet: snippet !== undefined ? snippet : current.snippet ?? '',
+      language: language !== undefined ? language : current.language ?? null,
+    });
+    patchDraft(qid, { content: next });
+  };
+
+  const parseCodeDraft = (q: Question): { snippet: string; language: string } => {
+    if (!q.content) return { snippet: '', language: '' };
+    try {
+      const parsed = JSON.parse(q.content);
+      return { snippet: String(parsed.snippet ?? ''), language: String(parsed.language ?? '') };
+    } catch {
+      return { snippet: q.content, language: '' };
+    }
+  };
+
+  const handleEditImageFile = (qid: string, file: File | null) => {
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error(t('questions.imageInvalidType')); return; }
+    if (file.size > 4 * 1024 * 1024) { toast.error(t('questions.imageTooBig')); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') patchDraft(qid, { content: reader.result });
+    };
+    reader.readAsDataURL(file);
+  };
+
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
       <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
@@ -536,37 +674,189 @@ export default function ExamEditPage() {
                           <span className="text-xs font-mono text-[var(--text-secondary)]">{Number(q.points)} {t('questions.pts')}</span>
                           {isOpen ? <ChevronUp size={14} className="text-[var(--text-muted)]" /> : <ChevronDown size={14} className="text-[var(--text-muted)]" />}
                         </button>
-                        {isOpen && (
-                          <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3">
-                            <p className="text-sm text-[var(--text-primary)] mb-2 whitespace-pre-wrap">{q.text}</p>
-                            {q.type === 'code' && q.content && (() => {
-                              try {
-                                const parsed = JSON.parse(q.content) as { snippet?: string; language?: string };
-                                if (parsed.snippet) return <CodeBlock code={parsed.snippet} language={parsed.language || undefined} />;
-                              } catch { /* fallthrough */ }
-                              return <CodeBlock code={q.content} />;
-                            })()}
-                            {q.type === 'image' && q.content && (
-                              <img src={q.content} alt="" className="max-h-60 max-w-full rounded mx-auto block bg-white p-1" />
-                            )}
-                            {q.answers.length > 0 && (
-                              <ul className="mt-2 space-y-1">
-                                {q.answers.map((a, i) => (
-                                  <li key={a.id ?? i} className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${a.is_correct ? 'bg-success-light text-success' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>
-                                    <span className="font-mono">{String.fromCharCode(65 + i)}.</span>
-                                    <span>{a.text}</span>
-                                    {a.is_correct && <span className="ml-auto text-[10px] uppercase tracking-wider">✓</span>}
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
-                            <div className="flex justify-end mt-3">
-                              <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => handleDeleteQuestion(q.id)} className="text-danger hover:bg-danger-light">
-                                {t('examEdit.delete')}
-                              </Button>
+                        {isOpen && (() => {
+                          const draft = editDrafts[q.id];
+                          const editing = !!draft;
+                          const saving = savingEdit.has(q.id);
+                          if (!editing) {
+                            return (
+                              <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3">
+                                <p className="text-sm text-[var(--text-primary)] mb-2 whitespace-pre-wrap">{q.text}</p>
+                                {q.type === 'code' && q.content && (() => {
+                                  try {
+                                    const parsed = JSON.parse(q.content) as { snippet?: string; language?: string };
+                                    if (parsed.snippet) return <CodeBlock code={parsed.snippet} language={parsed.language || undefined} />;
+                                  } catch { /* fallthrough */ }
+                                  return <CodeBlock code={q.content} />;
+                                })()}
+                                {q.type === 'image' && q.content && (
+                                  <img src={q.content} alt="" className="max-h-60 max-w-full rounded mx-auto block bg-white p-1" />
+                                )}
+                                {q.answers.length > 0 && (
+                                  <ul className="mt-2 space-y-1">
+                                    {q.answers.map((a, i) => (
+                                      <li key={a.id ?? i} className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${a.is_correct ? 'bg-success-light text-success' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>
+                                        <span className="font-mono">{String.fromCharCode(65 + i)}.</span>
+                                        <span>{a.text}</span>
+                                        {a.is_correct && <span className="ml-auto text-[10px] uppercase tracking-wider">✓</span>}
+                                      </li>
+                                    ))}
+                                  </ul>
+                                )}
+                                <div className="flex justify-end mt-3 gap-2">
+                                  <Button variant="secondary" size="sm" leftIcon={<Pencil size={14} />} onClick={() => beginEdit(q)}>
+                                    {t('examEdit.editQuestion')}
+                                  </Button>
+                                  <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => handleDeleteQuestion(q.id)} className="text-danger hover:bg-danger-light">
+                                    {t('examEdit.delete')}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          }
+                          const code = parseCodeDraft(draft);
+                          const editableMulti = ['text', 'code', 'image'].includes(draft.type);
+                          const hasAnswers = draft.type !== 'open_text';
+                          return (
+                            <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3 space-y-3">
+                              <div className="grid grid-cols-[1fr_120px] gap-3">
+                                <Field label={t('questions.questionText')}>
+                                  <textarea
+                                    value={draft.text}
+                                    onChange={(e) => patchDraft(q.id, { text: e.target.value })}
+                                    rows={3}
+                                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                  />
+                                </Field>
+                                <Field label={t('questions.pts')}>
+                                  <input
+                                    type="number"
+                                    min={0}
+                                    step="0.5"
+                                    value={String(draft.points)}
+                                    onChange={(e) => patchDraft(q.id, { points: Number(e.target.value) })}
+                                    className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                  />
+                                </Field>
+                              </div>
+
+                              {draft.type === 'code' && (
+                                <>
+                                  <Field label={t('questions.codeSnippet')}>
+                                    <textarea
+                                      value={code.snippet}
+                                      onChange={(e) => updateCodeDraft(q.id, e.target.value, undefined)}
+                                      rows={6}
+                                      className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-xs font-mono"
+                                    />
+                                  </Field>
+                                  <Field label={t('questions.codeLanguage')}>
+                                    <select
+                                      value={code.language}
+                                      onChange={(e) => updateCodeDraft(q.id, undefined, e.target.value)}
+                                      className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                    >
+                                      {['', 'python', 'javascript', 'typescript', 'java', 'c', 'cpp', 'csharp', 'go', 'rust', 'sql', 'bash', 'html', 'css', 'json'].map((v) => (
+                                        <option key={v} value={v}>{v || t('questions.codeLanguageAuto')}</option>
+                                      ))}
+                                    </select>
+                                  </Field>
+                                </>
+                              )}
+
+                              {draft.type === 'image' && (
+                                <Field label={t('questions.image')}>
+                                  <div className="flex items-center gap-2">
+                                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 h-10 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                                      <UploadIcon size={14} />{t('questions.imageUpload')}
+                                      <input type="file" accept="image/*" hidden onChange={(e) => handleEditImageFile(q.id, e.target.files?.[0] || null)} />
+                                    </label>
+                                    <input
+                                      value={draft.content?.startsWith('data:') ? '' : (draft.content ?? '')}
+                                      onChange={(e) => patchDraft(q.id, { content: e.target.value })}
+                                      className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                      placeholder={t('questions.imageUrlPlaceholder')}
+                                    />
+                                  </div>
+                                  {draft.content && (
+                                    <img src={draft.content} alt="" className="mt-2 max-h-40 max-w-full rounded mx-auto block bg-white p-1" />
+                                  )}
+                                </Field>
+                              )}
+
+                              {editableMulti && (
+                                <Toggle
+                                  label={t('examEdit.multiAnswerToggle')}
+                                  value={draft.multi_answer}
+                                  onChange={(v) => patchDraft(q.id, { multi_answer: v })}
+                                />
+                              )}
+
+                              {hasAnswers && (
+                                <div>
+                                  <div className="text-xs font-medium text-[var(--text-secondary)] mb-1.5">{t('examEdit.answers')}</div>
+                                  <div className="space-y-1.5">
+                                    {draft.answers.map((a, i) => (
+                                      <div key={i} className="flex items-center gap-2">
+                                        <span className="text-xs font-mono text-[var(--text-muted)] w-5 flex-shrink-0">{String.fromCharCode(65 + i)}.</span>
+                                        <input
+                                          value={a.text}
+                                          onChange={(e) => patchDraftAnswers(q.id, (xs) => xs.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
+                                          placeholder={t('examEdit.answerPlaceholder')}
+                                          className="flex-1 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => {
+                                            // Multi-answer: toggle independently. Single-answer: clicking
+                                            // sets this one correct, clears the rest. Matches the create
+                                            // flow's mental model so editing isn't surprising.
+                                            patchDraftAnswers(q.id, (xs) => xs.map((x, j) => {
+                                              if (draft.multi_answer) {
+                                                return j === i ? { ...x, is_correct: !x.is_correct } : x;
+                                              }
+                                              return { ...x, is_correct: j === i };
+                                            }));
+                                          }}
+                                          title={a.is_correct ? t('examEdit.markIncorrect') : t('examEdit.markCorrect')}
+                                          className={`h-9 w-9 flex items-center justify-center rounded-lg border text-xs ${a.is_correct ? 'border-success bg-success-light text-success' : 'border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                                        >
+                                          <Check size={14} />
+                                        </button>
+                                        <button
+                                          type="button"
+                                          onClick={() => patchDraftAnswers(q.id, (xs) => xs.filter((_, j) => j !== i))}
+                                          title={t('examEdit.removeAnswer')}
+                                          className="h-9 w-9 flex items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-danger"
+                                        >
+                                          <X size={14} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    leftIcon={<Plus size={14} />}
+                                    onClick={() => patchDraftAnswers(q.id, (xs) => [...xs, { text: '', is_correct: false }])}
+                                    className="mt-2"
+                                  >
+                                    {t('examEdit.addAnswer')}
+                                  </Button>
+                                </div>
+                              )}
+
+                              <div className="flex justify-end gap-2 pt-2">
+                                <Button variant="ghost" size="sm" onClick={() => cancelEdit(q.id)} disabled={saving}>
+                                  {t('examEdit.cancel')}
+                                </Button>
+                                <Button variant="primary" size="sm" leftIcon={<Save size={14} />} loading={saving} onClick={() => handleSaveEdit(q.id)}>
+                                  {t('examEdit.save')}
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        )}
+                          );
+                        })()}
                       </div>
                     );
                   })}

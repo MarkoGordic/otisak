@@ -1,0 +1,123 @@
+{
+  "version": 1,
+  "exam": {
+    "title": "Arhitektura računara — Primer PI2",
+    "description": "Primer ispitnih pitanja PI2 (frejm, Koncept mikro-program, parnost, sistemski programi, drajver terminala, privilegovani režim).",
+    "duration_minutes": 30,
+    "pass_threshold": 50,
+    "exam_mode": "practice",
+    "allow_review": true,
+    "shuffle_questions": false,
+    "shuffle_answers": false,
+    "partial_scoring": true,
+    "negative_points_enabled": false,
+    "negative_points_value": 0,
+    "negative_points_threshold": 0
+  },
+  "questions": [
+    {
+      "type": "text",
+      "text": "Frejm sadrži:",
+      "points": 1,
+      "position": 0,
+      "answers": [
+        { "text": "argumente", "is_correct": true,  "position": 0 },
+        { "text": "globalne promenljive", "is_correct": false, "position": 1 },
+        { "text": "povratnu adresu", "is_correct": true,  "position": 2 },
+        { "text": "lokalne promenljive", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Mikro-programsku memoriju kod računara Koncept karakteriše:",
+      "points": 1,
+      "position": 1,
+      "answers": [
+        { "text": "operacija pisanja", "is_correct": false, "position": 0 },
+        { "text": "adresni prostor od 128 lokacija", "is_correct": true,  "position": 1 },
+        { "text": "veličina lokacija od 25 bita", "is_correct": true,  "position": 2 },
+        { "text": "operacija čitanja", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Za logičke promenljive T i R važi:",
+      "points": 1,
+      "position": 2,
+      "answers": [
+        { "text": "da istovremeno mogu imati vrednost 0", "is_correct": true,  "position": 0 },
+        { "text": "da kada R ima vrednost 0, T može da ima vrednost 1", "is_correct": true,  "position": 1 },
+        { "text": "da uvek istovremeno menjaju vrednost sa 0 na 1", "is_correct": false, "position": 2 },
+        { "text": "da istovremeno mogu imati vrednost 1", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Ispravna kodna reč sa tri bita podataka i jednim bitom parnosti je:",
+      "points": 1,
+      "position": 3,
+      "answers": [
+        { "text": "0011", "is_correct": true,  "position": 0 },
+        { "text": "0100", "is_correct": false, "position": 1 },
+        { "text": "0010", "is_correct": false, "position": 2 },
+        { "text": "0101", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Interpretiranje komande komandnog jezika obuhvata:",
+      "points": 1,
+      "position": 4,
+      "answers": [
+        { "text": "prepoznavanje vrste komande", "is_correct": true,  "position": 0 },
+        { "text": "prevođenje komande u asemblerski oblik", "is_correct": false, "position": 1 },
+        { "text": "izdvajanje argumenata komande", "is_correct": true,  "position": 2 },
+        { "text": "izvršavanje komande", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Postoje sledeći sistemski programi:",
+      "points": 1,
+      "position": 5,
+      "answers": [
+        { "text": "drajver", "is_correct": true,  "position": 0 },
+        { "text": "makro pretprocesor", "is_correct": true,  "position": 1 },
+        { "text": "linker", "is_correct": true,  "position": 2 },
+        { "text": "dibager", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Drajver terminala se sastoji od:",
+      "points": 1,
+      "position": 6,
+      "answers": [
+        { "text": "pozadinskog procesa", "is_correct": false, "position": 0 },
+        { "text": "gornjeg dela (sa ulaznom i izlaznom operacijom)", "is_correct": true,  "position": 1 },
+        { "text": "ulaznog i izlaznog (eho) bafera", "is_correct": true,  "position": 2 },
+        { "text": "donjeg dela (sa obrađivačima prekida tastature i ekrana)", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "U privilegovanom režimu rada procesora se mogu izvršavati:",
+      "points": 1,
+      "position": 7,
+      "answers": [
+        { "text": "i privilegovane i neprivilegovane naredbe", "is_correct": true,  "position": 0 },
+        { "text": "samo privilegovane naredbe", "is_correct": false, "position": 1 },
+        { "text": "korisnički programi", "is_correct": false, "position": 2 },
+        { "text": "samo operativni sistem", "is_correct": false, "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    }
+  ]
+}

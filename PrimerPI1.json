@@ -1,0 +1,110 @@
+{
+  "version": 1,
+  "exam": {
+    "title": "Arhitektura računara — Primer PI1",
+    "description": "Primer ispitnih pitanja PI1 (kombinaciona kola, asembler, brojni sistemi, komplement 2).",
+    "duration_minutes": 30,
+    "pass_threshold": 50,
+    "exam_mode": "practice",
+    "allow_review": true,
+    "shuffle_questions": false,
+    "shuffle_answers": false,
+    "partial_scoring": true,
+    "negative_points_enabled": false,
+    "negative_points_value": 0,
+    "negative_points_threshold": 0
+  },
+  "questions": [
+    {
+      "type": "text",
+      "text": "Kombinaciona kola se koriste za pravljenje:",
+      "points": 1,
+      "position": 0,
+      "answers": [
+        { "text": "lokacija memorije", "is_correct": false, "position": 0 },
+        { "text": "aritmetičko-logičkih kola procesora", "is_correct": true,  "position": 1 },
+        { "text": "registara procesora", "is_correct": false, "position": 2 },
+        { "text": "promenljivih", "is_correct": false, "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Zadatak asemblera je da prevodi:",
+      "points": 1,
+      "position": 1,
+      "answers": [
+        { "text": "mašinski program u asemblerski program", "is_correct": false, "position": 0 },
+        { "text": "izvorni program u asemblerski program", "is_correct": false, "position": 1 },
+        { "text": "asemblerski program u mašinski program", "is_correct": true,  "position": 2 },
+        { "text": "asemblerski program u izvorni program", "is_correct": false, "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Prilikom sabiranja, prenos sa najznačajnije pozicije se:",
+      "points": 1,
+      "position": 2,
+      "answers": [
+        { "text": "zanemaruje kod označenih celih brojeva u komplement predstavi", "is_correct": true,  "position": 0 },
+        { "text": "ne zanemaruje kod označenih celih brojeva u komplement predstavi", "is_correct": false, "position": 1 },
+        { "text": "zanemaruje kod neoznačenih celih brojeva", "is_correct": false, "position": 2 },
+        { "text": "ne zanemaruje kod neoznačenih celih brojeva", "is_correct": true,  "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Nakon konverzije decimalnog broja 41.8125 dobije se binarni broj:",
+      "points": 1,
+      "position": 3,
+      "answers": [
+        { "text": "101001.1101", "is_correct": true,  "position": 0 },
+        { "text": "101001.1111", "is_correct": false, "position": 1 },
+        { "text": "101011.1101", "is_correct": false, "position": 2 },
+        { "text": "101101.1001", "is_correct": false, "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Nakon konverzije binarnog broja 110101011010 dobije se heksadecimalni broj:",
+      "points": 1,
+      "position": 4,
+      "answers": [
+        { "text": "D5A", "is_correct": true,  "position": 0 },
+        { "text": "D5B", "is_correct": false, "position": 1 },
+        { "text": "E5F", "is_correct": false, "position": 2 },
+        { "text": "C39", "is_correct": false, "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Nakon konverzije heksadecimalnog broja C4E dobije se binarni broj:",
+      "points": 1,
+      "position": 5,
+      "answers": [
+        { "text": "111101101011", "is_correct": false, "position": 0 },
+        { "text": "110101010011", "is_correct": false, "position": 1 },
+        { "text": "110001001110", "is_correct": true,  "position": 2 },
+        { "text": "101110010101", "is_correct": false, "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    },
+    {
+      "type": "text",
+      "text": "Osmocifrena komplement 2 predstava binarnog broja -1011000 je:",
+      "points": 1,
+      "position": 6,
+      "answers": [
+        { "text": "10101000", "is_correct": true,  "position": 0 },
+        { "text": "10100011", "is_correct": false, "position": 1 },
+        { "text": "10111011", "is_correct": false, "position": 2 },
+        { "text": "10110001", "is_correct": false, "position": 3 },
+        { "text": "nijedan od ponuđenih odgovora nije tačan", "is_correct": false, "position": 4 }
+      ]
+    }
+  ]
+}

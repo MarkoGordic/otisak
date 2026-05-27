@@ -15,6 +15,7 @@ import type {
   OtisakEnrollment,
   CreateOtisakExamInput,
   CreateOtisakQuestionInput,
+  UpdateOtisakQuestionInput,
   SubmitAttemptAnswerInput,
   OtisakExamResults,
   OtisakExamTagRule,
@@ -373,6 +374,97 @@ export async function createOtisakQuestion(
   }
 
   return { ...question, answers };
+}
+
+// Patch a question in place. Validates the same length caps as create. When
+// `answers` is supplied the existing answer rows for the question are wiped
+// and reinserted from the patch — keeping diffs of answer ids would force
+// callers to track which existing rows to keep, which the inline editor
+// doesn't need. Runs in a transaction so a half-applied write can't leave
+// the question with mismatched answers.
+export async function updateOtisakQuestion(
+  questionId: string,
+  data: UpdateOtisakQuestionInput
+): Promise<OtisakQuestionWithAnswers | null> {
+  if (data.text !== undefined) {
+    if (!data.text || data.text.length === 0) {
+      throw new Error('Question text is required');
+    }
+    if (data.text.length > MAX_QUESTION_TEXT_LEN) {
+      throw new Error(`Question text exceeds ${MAX_QUESTION_TEXT_LEN} characters`);
+    }
+  }
+  if (data.content !== undefined && data.content !== null && data.content.length > MAX_QUESTION_CONTENT_LEN) {
+    throw new Error(`Question content exceeds ${MAX_QUESTION_CONTENT_LEN} characters`);
+  }
+  if (data.explanation !== undefined && data.explanation !== null && data.explanation.length > MAX_EXPLANATION_LEN) {
+    throw new Error(`Explanation exceeds ${MAX_EXPLANATION_LEN} characters`);
+  }
+  if (data.ai_grading_instructions !== undefined && data.ai_grading_instructions !== null && data.ai_grading_instructions.length > MAX_AI_INSTRUCTIONS_LEN) {
+    throw new Error(`AI grading instructions exceed ${MAX_AI_INSTRUCTIONS_LEN} characters`);
+  }
+
+  return transaction(async (client) => {
+    // Build the SET clause dynamically from whatever fields the patch carries.
+    // Each entry: column name + value. updated_at is appended unconditionally so
+    // the row's mtime moves on every successful patch.
+    const setColumns: string[] = [];
+    const values: unknown[] = [];
+    const push = (col: string, val: unknown) => {
+      setColumns.push(`${col} = $${values.length + 1}`);
+      values.push(val);
+    };
+    if (data.text !== undefined) push('text', data.text);
+    if (data.content !== undefined) push('content', data.content);
+    if (data.points !== undefined) push('points', data.points);
+    if (data.position !== undefined) push('position', data.position);
+    if (data.explanation !== undefined) push('explanation', data.explanation);
+    if (data.ai_grading_instructions !== undefined) push('ai_grading_instructions', data.ai_grading_instructions);
+    if (data.multi_answer !== undefined) push('multi_answer', data.multi_answer);
+
+    let question: OtisakQuestion;
+    if (setColumns.length > 0) {
+      setColumns.push('updated_at = NOW()');
+      values.push(questionId);
+      const upd = await client.query<OtisakQuestion>(
+        `UPDATE otisak_questions SET ${setColumns.join(', ')} WHERE id = $${values.length} RETURNING *`,
+        values
+      );
+      if (upd.rows.length === 0) return null;
+      question = upd.rows[0];
+    } else {
+      const cur = await client.query<OtisakQuestion>('SELECT * FROM otisak_questions WHERE id = $1', [questionId]);
+      if (cur.rows.length === 0) return null;
+      question = cur.rows[0];
+    }
+
+    let answers: OtisakAnswer[];
+    if (data.answers !== undefined) {
+      // Replace the answer set. Saved attempts reference answers by id via
+      // otisak_attempt_answers.selected_answer_id(s); deleting answers here will
+      // null those refs (ON DELETE SET NULL) — fine for edits while the exam is
+      // a draft, and explicitly the caller's responsibility past that point.
+      await client.query('DELETE FROM otisak_answers WHERE question_id = $1', [questionId]);
+      answers = [];
+      for (let i = 0; i < data.answers.length; i++) {
+        const ans = data.answers[i];
+        const ins = await client.query<OtisakAnswer>(
+          `INSERT INTO otisak_answers (question_id, text, is_correct, position)
+           VALUES ($1, $2, $3, $4) RETURNING *`,
+          [questionId, ans.text, ans.is_correct, ans.position ?? i]
+        );
+        answers.push(ins.rows[0]);
+      }
+    } else {
+      const a = await client.query<OtisakAnswer>(
+        'SELECT * FROM otisak_answers WHERE question_id = $1 ORDER BY position ASC',
+        [questionId]
+      );
+      answers = a.rows;
+    }
+
+    return { ...question, answers };
+  });
 }
 
 export async function deleteOtisakQuestion(questionId: string): Promise<boolean> {

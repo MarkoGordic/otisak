@@ -80,6 +80,13 @@ export default function ExamPage() {
   // calls in long-running async chains (submit retry, navigation races).
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
+  // Mirror user.id into a ref so the WebSocket onEvent closure (whose deps
+  // are intentionally narrow) always reads the latest id rather than a stale
+  // null captured during the initial render. Without this, a `student.kicked`
+  // event that arrives before the `user` state has propagated into the
+  // useCallback would be silently dropped because `user?.id` is falsy.
+  const userIdRef = useRef<string | undefined>(undefined);
+  userIdRef.current = user?.id;
 
   // ========================================
   // EVENT TRACKING SYSTEM
@@ -456,9 +463,12 @@ export default function ExamPage() {
       }
     } else if (evt.type === 'student.kicked') {
       // The room broadcasts kicks to everyone; only act if it's me.
-      // Tabs that aren't this student just ignore the event.
+      // Read the current user id from a ref to avoid a stale-closure miss
+      // when the event arrives before `user` lands in this callback's deps.
       const targetUserId = (evt as unknown as { user_id?: string }).user_id;
-      if (targetUserId && user?.id && targetUserId === user.id) {
+      if (targetUserId && userIdRef.current && targetUserId === userIdRef.current) {
+        // Cancel any in-flight submit so we don't race with the navigation.
+        submittingRef.current = true;
         toast.warning(t('exam.toast.kicked'));
         navigate('/', { replace: true });
       }
@@ -522,6 +532,11 @@ export default function ExamPage() {
 
   // Auto-save every 5s. Tighter than the old 30s cadence so admin's live-stats poll
   // (also 5s) sees up-to-date `answered_count` per student instead of 30s-stale data.
+  //
+  // The 409 ALREADY_SUBMITTED branch is a backup for the kick flow: if the
+  // `student.kicked` WebSocket event was missed (socket reconnecting, network
+  // blip, browser tab throttled), the next auto-save will get rejected by the
+  // server and we bounce the student out of the exam screen anyway.
   useEffect(() => {
     if (phase !== 'exam' || !attempt) return;
     const interval = setInterval(() => {
@@ -532,10 +547,19 @@ export default function ExamPage() {
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers: payload }),
+      }).then(async (res) => {
+        if (res.status === 409) {
+          const d = await res.json().catch(() => ({}));
+          if (d.code === 'ALREADY_SUBMITTED' && !submittingRef.current) {
+            submittingRef.current = true;
+            toast.warning(t('exam.toast.kicked'));
+            navigate('/', { replace: true });
+          }
+        }
       }).catch(() => {});
     }, 5000);
     return () => clearInterval(interval);
-  }, [phase, attempt, examId, buildSavePayload]);
+  }, [phase, attempt, examId, buildSavePayload, navigate, t, toast]);
 
   // Poll for lockdown every 3 seconds (also returns total paused seconds)
   useEffect(() => {

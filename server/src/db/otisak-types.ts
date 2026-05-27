@@ -187,6 +187,26 @@ export interface CreateOtisakQuestionInput {
   }>;
 }
 
+// Partial patch shape for updating an existing question. Every field is
+// optional; when `answers` is supplied the full set is replaced (delete + insert
+// in a transaction, since editing answer ids individually buys nothing here).
+// `type` is intentionally not editable: changing it would invalidate the
+// answer-shape contract callers rely on. Re-create the question instead.
+export interface UpdateOtisakQuestionInput {
+  text?: string;
+  content?: string | null;
+  points?: number;
+  position?: number;
+  explanation?: string | null;
+  ai_grading_instructions?: string | null;
+  multi_answer?: boolean;
+  answers?: Array<{
+    text: string;
+    is_correct: boolean;
+    position?: number;
+  }>;
+}
+
 export interface SubmitAttemptAnswerInput {
   question_id: string;
   selected_answer_id: string | null;
