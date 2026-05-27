@@ -666,9 +666,26 @@ export default function ExamPage() {
       return;
     }
 
-    // Both attempts failed (network or non-2xx). Hand the user back to the
-    // exam UI so they can retry manually rather than getting stuck on a
-    // submitting spinner. Skip the setState if we've unmounted in the meantime.
+    // 409 ALREADY_SUBMITTED: the server already finished the attempt — either
+    // the examExpiryWatcher beat us to it on timeout, or admin force-finished
+    // from /finish-all in another tab. Either way the results page is the
+    // right destination, not a stuck spinner.
+    if (res && res.status === 409) {
+      navigate(`/exam/${examId}/results`);
+      return;
+    }
+
+    // Timeout: even on plain network failure, send the student to results.
+    // The keepalive POST may still land server-side; if not, the watcher's
+    // periodic sweep will close out the attempt and the results page will
+    // load whenever it's ready. Better than freezing on 0:00.
+    if (method === 'timeout') {
+      navigate(`/exam/${examId}/results`);
+      return;
+    }
+
+    // Manual submit, both attempts failed and not a 409 — hand the user back
+    // to the exam UI so they can retry. Skip the setState if we've unmounted.
     if (mountedRef.current) {
       submittingRef.current = false;
       setPhase('exam');
@@ -859,6 +876,21 @@ export default function ExamPage() {
               paused={lockdown}
               onExpire={handleTimerExpire}
             />
+          ) : null
+        }
+        actionButton={
+          // Finish-exam pill in the header. Visible during the exam phase only;
+          // hidden in the lobby, submission spinner, and the awaiting-approval
+          // screen. The confirm modal (showFinishConfirm) gates accidental clicks.
+          phase === 'exam' && attempt ? (
+            <button
+              type="button"
+              onClick={() => setShowFinishConfirm(true)}
+              className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-semibold uppercase tracking-wider shadow-[0_0_15px_rgba(220,38,38,0.35)] hover:shadow-[0_0_22px_rgba(220,38,38,0.55)] transition-all"
+            >
+              <Power className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">{t('exam.finishHeader')}</span>
+            </button>
           ) : null
         }
       />
@@ -1076,13 +1108,6 @@ export default function ExamPage() {
               onNext={handleNext}
               onPrev={handlePrev}
             />
-
-            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="flex justify-center mt-6">
-              <button type="button" onClick={() => setShowFinishConfirm(true)}
-                className="px-6 sm:px-8 py-2.5 sm:py-3 bg-blue-600 hover:bg-blue-500 text-white font-semibold rounded-lg shadow-[0_0_25px_rgba(37,99,235,0.4)] hover:shadow-[0_0_35px_rgba(37,99,235,0.6)] transition-all uppercase tracking-widest text-xs sm:text-sm hover:-translate-y-1">
-                {t('exam.finishExam')}
-              </button>
-            </motion.div>
           </>
         ) : (
           <div className={`text-center py-20 ${subText}`}><p>{t('exam.noQuestions')}</p></div>
@@ -1091,7 +1116,7 @@ export default function ExamPage() {
 
       {/* Scratch Notes Toggle */}
       <button type="button" onClick={() => setShowNotes(!showNotes)}
-        className={`fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-lg ${
+        className={`fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 h-11 px-4 rounded-full flex items-center gap-2 transition-all shadow-lg ${
           showNotes
             ? (isDark ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'bg-yellow-100 border border-yellow-300 text-yellow-700 shadow-md')
             : scratchNotes
@@ -1099,6 +1124,7 @@ export default function ExamPage() {
               : (isDark ? 'bg-white/5 border border-white/10 text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/20' : 'bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 shadow-sm')
         }`} title={t('exam.scratchNotes')}>
         <StickyNote className="w-4.5 h-4.5" />
+        <span className="text-xs font-semibold uppercase tracking-wider">{t('exam.notesLabel')}</span>
         {scratchNotes && !showNotes && <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-500 border ${isDark ? 'border-[#0a0a14]' : 'border-[#F8FAFC]'}`} />}
       </button>
 

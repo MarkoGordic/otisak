@@ -627,6 +627,8 @@ export async function submitAttemptAnswers(
       const qPoints = qInfo.rows[0]?.points ?? 0;
 
       if (qType === 'ordering' && qContent) {
+        // Strict all-or-nothing: any item out of place → 0. partial_scoring no
+        // longer relaxes this for compound types (per the "any wrong = 0" rule).
         let pointsAwarded = 0;
         try {
           const correctData = JSON.parse(qContent);
@@ -634,12 +636,6 @@ export async function submitAttemptAnswers(
           const studentOrder: string[] = JSON.parse(ans.text_answer || '[]');
           if (JSON.stringify(studentOrder) === JSON.stringify(correctOrder)) {
             pointsAwarded = qPoints;
-          } else if (partialScoring && correctOrder.length > 0) {
-            let correctCount = 0;
-            for (let i = 0; i < correctOrder.length; i++) {
-              if (studentOrder[i] === correctOrder[i]) correctCount++;
-            }
-            pointsAwarded = Math.round((correctCount / correctOrder.length) * qPoints * 100) / 100;
           }
         } catch { /* invalid JSON */ }
         await query(
@@ -653,6 +649,7 @@ export async function submitAttemptAnswers(
       }
 
       if (qType === 'matching' && qContent) {
+        // Strict all-or-nothing: any mismatch → 0.
         let pointsAwarded = 0;
         try {
           const correctData = JSON.parse(qContent);
@@ -664,10 +661,8 @@ export async function submitAttemptAnswers(
           for (let i = 0; i < leftArr.length; i++) {
             if (studentMatches[leftArr[i]] === rightArr[i]) correctCount++;
           }
-          if (correctCount === totalPairs) {
+          if (totalPairs > 0 && correctCount === totalPairs) {
             pointsAwarded = qPoints;
-          } else if (partialScoring && totalPairs > 0) {
-            pointsAwarded = Math.round((correctCount / totalPairs) * qPoints * 100) / 100;
           }
         } catch { /* invalid JSON */ }
         await query(
@@ -681,6 +676,7 @@ export async function submitAttemptAnswers(
       }
 
       if (qType === 'fill_blank' && qContent) {
+        // Strict all-or-nothing: any blank wrong or empty → 0.
         let pointsAwarded = 0;
         try {
           const correctData = JSON.parse(qContent);
@@ -693,10 +689,8 @@ export async function submitAttemptAnswers(
             const correctVal = (blank.correct || '').trim().toLowerCase();
             if (studentVal === correctVal) correctCount++;
           }
-          if (correctCount === totalBlanks) {
+          if (totalBlanks > 0 && correctCount === totalBlanks) {
             pointsAwarded = qPoints;
-          } else if (partialScoring && totalBlanks > 0) {
-            pointsAwarded = Math.round((correctCount / totalBlanks) * qPoints * 100) / 100;
           }
         } catch { /* invalid JSON */ }
         await query(
@@ -747,20 +741,19 @@ export async function submitAttemptAnswers(
           if (selectedIds.length === 1 && correctIds.has(selectedIds[0])) {
             pointsAwarded = questionPoints;
           }
-        } else if (partialScoring) {
+        } else {
+          // Multi-correct rule: any wrong selection → 0, full stop. Picking all
+          // correct (and only correct) → full points. Picking a strict subset
+          // of correct with no wrong → proportional credit IFF partial_scoring
+          // is on; without the flag the question is all-or-nothing.
           const correctSelected = [...selectedSet].filter((id) => correctIds.has(id)).length;
           const wrongSelected = [...selectedSet].filter((id) => !correctIds.has(id)).length;
-          if (wrongSelected === 0 && correctSelected > 0) {
-            pointsAwarded = Math.round((correctSelected / totalCorrect) * questionPoints * 100) / 100;
-          } else if (correctSelected > wrongSelected) {
-            const netCorrect = Math.max(0, correctSelected - wrongSelected);
-            pointsAwarded = Math.round((netCorrect / totalCorrect) * questionPoints * 100) / 100;
-          }
-        } else {
-          const allCorrectSelected = [...correctIds].every((id) => selectedSet.has(id));
-          const noWrongSelected = [...selectedSet].every((id) => correctIds.has(id));
-          if (allCorrectSelected && noWrongSelected) {
-            pointsAwarded = questionPoints;
+          if (wrongSelected === 0) {
+            if (correctSelected === totalCorrect) {
+              pointsAwarded = questionPoints;
+            } else if (partialScoring && correctSelected > 0) {
+              pointsAwarded = Math.round((correctSelected / totalCorrect) * questionPoints * 100) / 100;
+            }
           }
         }
       }

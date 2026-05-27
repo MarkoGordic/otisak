@@ -134,21 +134,26 @@ export default function ExamRoomPage() {
       setExam(data.exam);
       setParticipants(data.participants || []);
       if (data.exam?.exam_started_at) setStarted(true);
-      // Check lockdown status + room-status (extra_seconds + paused_seconds) + requests + live stats.
-      try {
-        const [lockRes, statusRes, reqRes] = await Promise.all([
-          fetch(`/api/otisak/exams/${examId}/lockdown`),
-          fetch(`/api/otisak/exams/${examId}/room-status`),
-          fetch(`/api/otisak/exams/${examId}/requests`, { credentials: 'include' }),
-        ]);
-        if (lockRes.ok) { const ld = await lockRes.json(); setLocked(!!ld.lockdown?.is_active); }
-        if (statusRes.ok) {
-          const st = await statusRes.json();
-          setExtraSeconds(Number(st.extra_seconds || 0));
-          setPausedSeconds(Number(st.paused_seconds || 0));
-        }
-        if (reqRes.ok) { const rq = await reqRes.json(); setRequests(rq.requests || []); }
-      } catch {}
+      // Closed exams render the slim read-only view — skip lockdown / room-status /
+      // requests since none of those controls apply anymore. Still load live-stats
+      // so the per-student report list shows scores.
+      const isClosed = data.exam?.status === 'completed' || data.exam?.status === 'archived';
+      if (!isClosed) {
+        try {
+          const [lockRes, statusRes, reqRes] = await Promise.all([
+            fetch(`/api/otisak/exams/${examId}/lockdown`),
+            fetch(`/api/otisak/exams/${examId}/room-status`),
+            fetch(`/api/otisak/exams/${examId}/requests`, { credentials: 'include' }),
+          ]);
+          if (lockRes.ok) { const ld = await lockRes.json(); setLocked(!!ld.lockdown?.is_active); }
+          if (statusRes.ok) {
+            const st = await statusRes.json();
+            setExtraSeconds(Number(st.extra_seconds || 0));
+            setPausedSeconds(Number(st.paused_seconds || 0));
+          }
+          if (reqRes.ok) { const rq = await reqRes.json(); setRequests(rq.requests || []); }
+        } catch {}
+      }
       // Live stats only matters when exam has started, but cheap to call always.
       loadLiveStats();
     } catch { navigate('/manage'); }
@@ -293,6 +298,109 @@ export default function ExamRoomPage() {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
+  }
+
+  // Once an exam is completed (or archived) the live-room controls are no
+  // longer meaningful. Render a slim export-and-reports view instead.
+  if (exam && (exam.status === 'completed' || exam.status === 'archived')) {
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex">
+        <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
+        <MobileNav userName={user.name} userRole={user.role} />
+
+        <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen pb-20 lg:pb-0">
+          <header className="w-full bg-[var(--bg-elevated)] border-b border-[var(--border-default)] px-4 sm:px-6 py-4 z-20 sticky top-0">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+                <button
+                  onClick={() => navigate('/manage')}
+                  className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                  aria-label="Back"
+                >
+                  <ArrowLeft size={20} />
+                </button>
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-xl bg-[var(--bg-tertiary)] flex items-center justify-center flex-shrink-0">
+                    <Fingerprint className="w-5 h-5 text-[var(--text-muted)]" strokeWidth={1.75} />
+                  </div>
+                  <div className="min-w-0">
+                    <h1 className="text-lg font-display font-bold text-[var(--text-primary)] truncate">
+                      {exam.title}
+                    </h1>
+                    <div className="flex items-center gap-2 text-xs text-[var(--text-muted)] truncate">
+                      {exam.subject_name && <span className="truncate">{exam.subject_name}</span>}
+                      <span>·</span>
+                      <span>{exam.duration_minutes}min</span>
+                      <span>·</span>
+                      <span>{exam.question_count} {t('questions.title').toLowerCase()}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <Badge variant="neutral" size="md">{t('manage.completed')}</Badge>
+            </div>
+          </header>
+
+          <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-6 mb-6">
+              <div className="flex items-start gap-3 mb-1">
+                <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-accent" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h2 className="text-lg font-display font-bold text-[var(--text-primary)]">{t('room.readOnly.title')}</h2>
+                  <p className="text-sm text-[var(--text-secondary)] mt-1">{t('room.readOnly.desc')}</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-6 mb-6">
+              <div className="flex items-center justify-between gap-4 flex-wrap">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">{t('room.readOnly.exportTitle')}</h3>
+                  <p className="text-xs text-[var(--text-secondary)] mt-1">{t('room.readOnly.exportDesc')}</p>
+                </div>
+                <a
+                  href={`/api/otisak/exams/${examId}/export-results`}
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
+                >
+                  <FileText size={16} />
+                  {t('room.readOnly.downloadZip')}
+                </a>
+              </div>
+            </div>
+
+            <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-6">
+              <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider mb-4">{t('room.readOnly.studentsTitle')}</h3>
+              {liveStats.per_student.length === 0 ? (
+                <p className="text-sm text-[var(--text-muted)]">{t('room.readOnly.noStudents')}</p>
+              ) : (
+                <div className="divide-y divide-[var(--border-subtle)]">
+                  {liveStats.per_student.map((p) => (
+                    <div key={p.user_id} className="flex items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-[var(--text-primary)] truncate">{p.user_name || p.user_email}</div>
+                        <div className="text-xs text-[var(--text-muted)] truncate">
+                          {p.index_number && <span className="font-mono">{p.index_number} · </span>}
+                          {p.user_email}
+                          {p.submitted && <> · <span className="text-success">{t('manage.completed').toLowerCase()}</span></>}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
+                        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors flex-shrink-0"
+                      >
+                        {t('room.readOnly.openReport')}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
       </div>
     );
   }

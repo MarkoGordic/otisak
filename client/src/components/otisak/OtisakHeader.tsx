@@ -8,11 +8,14 @@ import { ToggleCluster } from '../ToggleCluster';
 interface OtisakHeaderProps {
   user?: { name: string | null; index_number: string | null; avatar_url: string | null } | null;
   centerContent?: React.ReactNode;
+  // Optional slot for an action button (e.g. "Završi test") that sits in the
+  // right cluster next to the toggle group. Pass `null` to hide.
+  actionButton?: React.ReactNode;
   showDate?: boolean;
   dateLabel?: string;
 }
 
-export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }: OtisakHeaderProps) {
+export function OtisakHeader({ user, centerContent, actionButton, showDate = true, dateLabel }: OtisakHeaderProps) {
   const { t } = useLang();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -87,8 +90,9 @@ export function OtisakHeader({ user, centerContent, showDate = true, dateLabel }
           {centerContent}
         </div>
 
-        {/* Right: Toggle cluster + User Info */}
-        <div className="flex items-center gap-3 sm:gap-4 text-right">
+        {/* Right: Action button (optional) + Toggle cluster + User Info */}
+        <div className="flex items-center gap-2 sm:gap-3 text-right">
+          {actionButton}
           <div className="hidden md:block">
             <ToggleCluster variant="solid" position="static" />
           </div>
