@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, Plus, Trash2, Code, Image as ImageIcon, FileText, MessageSquare,
   Settings, Download, Save, ChevronDown, ChevronUp, Upload as UploadIcon, Pencil, X, Check,
+  AlertTriangle,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -29,6 +30,7 @@ type Exam = {
   subject_id?: string | null;
   subject_name?: string | null;
   question_count?: number;
+  tags: string[];
 };
 
 type Subject = { id: string; name: string; code: string | null };
@@ -120,7 +122,10 @@ export default function ExamEditPage() {
       if (examsRes.ok) {
         const d = await examsRes.json();
         const found = (d.exams || []).find((e: Exam) => e.id === examId) || null;
-        setExam(found);
+        // Old API responses (or pre-migration rows) may lack the tags array;
+        // default to [] so the chip editor never crashes on undefined.
+        if (found) setExam({ ...found, tags: Array.isArray(found.tags) ? found.tags : [] });
+        else setExam(null);
       }
       if (qRes.ok) {
         const d = await qRes.json();
@@ -164,6 +169,7 @@ export default function ExamEditPage() {
           negative_points_enabled: exam.negative_points_enabled,
           negative_points_value: Number(exam.negative_points_value) || 0,
           negative_points_threshold: Number(exam.negative_points_threshold) || 0,
+          tags: exam.tags ?? [],
         }),
       });
       if (!res.ok) {
@@ -198,6 +204,9 @@ export default function ExamEditPage() {
           negative_points_enabled: !!saved.negative_points_enabled,
           negative_points_value: Number(saved.negative_points_value ?? prev.negative_points_value),
           negative_points_threshold: Number(saved.negative_points_threshold ?? prev.negative_points_threshold),
+          tags: Array.isArray((saved as { tags?: unknown }).tags)
+            ? ((saved as { tags: unknown[] }).tags as unknown[]).filter((x): x is string => typeof x === 'string')
+            : prev.tags,
         } : prev);
       }
       toast.success(t('examEdit.saveSuccess'));
@@ -525,6 +534,24 @@ export default function ExamEditPage() {
                     <Toggle label={t('examEdit.shuffleAnswers')} value={exam.shuffle_answers} onChange={(v) => setExam({ ...exam, shuffle_answers: v })} />
                     <Toggle label={t('examEdit.partialScoring')} value={exam.partial_scoring} onChange={(v) => setExam({ ...exam, partial_scoring: v })} />
                   </div>
+
+                  <div className="col-span-1 sm:col-span-2">
+                    <Field label={t('examEdit.tags')}>
+                      <TagChipsEditor
+                        value={exam.tags ?? []}
+                        onChange={(next) => setExam({ ...exam, tags: next })}
+                        placeholder={t('examEdit.tagsPlaceholder')}
+                      />
+                      <p className="text-[11px] text-[var(--text-muted)] mt-1">{t('examEdit.tagsHelp')}</p>
+                    </Field>
+                  </div>
+
+                  {exam.status === 'completed' && (
+                    <div className="col-span-1 sm:col-span-2 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning-light/30 px-3 py-2 text-xs text-warning">
+                      <AlertTriangle size={14} />
+                      <span>{t('examEdit.rescoreNotice')}</span>
+                    </div>
+                  )}
 
                   <div className="col-span-1 sm:col-span-2 flex justify-end">
                     <Button variant="primary" leftIcon={<Save size={14} />} loading={savingSettings} onClick={handleSaveSettings}>
@@ -890,5 +917,58 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
       <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${value ? 'border-accent bg-accent' : 'border-[var(--border-default)]'}`} />
       <span>{label}</span>
     </button>
+  );
+}
+
+// Chip-style tag editor. Tags are normalised on add (lowercase + trim) so the
+// server sees the same canonical form as what the manage-page filter sends.
+// Enter / comma commits the current draft; Backspace on an empty input removes
+// the last chip. Duplicates are silently dropped.
+function TagChipsEditor({
+  value, onChange, placeholder,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState('');
+  const commit = () => {
+    const norm = draft.trim().toLowerCase();
+    if (!norm) return;
+    if (value.includes(norm)) { setDraft(''); return; }
+    onChange([...value, norm]);
+    setDraft('');
+  };
+  return (
+    <div className="flex flex-wrap items-center gap-1.5 min-h-10 px-2 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] focus-within:border-accent">
+      {value.map((tag) => (
+        <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-light text-accent text-xs font-medium">
+          {tag}
+          <button
+            type="button"
+            onClick={() => onChange(value.filter((t) => t !== tag))}
+            className="text-accent/70 hover:text-accent"
+            aria-label={`Remove tag ${tag}`}
+          >
+            <X size={12} />
+          </button>
+        </span>
+      ))}
+      <input
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ',') {
+            e.preventDefault();
+            commit();
+          } else if (e.key === 'Backspace' && draft === '' && value.length > 0) {
+            onChange(value.slice(0, -1));
+          }
+        }}
+        onBlur={commit}
+        placeholder={value.length === 0 ? placeholder : ''}
+        className="flex-1 min-w-[80px] bg-transparent text-sm text-[var(--text-primary)] focus:outline-none px-1 py-0.5"
+      />
+    </div>
   );
 }

@@ -84,12 +84,14 @@ CREATE TABLE otisak_exams (
   exam_started_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  extra_seconds INTEGER NOT NULL DEFAULT 0
+  extra_seconds INTEGER NOT NULL DEFAULT 0,
+  tags TEXT[] NOT NULL DEFAULT '{}'
 );
 
 CREATE INDEX idx_otisak_exams_status ON otisak_exams(status);
 CREATE INDEX idx_otisak_exams_subject ON otisak_exams(subject_id);
 CREATE INDEX idx_otisak_exams_parent ON otisak_exams(parent_exam_id);
+CREATE INDEX idx_otisak_exams_tags ON otisak_exams USING GIN (tags);
 
 -- ========================================
 -- OTISAK QUESTIONS

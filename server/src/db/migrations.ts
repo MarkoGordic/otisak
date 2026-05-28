@@ -94,6 +94,21 @@ const steps: readonly Step[] = [
       END $$
     `);
   }],
+  ['008_exam_tags_column', async () => {
+    // Free-form tags on exams. Mirrors otisak_question_bank.tags so the same
+    // GIN-indexed array-overlap pattern can be reused for the manage-page
+    // filter. Existing rows backfill to '{}' via DEFAULT.
+    await query(`
+      ALTER TABLE otisak_exams
+      ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'
+    `);
+  }],
+  ['009_idx_exam_tags', async () => {
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_otisak_exams_tags
+        ON otisak_exams USING GIN (tags)
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {

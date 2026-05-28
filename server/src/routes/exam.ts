@@ -18,11 +18,13 @@ import {
   createOtisakQuestion,
   updateOtisakQuestion,
   deleteOtisakQuestion,
+  rescoreExam,
   joinExamByIndex,
   getExamRoomStatus,
   startExamTimer,
   updateOtisakExamStatus,
   getLiveExamStats,
+  shuffleArray,
 } from '../db/otisak';
 import { getActiveLockdown, createLockdown, endLockdown } from '../db/settings';
 import { logEvents, getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
@@ -129,7 +131,27 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     let questions = await getOtisakQuestions(examId);
 
-    // For students, strip correct answers
+    // Apply the per-attempt seeded shuffle so the student sees the same
+    // question / answer ordering that `getAttemptResults` (and therefore the
+    // results screen + per-student PDF) will compute later. Without this the
+    // student saw canonical position order while results came out shuffled.
+    // Only runs when the student has an attempt — admins/assistants viewing
+    // the same endpoint should keep canonical order for editing flows.
+    if (attempt && user.role === 'student') {
+      const seed = Number(attempt.shuffle_seed) | 0;
+      if (exam.shuffle_questions) {
+        questions = shuffleArray(questions, seed);
+      }
+      if (exam.shuffle_answers) {
+        questions = questions.map((q, idx) => ({
+          ...q,
+          answers: shuffleArray(q.answers, seed + idx + 1),
+        }));
+      }
+    }
+
+    // For students, strip correct answers (applied after shuffling so the
+    // shuffle key isn't influenced by the redacted field).
     if (user.role === 'student') {
       questions = questions.map((q) => ({
         ...q,
@@ -669,7 +691,15 @@ router.post('/questions', requireAuth, requireRole(['admin', 'assistant']), asyn
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
     const question = await createOtisakQuestion(examId, req.body);
-    return res.json(question);
+    // Adding a question on a completed exam grows max_points; rescore so the
+    // percentages on every attempt reflect the new total.
+    let rescored = 0;
+    const exam = await getOtisakExamById(examId);
+    if (exam && exam.status === 'completed') {
+      try { rescored = await rescoreExam(examId); }
+      catch (err) { console.error('Rescore after question POST failed:', err); }
+    }
+    return res.json({ ...question, rescored });
   } catch (error) {
     const msg = (error as Error).message || '';
     // Surface validation errors (text length caps, missing text) as 400 so the
@@ -700,7 +730,23 @@ router.patch('/questions', requireAuth, requireRole(['admin', 'assistant']), asy
     }
     const updated = await updateOtisakQuestion(id, patch);
     if (!updated) return res.status(404).json({ error: 'Question not found' });
-    return res.json(updated);
+
+    // If the exam is already closed, every change here (points, answers,
+    // correct flags, content) can shift scoring outcomes — replay grading
+    // against all stored attempts so the room's export reflects the new
+    // scale immediately. Draft/scheduled/active exams: no attempts to
+    // rescore (or rescoring would clash with in-flight students), skip.
+    let rescored = 0;
+    const exam = await getOtisakExamById(examId);
+    if (exam && exam.status === 'completed') {
+      try {
+        rescored = await rescoreExam(examId);
+      } catch (err) {
+        console.error('Rescore after question PATCH failed:', err);
+        return res.status(500).json({ error: 'Question updated but rescore failed', code: 'RESCORE_FAILED' });
+      }
+    }
+    return res.json({ ...updated, rescored });
   } catch (error) {
     const msg = (error as Error).message || '';
     if (/exceeds|required|Invalid/i.test(msg)) {
@@ -725,7 +771,18 @@ router.delete('/questions', requireAuth, requireRole(['admin', 'assistant']), as
     if (!deleted) {
       return res.status(404).json({ error: 'Question not found' });
     }
-    return res.json({ success: true });
+    // Same reasoning as the PATCH path: a deletion on a completed exam shrinks
+    // max_points and removes that question's contribution from every total.
+    let rescored = 0;
+    const exam = await getOtisakExamById(examId);
+    if (exam && exam.status === 'completed') {
+      try {
+        rescored = await rescoreExam(examId);
+      } catch (err) {
+        console.error('Rescore after question DELETE failed:', err);
+      }
+    }
+    return res.json({ success: true, rescored });
   } catch (error) {
     console.error('Delete question error:', error);
     return res.status(500).json({ error: 'Internal server error' });

@@ -40,6 +40,7 @@ export interface OtisakExam {
   partial_scoring: boolean;
   exam_started_at: Date | null;
   extra_seconds: number;
+  tags: string[];
   created_at: Date;
   updated_at: Date;
 }
@@ -149,6 +150,7 @@ export interface CreateOtisakExamInput {
   negative_points_value?: number;
   negative_points_threshold?: number;
   partial_scoring?: boolean;
+  tags?: string[];
   tag_rules?: CreateOtisakExamTagRuleInput[];
 }
 

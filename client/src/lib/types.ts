@@ -33,6 +33,7 @@ export interface OtisakExam {
   partial_scoring: boolean;
   exam_started_at: string | null;
   extra_seconds: number;
+  tags: string[];
   created_at: string;
   updated_at: string;
 }

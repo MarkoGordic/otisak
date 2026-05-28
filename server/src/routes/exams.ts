@@ -15,8 +15,26 @@ import {
   getAssignedSubjectIds,
   isSubjectManageableByUser,
 } from '../db/auth-helpers';
-import { importExamFromJson, resolveSubjectIdByName } from '../lib/importExam';
+import { importExamFromJson } from '../lib/importExam';
 import { finishExamForEveryone } from '../lib/finishExam';
+import { normaliseTags } from '../db/otisak';
+
+// Build the common filter set used by both admin and assistant `GET /exams` —
+// status, statuses (CSV), subject_id, exam_mode, tags (CSV), scheduled_from,
+// scheduled_to. Encapsulated here so admin and assistant paths can't drift.
+function parseExamFilters(q: Record<string, unknown>) {
+  const csv = (v: unknown): string[] =>
+    typeof v === 'string' && v.length > 0 ? v.split(',').map((s) => s.trim()).filter(Boolean) : [];
+  return {
+    status: typeof q.status === 'string' && q.status ? q.status : undefined,
+    statuses: csv(q.statuses),
+    subject_id: typeof q.subject_id === 'string' && q.subject_id ? q.subject_id : undefined,
+    exam_mode: typeof q.exam_mode === 'string' && q.exam_mode ? q.exam_mode : undefined,
+    tags: normaliseTags(csv(q.tags)),
+    scheduled_from: typeof q.scheduled_from === 'string' && q.scheduled_from ? q.scheduled_from : undefined,
+    scheduled_to: typeof q.scheduled_to === 'string' && q.scheduled_to ? q.scheduled_to : undefined,
+  };
+}
 
 const router = Router();
 
@@ -44,12 +62,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
   try {
     const user = req.user!;
     if (user.role === 'admin') {
-      const { status, subject_id, exam_mode } = req.query;
-      const exams = await getOtisakExams({
-        status: status as string | undefined,
-        subject_id: subject_id as string | undefined,
-        exam_mode: exam_mode as string | undefined,
-      });
+      const exams = await getOtisakExams(parseExamFilters(req.query as Record<string, unknown>));
       return res.json({ exams });
     }
     if (user.role === 'assistant') {
@@ -57,11 +70,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       // Empty assignment list → empty result (the helper short-circuits
       // before hitting the DB on the worst case).
       const subjectIds = await getAssignedSubjectIds(user.id);
-      const { status, subject_id, exam_mode } = req.query;
       const exams = await getOtisakExams({
-        status: status as string | undefined,
-        subject_id: subject_id as string | undefined,
-        exam_mode: exam_mode as string | undefined,
+        ...parseExamFilters(req.query as Record<string, unknown>),
         subject_ids: subjectIds,
       });
       return res.json({ exams });
@@ -197,25 +207,27 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
     }
 
     const user = req.user!;
-    const isAdmin = user.role === 'admin';
 
-    const explicitSubjectId = typeof body.subject_id === 'string' && body.subject_id
+    // Subject is now mandatory for every caller. The previous "fall back to
+    // exam.subject_name from the JSON" path made it possible for an admin to
+    // import an exam without realising which subject it landed under —
+    // forcing an explicit pick removes that whole class of mistake.
+    const subjectId = typeof body.subject_id === 'string' && body.subject_id
       ? body.subject_id
       : null;
-    const subjectId = explicitSubjectId
-      ?? await resolveSubjectIdByName(body.exam.subject_name as string | undefined);
+    if (!subjectId) {
+      return res.status(400).json({ error: 'Subject is required', code: 'SUBJECT_REQUIRED' });
+    }
 
-    if (!isAdmin) {
-      if (!subjectId) {
-        return res.status(400).json({ error: 'Assistants must import into a known subject (pick one in the dialog or set exam.subject_name)' });
-      }
-      const ok = await isSubjectManageableByUser(user.id, subjectId, false);
-      if (!ok) return res.status(403).json({ error: 'Not assigned to this subject' });
-    } else if (explicitSubjectId) {
-      // For admins, still 400 if they passed a subject_id that doesn't exist —
-      // otherwise the row would be silently dropped into "no subject".
-      const ok = await isSubjectManageableByUser(user.id, explicitSubjectId, true);
-      if (!ok) return res.status(400).json({ error: 'Selected subject does not exist' });
+    // Same authority check for admin and assistant. For admin this catches
+    // a typo / stale subject id (would otherwise silently create the exam
+    // with no subject); for assistant it enforces the assignment check.
+    const isAdmin = user.role === 'admin';
+    const ok = await isSubjectManageableByUser(user.id, subjectId, isAdmin);
+    if (!ok) {
+      return res.status(isAdmin ? 400 : 403).json({
+        error: isAdmin ? 'Selected subject does not exist' : 'Not assigned to this subject',
+      });
     }
 
     const result = await importExamFromJson(body, user.id, { subject_id: subjectId });

@@ -78,7 +78,16 @@ export async function deleteOtisakSubject(id: string): Promise<void> {
 // ========================================
 
 export async function getOtisakExams(
-  filters?: { status?: string; subject_id?: string; exam_mode?: string; subject_ids?: string[] }
+  filters?: {
+    status?: string;
+    statuses?: string[];
+    subject_id?: string;
+    exam_mode?: string;
+    subject_ids?: string[];
+    tags?: string[];
+    scheduled_from?: string;
+    scheduled_to?: string;
+  }
 ): Promise<OtisakExamWithSubject[]> {
   let sql = `
     SELECT e.*, s.name as subject_name, s.code as subject_code,
@@ -93,6 +102,14 @@ export async function getOtisakExams(
     conditions.push(`e.status = $${params.length + 1}`);
     params.push(filters.status);
   }
+  // `statuses` is the multi-value variant — used by the manage page tabs
+  // (Aktivni = draft|scheduled|active in one query). When both `status` and
+  // `statuses` are set, `status` wins (the caller probably narrowed inside
+  // a tab) and `statuses` is ignored.
+  if (filters?.statuses && filters.statuses.length > 0 && !filters?.status) {
+    conditions.push(`e.status = ANY($${params.length + 1}::text[])`);
+    params.push(filters.statuses);
+  }
   if (filters?.subject_id) {
     conditions.push(`e.subject_id = $${params.length + 1}`);
     params.push(filters.subject_id);
@@ -100,6 +117,20 @@ export async function getOtisakExams(
   if (filters?.exam_mode) {
     conditions.push(`e.exam_mode = $${params.length + 1}`);
     params.push(filters.exam_mode);
+  }
+  // Array-overlap on the GIN-indexed tags column. Caller passes already-
+  // normalised lowercase tags; we don't re-normalise here.
+  if (filters?.tags && filters.tags.length > 0) {
+    conditions.push(`e.tags && $${params.length + 1}::text[]`);
+    params.push(filters.tags);
+  }
+  if (filters?.scheduled_from) {
+    conditions.push(`e.scheduled_at >= $${params.length + 1}`);
+    params.push(filters.scheduled_from);
+  }
+  if (filters?.scheduled_to) {
+    conditions.push(`e.scheduled_at <= $${params.length + 1}`);
+    params.push(filters.scheduled_to);
   }
   // Hard filter for assistants: only exams belonging to subjects the user
   // is assigned to. Empty array → no exams (the route layer is responsible
@@ -137,12 +168,15 @@ export async function createOtisakExam(
   data: CreateOtisakExamInput,
   createdBy: string
 ): Promise<OtisakExam> {
+  // Tags get normalised once on the way in: lowercased, trimmed, deduped,
+  // empties dropped. Saves us from re-doing it on every read.
+  const tags = normaliseTags(data.tags);
   const result = await query<OtisakExam>(
     `INSERT INTO otisak_exams (title, subject_id, description, duration_minutes, scheduled_at,
        allow_review, shuffle_questions, shuffle_answers, pass_threshold, created_by,
        exam_mode, self_service, repeat_interval_minutes, auto_activate, uses_question_bank, is_public,
-       negative_points_enabled, negative_points_value, negative_points_threshold, partial_scoring)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20) RETURNING *`,
+       negative_points_enabled, negative_points_value, negative_points_threshold, partial_scoring, tags)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
     [
       data.title,
       data.subject_id || null,
@@ -164,9 +198,27 @@ export async function createOtisakExam(
       data.negative_points_value ?? 0,
       data.negative_points_threshold ?? 1,
       data.partial_scoring ?? false,
+      tags,
     ]
   );
   return result.rows[0];
+}
+
+// Lowercase + trim + dedupe + drop empties. Public so the API layer can call it
+// when accepting `?tags=foo,Bar,foo` query params and emit the same canonical
+// form for filtering as we store on the row.
+export function normaliseTags(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const t of raw) {
+    if (typeof t !== 'string') continue;
+    const v = t.trim().toLowerCase();
+    if (!v || seen.has(v)) continue;
+    seen.add(v);
+    out.push(v);
+  }
+  return out;
 }
 
 // Title of the seeded demo exam (see server/src/bootstrap.ts:ensureDemoExam).
@@ -220,7 +272,7 @@ export async function updateOtisakExamStatus(
 
 export async function updateOtisakExam(
   examId: string,
-  data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'allow_review' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring' | 'exam_mode' | 'subject_id'>>
+  data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'allow_review' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring' | 'exam_mode' | 'subject_id' | 'tags'>>
 ): Promise<OtisakExam | null> {
   // Block edits that would break the demo lock. The demo is identified by
   // its title, so renaming it would orphan the lock and let the demo be
@@ -252,6 +304,7 @@ export async function updateOtisakExam(
   if (data.negative_points_value !== undefined) { updates.push(`negative_points_value = $${idx++}`); values.push(data.negative_points_value); }
   if (data.negative_points_threshold !== undefined) { updates.push(`negative_points_threshold = $${idx++}`); values.push(data.negative_points_threshold); }
   if (data.partial_scoring !== undefined) { updates.push(`partial_scoring = $${idx++}`); values.push(data.partial_scoring); }
+  if (data.tags !== undefined) { updates.push(`tags = $${idx++}`); values.push(normaliseTags(data.tags)); }
   if (data.exam_mode !== undefined) {
     // Only allow the two known modes; don't trust the client to send anything else.
     const mode = data.exam_mode === 'practice' ? 'practice' : 'real';
@@ -771,6 +824,208 @@ export async function submitAttemptAnswers(
   }
 }
 
+// Replay scoring for every stored attempt of an exam against the *current*
+// question shape (points, correct flags, type-specific content). Used after
+// an admin edits questions on a completed exam — the historical record of
+// what each student picked / typed stays the same, but `points_awarded`
+// and the attempt totals are recomputed from scratch using the new scale.
+//
+// Notes:
+//   - Open-text answers carry their existing `points_awarded` and AI status
+//     through unchanged. Admin can re-run AI grading separately.
+//   - Negative-points logic mirrors finishAttempt() so totals stay consistent
+//     whether they were produced by a normal submit or a rescore.
+//   - Whole exam runs in one transaction so a partial failure rolls back.
+//
+// Returns the number of attempts whose totals were updated.
+export async function rescoreExam(examId: string): Promise<number> {
+  return transaction(async (client) => {
+    const examRes = await client.query<{
+      partial_scoring: boolean;
+      negative_points_enabled: boolean;
+      negative_points_value: number;
+      negative_points_threshold: number;
+    }>(
+      `SELECT partial_scoring, negative_points_enabled,
+              negative_points_value, negative_points_threshold
+       FROM otisak_exams WHERE id = $1`,
+      [examId]
+    );
+    const exam = examRes.rows[0];
+    if (!exam) return 0;
+    const partialScoring = !!exam.partial_scoring;
+
+    // Snapshot of all questions for this exam plus their canonical answer rows.
+    // Keyed for O(1) lookup inside the per-attempt loop.
+    const qRows = await client.query<{ id: string; type: string; content: string | null; points: number }>(
+      `SELECT id, type, content, points FROM otisak_questions WHERE exam_id = $1`,
+      [examId]
+    );
+    const questions = new Map(qRows.rows.map((q) => [q.id, q] as const));
+    const maxPoints = qRows.rows.reduce((s, q) => s + Number(q.points || 0), 0);
+
+    const aRows = await client.query<{ question_id: string; id: string; is_correct: boolean }>(
+      `SELECT a.question_id, a.id, a.is_correct
+       FROM otisak_answers a
+       JOIN otisak_questions q ON q.id = a.question_id
+       WHERE q.exam_id = $1`,
+      [examId]
+    );
+    const answersByQuestion = new Map<string, Array<{ id: string; is_correct: boolean }>>();
+    for (const a of aRows.rows) {
+      const list = answersByQuestion.get(a.question_id) ?? [];
+      list.push({ id: a.id, is_correct: a.is_correct });
+      answersByQuestion.set(a.question_id, list);
+    }
+
+    // All submitted attempts. Live (not yet submitted) attempts are excluded —
+    // a rescore on an in-progress student wouldn't be meaningful and they'll
+    // be re-scored normally at submit.
+    const attemptRes = await client.query<{ id: string }>(
+      `SELECT id FROM otisak_attempts WHERE exam_id = $1 AND submitted = TRUE`,
+      [examId]
+    );
+
+    let rescored = 0;
+    for (const { id: attemptId } of attemptRes.rows) {
+      const aaRes = await client.query<{
+        question_id: string;
+        selected_answer_id: string | null;
+        selected_answer_ids: string[];
+        text_answer: string | null;
+        points_awarded: number;
+        ai_grading_status: string | null;
+      }>(
+        `SELECT question_id, selected_answer_id, selected_answer_ids, text_answer,
+                points_awarded, ai_grading_status
+         FROM otisak_attempt_answers WHERE attempt_id = $1`,
+        [attemptId]
+      );
+
+      for (const aa of aaRes.rows) {
+        const q = questions.get(aa.question_id);
+        if (!q) continue; // question was deleted; row stays but contributes 0
+        let pointsAwarded = 0;
+
+        if (q.type === 'ordering' && q.content) {
+          try {
+            const correctData = JSON.parse(q.content);
+            const correctOrder: string[] = correctData.items || [];
+            const studentOrder: string[] = JSON.parse(aa.text_answer || '[]');
+            if (correctOrder.length > 0 && JSON.stringify(studentOrder) === JSON.stringify(correctOrder)) {
+              pointsAwarded = Number(q.points || 0);
+            }
+          } catch { /* invalid JSON → 0 */ }
+        } else if (q.type === 'matching' && q.content) {
+          try {
+            const correctData = JSON.parse(q.content);
+            const leftArr: string[] = correctData.left || [];
+            const rightArr: string[] = correctData.right || [];
+            const studentMatches: Record<string, string> = JSON.parse(aa.text_answer || '{}');
+            const totalPairs = leftArr.length;
+            let correctCount = 0;
+            for (let i = 0; i < leftArr.length; i++) {
+              if (studentMatches[leftArr[i]] === rightArr[i]) correctCount++;
+            }
+            if (totalPairs > 0 && correctCount === totalPairs) {
+              pointsAwarded = Number(q.points || 0);
+            }
+          } catch { /* invalid JSON → 0 */ }
+        } else if (q.type === 'fill_blank' && q.content) {
+          try {
+            const correctData = JSON.parse(q.content);
+            const blanks: Array<{ id: string; correct: string }> = correctData.blanks || [];
+            const studentFills: Record<string, string> = JSON.parse(aa.text_answer || '{}');
+            const totalBlanks = blanks.length;
+            let correctCount = 0;
+            for (const blank of blanks) {
+              const studentVal = (studentFills[blank.id] || '').trim().toLowerCase();
+              const correctVal = (blank.correct || '').trim().toLowerCase();
+              if (studentVal === correctVal) correctCount++;
+            }
+            if (totalBlanks > 0 && correctCount === totalBlanks) {
+              pointsAwarded = Number(q.points || 0);
+            }
+          } catch { /* invalid JSON → 0 */ }
+        } else if (q.type === 'open_text') {
+          // Carry over the AI-graded score (or 0 if still pending). Rescoring
+          // shouldn't overwrite what the grader produced; admin can re-run AI
+          // grading separately if they want a fresh pass.
+          pointsAwarded = Number(aa.points_awarded || 0);
+        } else {
+          // Multi-choice (text/code/image). Same rules as submitAttemptAnswers:
+          // any wrong pick → 0. All correct → full. Subset of correct with no
+          // wrong → proportional iff partial_scoring.
+          const selectedIds = (aa.selected_answer_ids && aa.selected_answer_ids.length > 0)
+            ? aa.selected_answer_ids
+            : (aa.selected_answer_id ? [aa.selected_answer_id] : []);
+          const allAnswers = answersByQuestion.get(q.id) ?? [];
+          if (selectedIds.length > 0 && allAnswers.length > 0) {
+            const questionPoints = Number(q.points || 0);
+            const correctIds = new Set(allAnswers.filter((a) => a.is_correct).map((a) => a.id));
+            const totalCorrect = correctIds.size;
+            const selectedSet = new Set(selectedIds);
+
+            if (totalCorrect <= 1) {
+              if (selectedIds.length === 1 && correctIds.has(selectedIds[0])) {
+                pointsAwarded = questionPoints;
+              }
+            } else {
+              const correctSelected = [...selectedSet].filter((id) => correctIds.has(id)).length;
+              const wrongSelected = [...selectedSet].filter((id) => !correctIds.has(id)).length;
+              if (wrongSelected === 0) {
+                if (correctSelected === totalCorrect) {
+                  pointsAwarded = questionPoints;
+                } else if (partialScoring && correctSelected > 0) {
+                  pointsAwarded = Math.round((correctSelected / totalCorrect) * questionPoints * 100) / 100;
+                }
+              }
+            }
+          }
+        }
+
+        await client.query(
+          `UPDATE otisak_attempt_answers SET points_awarded = $3
+           WHERE attempt_id = $1 AND question_id = $2`,
+          [attemptId, aa.question_id, pointsAwarded]
+        );
+      }
+
+      // Recompute total with the same negative-points logic finishAttempt uses.
+      const totalRes = await client.query<{ total: number }>(
+        `SELECT COALESCE(SUM(points_awarded), 0)::numeric AS total
+         FROM otisak_attempt_answers WHERE attempt_id = $1`,
+        [attemptId]
+      );
+      let total = Number(totalRes.rows[0]?.total ?? 0);
+      if (exam.negative_points_enabled && Number(exam.negative_points_value) > 0) {
+        const penaltyValue = Number(exam.negative_points_value);
+        const threshold = Number(exam.negative_points_threshold) || 1;
+        const wrongRes = await client.query<{ wrong_count: number }>(
+          `SELECT COUNT(*)::int AS wrong_count
+           FROM otisak_attempt_answers aa
+           WHERE aa.attempt_id = $1 AND aa.points_awarded = 0
+             AND (aa.selected_answer_id IS NOT NULL
+                  OR array_length(aa.selected_answer_ids, 1) > 0
+                  OR aa.text_answer IS NOT NULL)`,
+          [attemptId]
+        );
+        const wrongCount = wrongRes.rows[0]?.wrong_count ?? 0;
+        const penalizable = Math.max(0, wrongCount - (threshold - 1));
+        if (penalizable > 0) total = Math.max(0, total - penalizable * penaltyValue);
+      }
+
+      await client.query(
+        `UPDATE otisak_attempts SET total_points = $2, max_points = $3 WHERE id = $1`,
+        [attemptId, total, maxPoints]
+      );
+      rescored++;
+    }
+
+    return rescored;
+  });
+}
+
 export async function finishAttempt(
   attemptId: string,
   timeSpentSeconds: number
@@ -890,7 +1145,11 @@ function seededRandom(seed: number): () => number {
   };
 }
 
-function shuffleArray<T>(arr: T[], seed: number): T[] {
+// Exported so the student-facing `GET /exams/:id` route can produce the same
+// per-student ordering that `getAttemptResults` uses below. Single source of
+// truth for the algorithm keeps the student's view and the admin's results
+// view (and the per-student PDF) in lockstep.
+export function shuffleArray<T>(arr: T[], seed: number): T[] {
   const a = [...arr];
   const rand = seededRandom(seed);
   for (let i = a.length - 1; i > 0; i--) {

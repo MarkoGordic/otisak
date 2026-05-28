@@ -14,7 +14,18 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Dropdown } from '../components/ui/Dropdown';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Tabs } from '../components/ui/Tabs';
 import type { OtisakExamWithSubject } from '../lib/types';
+
+// Statuses live inside one of three top tabs. The Aktivni tab covers everything
+// the admin is actively building or running; Završeni is just `completed`;
+// Arhiva is its own resting place so closed exams don't crowd the main list.
+type ManageTab = 'aktivni' | 'zavrseni' | 'arhiva';
+const STATUSES_BY_TAB: Record<ManageTab, string[]> = {
+  aktivni: ['draft', 'scheduled', 'active'],
+  zavrseni: ['completed'],
+  arhiva: ['archived'],
+};
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
 type Subject = { id: string; name: string; code: string | null };
@@ -24,13 +35,13 @@ export default function ManagePage() {
   const { t } = useLang();
   const toast = useToast();
 
-  const STATUS_OPTIONS = [
+  // Per-tab status sub-filter options. The Aktivni tab can narrow further;
+  // the other two tabs are already single-status and don't need a dropdown.
+  const AKTIVNI_STATUS_OPTIONS = [
     { value: 'all', label: t('manage.allStatuses') },
     { value: 'draft', label: t('manage.draft') },
     { value: 'scheduled', label: t('manage.scheduled') },
     { value: 'active', label: t('manage.active') },
-    { value: 'completed', label: t('manage.completed') },
-    { value: 'archived', label: t('manage.archived') },
   ];
 
   // Per-status admin actions. Completed and archived exams are read-only —
@@ -55,7 +66,16 @@ export default function ManagePage() {
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState<OtisakExamWithSubject[]>([]);
   const [subjects, setSubjects] = useState<Subject[]>([]);
+
+  // Tab + filter state. All filtering happens client-side over the cached
+  // `exams` list — the request already returns the assistant-scoped set.
+  const [tab, setTab] = useState<ManageTab>('aktivni');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [subjectFilter, setSubjectFilter] = useState('all');
+  const [tagFilter, setTagFilter] = useState<string[]>([]);
+  const [scheduledFrom, setScheduledFrom] = useState('');
+  const [scheduledTo, setScheduledTo] = useState('');
+
   const [showCreateModal, setShowCreateModal] = useState(false);
 
   // Import form
@@ -182,7 +202,38 @@ export default function ManagePage() {
     }
   };
 
-  const filteredExams = exams.filter((e) => statusFilter === 'all' || e.status === statusFilter);
+  // Filter pipeline: tab gates by status group → status sub-filter → subject
+  // → tags (any-overlap, lowercased) → scheduled date range (inclusive). Each
+  // step is cheap so doing it on the client keeps the UI snappy without an
+  // extra round-trip per filter change.
+  const allowedStatuses = STATUSES_BY_TAB[tab];
+  const fromMs = scheduledFrom ? new Date(scheduledFrom).getTime() : null;
+  const toMs = scheduledTo ? new Date(scheduledTo).getTime() : null;
+  const tagSet = new Set(tagFilter.map((t) => t.toLowerCase()));
+
+  const filteredExams = exams.filter((e) => {
+    if (!allowedStatuses.includes(e.status)) return false;
+    if (tab === 'aktivni' && statusFilter !== 'all' && e.status !== statusFilter) return false;
+    if (subjectFilter !== 'all' && (e.subject_id ?? '') !== subjectFilter) return false;
+    if (tagSet.size > 0) {
+      const examTags = Array.isArray(e.tags) ? e.tags.map((x) => x.toLowerCase()) : [];
+      const overlap = examTags.some((tt) => tagSet.has(tt));
+      if (!overlap) return false;
+    }
+    if (fromMs !== null || toMs !== null) {
+      const ms = e.scheduled_at ? new Date(e.scheduled_at as unknown as string).getTime() : null;
+      if (ms === null) return false;
+      if (fromMs !== null && ms < fromMs) return false;
+      if (toMs !== null && ms > toMs) return false;
+    }
+    return true;
+  });
+
+  // Collected tag pool for the filter dropdown — every tag seen on any exam
+  // in scope, sorted alphabetically. Recomputes per render; small N.
+  const tagPool = Array.from(new Set(
+    exams.flatMap((e) => (Array.isArray(e.tags) ? e.tags : []).map((x) => x.toLowerCase()))
+  )).sort();
 
   if (!user) {
     return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
@@ -221,10 +272,81 @@ export default function ManagePage() {
               </div>
             </div>
 
+            {/* Tabs */}
+            <div className="mb-4">
+              <Tabs
+                tabs={[
+                  { id: 'aktivni', label: t('manage.tab.active') },
+                  { id: 'zavrseni', label: t('manage.tab.completed') },
+                  { id: 'arhiva', label: t('manage.tab.archive') },
+                ]}
+                activeTab={tab}
+                onChange={(id) => { setTab(id as ManageTab); setStatusFilter('all'); }}
+              />
+            </div>
+
             {/* Filters */}
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-[180px]">
-                <Dropdown options={STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              {tab === 'aktivni' && (
+                <div className="w-[160px]">
+                  <Dropdown options={AKTIVNI_STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+                </div>
+              )}
+              <div className="w-[200px]">
+                <Dropdown
+                  options={[
+                    { value: 'all', label: t('manage.allSubjects') },
+                    ...subjects.map((s) => ({ value: s.id, label: s.name })),
+                  ]}
+                  value={subjectFilter}
+                  onChange={setSubjectFilter}
+                />
+              </div>
+              {tagPool.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {tagPool.map((tg) => {
+                    const active = tagFilter.includes(tg);
+                    return (
+                      <button
+                        key={tg}
+                        type="button"
+                        onClick={() => setTagFilter((prev) => active ? prev.filter((x) => x !== tg) : [...prev, tg])}
+                        className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
+                          active ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-accent-light hover:text-accent'
+                        }`}
+                      >
+                        {tg}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <div className="flex items-center gap-2 ml-auto">
+                <input
+                  type="date"
+                  value={scheduledFrom}
+                  onChange={(e) => setScheduledFrom(e.target.value)}
+                  className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-xs text-[var(--text-primary)]"
+                  title={t('manage.scheduledFrom')}
+                />
+                <span className="text-xs text-[var(--text-muted)]">–</span>
+                <input
+                  type="date"
+                  value={scheduledTo}
+                  onChange={(e) => setScheduledTo(e.target.value)}
+                  className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-xs text-[var(--text-primary)]"
+                  title={t('manage.scheduledTo')}
+                />
+                {(scheduledFrom || scheduledTo) && (
+                  <button
+                    type="button"
+                    onClick={() => { setScheduledFrom(''); setScheduledTo(''); }}
+                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] px-2"
+                    title={t('common.clear')}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
               <span className="text-xs text-[var(--text-muted)]">{filteredExams.length} {t('manage.exams')}</span>
             </div>
@@ -260,6 +382,23 @@ export default function ManagePage() {
                           {exam.subject_name && <span>{exam.subject_name}</span>}
                           <span className="flex items-center gap-1"><Clock size={12} />{exam.duration_minutes} {t('manage.minShort')}</span>
                           <span className="flex items-center gap-1"><FileText size={12} />{exam.question_count} {t('manage.questionsShort')}</span>
+                          {exam.scheduled_at && (
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon size={12} />
+                              {new Date(exam.scheduled_at as unknown as string).toLocaleString('sr-RS', {
+                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                              })}
+                            </span>
+                          )}
+                          {Array.isArray(exam.tags) && exam.tags.length > 0 && (
+                            <span className="flex flex-wrap items-center gap-1">
+                              {exam.tags.map((tg) => (
+                                <span key={tg} className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-[10px]">
+                                  {tg}
+                                </span>
+                              ))}
+                            </span>
+                          )}
                         </div>
                       </div>
 
@@ -330,21 +469,21 @@ export default function ManagePage() {
                 </label>
               </div>
               <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.subject')}</label>
+                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
+                  {t('manage.subject')} <span className="text-danger">*</span>
+                </label>
                 <Dropdown
-                  options={[
-                    { value: '', label: t('manage.importJsonSubjectFromFile') },
-                    ...subjects.map((s) => ({ value: s.id, label: s.name })),
-                  ]}
+                  options={subjects.map((s) => ({ value: s.id, label: s.name }))}
                   value={importSubjectId}
                   onChange={setImportSubjectId}
+                  placeholder={t('manage.importJsonSubjectPlaceholder')}
                 />
                 <p className="text-[11px] text-[var(--text-muted)] mt-1">{t('manage.importJsonSubjectHint')}</p>
               </div>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
               <Button variant="secondary" onClick={() => setShowImportModal(false)} disabled={importing}>{t('manage.cancel')}</Button>
-              <Button variant="primary" loading={importing} disabled={!importFile} onClick={handleImport}>{t('manage.importJson')}</Button>
+              <Button variant="primary" loading={importing} disabled={!importFile || !importSubjectId} onClick={handleImport}>{t('manage.importJson')}</Button>
             </div>
           </div>
         </div>

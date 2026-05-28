@@ -2,8 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Loader2, Settings as SettingsIcon, Users as UsersIcon, BookOpen, BookMarked,
-  Plus, Radio, Clock, GraduationCap, FileText, Activity, ArrowRight,
+  Loader2, Plus, Radio, Clock, GraduationCap, FileText, Activity,
+  ArrowRight, AlertTriangle, CalendarIcon, Upload,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -15,9 +15,11 @@ type ExamLite = {
   title: string;
   status: string;
   exam_started_at: string | null;
+  scheduled_at: string | null;
   duration_minutes: number;
   question_count?: number;
   subject_name?: string | null;
+  tags?: string[];
 };
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
@@ -80,20 +82,19 @@ export default function AdminHomePage() {
     return t('dashboard.greeting.evening');
   })();
 
-  const totalExams = exams.length;
   const activeExams = exams.filter((e) => e.status === 'active').length;
   const draftExams = exams.filter((e) => e.status === 'draft').length;
+  const completedExams = exams.filter((e) => e.status === 'completed').length;
+  // Drafts that exist but have no questions yet — gentle nudge to finish.
+  const emptyDrafts = exams.filter((e) => e.status === 'draft' && (e.question_count ?? 0) === 0);
   const recentExams = [...exams]
-    .sort((a, b) => (a.status === 'active' ? -1 : b.status === 'active' ? 1 : 0))
-    .slice(0, 5);
-
-  const actions: Array<{ id: string; href: string; icon: React.ReactNode; label: string; desc: string; show: boolean }> = [
-    { id: 'manage', href: '/manage', icon: <SettingsIcon size={18} />, label: t('nav.manage'), desc: t('adminHome.action.manageDesc'), show: true },
-    { id: 'subjects', href: '/subjects', icon: <BookMarked size={18} />, label: t('nav.subjects'), desc: t('adminHome.action.subjectsDesc'), show: true },
-    { id: 'questions', href: '/questions', icon: <BookOpen size={18} />, label: t('nav.questionBank'), desc: t('adminHome.action.questionsDesc'), show: true },
-    { id: 'users', href: '/admin/users', icon: <UsersIcon size={18} />, label: t('nav.users'), desc: t('adminHome.action.usersDesc'), show: isAdmin },
-    { id: 'settings', href: '/admin/settings', icon: <SettingsIcon size={18} />, label: t('nav.settings'), desc: t('adminHome.action.settingsDesc'), show: isAdmin },
-  ];
+    .sort((a, b) => {
+      // Active first, then by status priority, then by creation order (newest first via reverse).
+      if (a.status === 'active' && b.status !== 'active') return -1;
+      if (b.status === 'active' && a.status !== 'active') return 1;
+      return 0;
+    })
+    .slice(0, 10);
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
@@ -113,42 +114,77 @@ export default function AdminHomePage() {
                   {t('adminHome.subtitle')}
                 </p>
               </div>
-              <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => navigate('/manage')}>
-                {t('manage.newExam')}
-              </Button>
-            </div>
-
-            {/* Stats */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-8">
-              <StatTile icon={<FileText size={18} />} value={totalExams} label={t('adminHome.stat.totalExams')} tone="accent" />
-              <StatTile icon={<Radio size={18} />} value={activeExams} label={t('adminHome.stat.activeExams')} tone="success" />
-              <StatTile icon={<Activity size={18} />} value={draftExams} label={t('adminHome.stat.draftExams')} tone="neutral" />
-              <StatTile icon={<GraduationCap size={18} />} value={studentCount ?? '—'} label={t('adminHome.stat.students')} tone="info" />
-            </div>
-
-            {/* Quick actions */}
-            <section className="mb-8">
-              <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold mb-3">{t('adminHome.quickActions')}</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {actions.filter((a) => a.show).map((a) => (
-                  <button
-                    key={a.id}
-                    type="button"
-                    onClick={() => navigate(a.href)}
-                    className="group flex items-start gap-3 p-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] hover:border-accent transition-colors text-left"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-accent-light text-accent flex items-center justify-center flex-shrink-0">
-                      {a.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-[var(--text-primary)]">{a.label}</div>
-                      <div className="text-xs text-[var(--text-secondary)] mt-0.5">{a.desc}</div>
-                    </div>
-                    <ArrowRight size={16} className="text-[var(--text-muted)] group-hover:text-accent group-hover:translate-x-0.5 transition-all flex-shrink-0 mt-1" />
-                  </button>
-                ))}
+              <div className="flex items-center gap-2">
+                <Button variant="secondary" leftIcon={<Upload size={14} />} onClick={() => navigate('/manage')}>
+                  {t('manage.importJson')}
+                </Button>
+                <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => navigate('/manage')}>
+                  {t('manage.newExam')}
+                </Button>
               </div>
-            </section>
+            </div>
+
+            {/* Stats — clickable deep-links into the relevant manage view. */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+              <StatTile
+                icon={<Radio size={18} />}
+                value={activeExams}
+                label={t('adminHome.stat.activeExams')}
+                tone="success"
+                onClick={() => navigate('/manage')}
+              />
+              <StatTile
+                icon={<Activity size={18} />}
+                value={draftExams}
+                label={t('adminHome.stat.draftExams')}
+                tone="neutral"
+                onClick={() => navigate('/manage')}
+              />
+              <StatTile
+                icon={<FileText size={18} />}
+                value={completedExams}
+                label={t('adminHome.stat.completedExams')}
+                tone="info"
+                onClick={() => navigate('/manage')}
+              />
+              <StatTile
+                icon={<GraduationCap size={18} />}
+                value={studentCount ?? '—'}
+                label={t('adminHome.stat.students')}
+                tone="accent"
+                onClick={isAdmin ? () => navigate('/admin/users') : undefined}
+              />
+            </div>
+
+            {/* Empty-draft callout — only renders when there's work to finish. */}
+            {emptyDrafts.length > 0 && (
+              <div className="mb-6 rounded-xl border border-warning/30 bg-warning-light/40 p-4 flex items-start gap-3">
+                <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-[var(--text-primary)]">
+                    {t('adminHome.emptyDraftsTitle')}
+                  </div>
+                  <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+                    {t('adminHome.emptyDraftsDesc', { count: emptyDrafts.length })}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 mt-2">
+                    {emptyDrafts.slice(0, 4).map((e) => (
+                      <button
+                        key={e.id}
+                        type="button"
+                        onClick={() => navigate(`/manage/${e.id}/edit`)}
+                        className="text-xs px-2 py-1 rounded-md bg-[var(--bg-elevated)] border border-[var(--border-default)] text-[var(--text-primary)] hover:border-accent hover:text-accent transition-colors max-w-[200px] truncate"
+                      >
+                        {e.title}
+                      </button>
+                    ))}
+                    {emptyDrafts.length > 4 && (
+                      <span className="text-xs text-[var(--text-muted)]">+{emptyDrafts.length - 4}</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Recent exams */}
             <section>
@@ -191,12 +227,25 @@ export default function AdminHomePage() {
                             exam.status === 'scheduled' ? 'bg-warning-light text-warning border-[var(--border-default)]' :
                             'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border-[var(--border-default)]'
                           }`}>{t(`manage.${exam.status}`) || exam.status}</span>
+                          {Array.isArray(exam.tags) && exam.tags.slice(0, 3).map((tg) => (
+                            <span key={tg} className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-[10px]">
+                              {tg}
+                            </span>
+                          ))}
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
                           {exam.subject_name && <span>{exam.subject_name}</span>}
                           <span className="flex items-center gap-1"><Clock size={11} />{exam.duration_minutes} {t('manage.minShort')}</span>
                           {typeof exam.question_count === 'number' && (
                             <span className="flex items-center gap-1"><FileText size={11} />{exam.question_count} {t('manage.questionsShort')}</span>
+                          )}
+                          {exam.scheduled_at && (
+                            <span className="flex items-center gap-1">
+                              <CalendarIcon size={11} />
+                              {new Date(exam.scheduled_at).toLocaleString('sr-RS', {
+                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                              })}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -225,7 +274,18 @@ export default function AdminHomePage() {
   );
 }
 
-function StatTile({ icon, value, label, tone }: { icon: React.ReactNode; value: number | string; label: string; tone: 'accent' | 'success' | 'info' | 'neutral' }) {
+// Clickable stat counter. When `onClick` is omitted it renders as a plain
+// display tile (used for the assistant role's student count, which they can't
+// drill into).
+function StatTile({
+  icon, value, label, tone, onClick,
+}: {
+  icon: React.ReactNode;
+  value: number | string;
+  label: string;
+  tone: 'accent' | 'success' | 'info' | 'neutral';
+  onClick?: () => void;
+}) {
   const palette: Record<typeof tone, { iconBg: string; iconColor: string }> = {
     accent: { iconBg: 'var(--accent-light)', iconColor: 'var(--accent)' },
     success: { iconBg: 'var(--success-light)', iconColor: 'var(--success)' },
@@ -233,8 +293,12 @@ function StatTile({ icon, value, label, tone }: { icon: React.ReactNode; value: 
     neutral: { iconBg: 'var(--bg-tertiary)', iconColor: 'var(--text-muted)' },
   };
   const p = palette[tone];
+  const Comp = onClick ? 'button' : 'div';
   return (
-    <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-4 flex items-center gap-3">
+    <Comp
+      onClick={onClick}
+      className={`bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-4 flex items-center gap-3 text-left ${onClick ? 'hover:border-accent transition-colors cursor-pointer' : ''}`}
+    >
       <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: p.iconBg, color: p.iconColor }}>
         {icon}
       </div>
@@ -242,6 +306,6 @@ function StatTile({ icon, value, label, tone }: { icon: React.ReactNode; value: 
         <div className="text-2xl font-display font-bold text-[var(--text-primary)] leading-none">{value}</div>
         <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mt-1 truncate">{label}</div>
       </div>
-    </div>
+    </Comp>
   );
 }
