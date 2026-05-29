@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Loader2, Plus, Settings, Play, Pause, Archive,
   FileText, Clock, CalendarIcon, Radio,
-  Download, Upload, Pencil, Package,
+  Download, Upload, Pencil, Package, BarChart3,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -427,6 +427,19 @@ export default function ManagePage() {
                             <Package size={14} />
                             {t('manage.exportResults.label')}
                           </a>
+                        )}
+                        {/* Statistika: available once attempts can exist (i.e.
+                            not draft). Endpoint is open to any status; the
+                            row CTA mirrors that and lets admins peek mid-run. */}
+                        {exam.status !== 'draft' && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/manage/${exam.id}/stats`)}
+                            className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                            title={t('manage.openStats')}
+                          >
+                            <BarChart3 size={14} />
+                          </button>
                         )}
                         {statusActions[exam.status]?.map((action) => (
                           <Button key={action.status} variant="secondary" size="sm" leftIcon={action.icon} onClick={() => handleStatusChange(exam.id, action.status)}>

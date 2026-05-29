@@ -16,6 +16,8 @@ import ExamPage from './pages/ExamPage';
 import ResultsPage from './pages/ResultsPage';
 import JoinPage from './pages/JoinPage';
 import DocsPage from './pages/DocsPage';
+import UserProfilePage from './pages/UserProfilePage';
+import ExamStatsPage from './pages/ExamStatsPage';
 
 export default function App() {
   return (
@@ -29,10 +31,12 @@ export default function App() {
         <Route path="/manage/:examId" element={<RoomPage />} />
         <Route path="/manage/:examId/edit" element={<ExamEditPage />} />
         <Route path="/manage/:examId/report/:userId" element={<ReportPage />} />
+        <Route path="/manage/:examId/stats" element={<ExamStatsPage />} />
         <Route path="/subjects" element={<SubjectsPage />} />
         <Route path="/questions" element={<QuestionsPage />} />
         <Route path="/admin/users" element={<AdminUsersPage />} />
         <Route path="/admin/settings" element={<AdminSettingsPage />} />
+        <Route path="/users/:userId" element={<UserProfilePage />} />
         <Route path="/exam/:examId" element={<ExamPage />} />
         <Route path="/exam/:examId/results" element={<ResultsPage />} />
         <Route path="/join/:examId" element={<JoinPage />} />

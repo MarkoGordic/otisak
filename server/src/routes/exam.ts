@@ -24,6 +24,7 @@ import {
   startExamTimer,
   updateOtisakExamStatus,
   getLiveExamStats,
+  getExamStats,
   shuffleArray,
 } from '../db/otisak';
 import { getActiveLockdown, createLockdown, endLockdown } from '../db/settings';
@@ -1022,6 +1023,23 @@ router.get('/live-stats', requireAuth, requireRole(['admin', 'assistant']), asyn
     return res.json(fresh);
   } catch (error) {
     console.error('Live stats error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /exams/:examId/stats - admin/assistant, per-exam analytics.
+// No status gate: meaningful on completed/archived but also usable mid-run
+// for spotting questions everyone is missing. Population is submitted
+// attempts only (in-flight ones would skew everything with partial scores).
+router.get('/stats', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
+    const stats = await getExamStats(examId);
+    if (!stats) return res.status(404).json({ error: 'Exam not found' });
+    return res.json(stats);
+  } catch (error) {
+    console.error('Exam stats error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

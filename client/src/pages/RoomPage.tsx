@@ -5,6 +5,7 @@ import {
   Loader2, Users, Play, Pause, Copy, Check, Link2, UserCheck, ArrowLeft,
   Fingerprint, Radio, ShieldOff, ShieldAlert, FileText,
   Plus, Minus, X, UserPlus, UserX, Timer as TimerIcon, AlertTriangle, Wifi, WifiOff,
+  Trophy, User, BarChart3,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -42,6 +43,7 @@ type LiveStudent = {
   index_number: string | null;
   submitted: boolean;
   answered_count: number;
+  current_points: number;
   started_at: string | null;
   finished_at: string | null;
   time_spent_seconds: number;
@@ -52,6 +54,9 @@ type LiveStats = {
   total_participants: number;
   finished_count: number;
   total_questions: number;
+  max_points: number;
+  room_average_points: number;
+  room_average_percent: number;
   per_student: LiveStudent[];
 };
 
@@ -90,7 +95,7 @@ export default function ExamRoomPage() {
   const [extraSeconds, setExtraSeconds] = useState(0);
   const [pausedSeconds, setPausedSeconds] = useState(0);
   const [adjusting, setAdjusting] = useState(false);
-  const [liveStats, setLiveStats] = useState<LiveStats>({ total_participants: 0, finished_count: 0, total_questions: 0, per_student: [] });
+  const [liveStats, setLiveStats] = useState<LiveStats>({ total_participants: 0, finished_count: 0, total_questions: 0, max_points: 0, room_average_points: 0, room_average_percent: 0, per_student: [] });
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const joinLink = `${window.location.origin}/join/${examId}`;
@@ -356,11 +361,13 @@ export default function ExamRoomPage() {
               </div>
             </div>
 
-            <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-6 mb-6">
-              <div className="flex items-center justify-between gap-4 flex-wrap">
-                <div className="min-w-0">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">{t('room.readOnly.exportTitle')}</h3>
-                  <p className="text-xs text-[var(--text-secondary)] mt-1">{t('room.readOnly.exportDesc')}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+              <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-6">
+                <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">{t('room.readOnly.exportTitle')}</h3>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">{t('room.readOnly.exportDesc')}</p>
+                  </div>
                 </div>
                 <a
                   href={`/api/otisak/exams/${examId}/export-results`}
@@ -369,6 +376,22 @@ export default function ExamRoomPage() {
                   <FileText size={16} />
                   {t('room.readOnly.downloadZip')}
                 </a>
+              </div>
+              <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl p-6">
+                <div className="flex items-start justify-between gap-4 flex-wrap mb-3">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">{t('room.readOnly.statsTitle')}</h3>
+                    <p className="text-xs text-[var(--text-secondary)] mt-1">{t('room.readOnly.statsDesc')}</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/manage/${examId}/stats`)}
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-accent-light text-accent border border-accent/30 text-sm font-medium hover:bg-accent hover:text-white transition-colors"
+                >
+                  <BarChart3 size={16} />
+                  {t('room.readOnly.openStats')}
+                </button>
               </div>
             </div>
 
@@ -388,12 +411,21 @@ export default function ExamRoomPage() {
                           {p.submitted && <> · <span className="text-success">{t('manage.completed').toLowerCase()}</span></>}
                         </div>
                       </div>
-                      <button
-                        onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
-                        className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors flex-shrink-0"
-                      >
-                        {t('room.readOnly.openReport')}
-                      </button>
+                      <div className="flex items-center gap-2 flex-shrink-0">
+                        <button
+                          onClick={() => navigate(`/users/${p.user_id}`)}
+                          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                          title={t('room.viewProfile')}
+                        >
+                          <User size={14} />
+                        </button>
+                        <button
+                          onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}
+                          className="inline-flex items-center gap-1.5 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                        >
+                          {t('room.readOnly.openReport')}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -512,6 +544,17 @@ export default function ExamRoomPage() {
                   <span className="text-[var(--text-muted)] text-sm">/ {Math.max(liveStats.total_participants, participants.length)} {t('room.stats.finished')}</span>
                 </div>
               )}
+              {/* Live room-wide score. Hidden until at least one student has
+                  started so the tile doesn't flash 0/X during the lobby. */}
+              {started && liveStats.max_points > 0 && (
+                <div className="flex items-center gap-2 px-4 py-2 bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-lg">
+                  <Trophy size={16} className="text-accent" />
+                  <span className="text-[var(--text-primary)] font-mono text-lg font-bold">
+                    {liveStats.room_average_points}/{liveStats.max_points}
+                  </span>
+                  <span className="text-[var(--text-muted)] text-sm">{liveStats.room_average_percent}% {t('room.stats.roomAverage')}</span>
+                </div>
+              )}
               {!started && (
                 <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                   <Radio size={12} className="text-success animate-pulse" />
@@ -606,6 +649,19 @@ export default function ExamRoomPage() {
                   const pct = total > 0 ? Math.round((answered / total) * 100) : 0;
                   const submitted = !!s?.submitted;
                   const suspicious = s?.suspicious_count ?? 0;
+                  // Running points come from the same poll as answered_count.
+                  // Bands: green ≥70%, orange 40–70%, red <40%; grey when the
+                  // student hasn't accumulated any score yet.
+                  const currentPoints = Number(s?.current_points ?? 0);
+                  const maxPoints = liveStats.max_points || 0;
+                  const scorePct = maxPoints > 0 ? Math.round((currentPoints / maxPoints) * 100) : 0;
+                  const scoreColor = currentPoints === 0
+                    ? 'text-[var(--text-muted)] bg-[var(--bg-tertiary)]'
+                    : scorePct >= 70
+                      ? 'text-success bg-success-light'
+                      : scorePct >= 40
+                        ? 'text-warning bg-warning-light'
+                        : 'text-danger bg-danger-light';
                   return (
                     <motion.div
                       key={p.user_id}
@@ -643,6 +699,14 @@ export default function ExamRoomPage() {
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] text-[var(--text-muted)] font-mono">{formatElapsed(s?.time_spent_seconds ?? 0)}</span>
+                            {/* Live score chip — populates as soon as the
+                                first auto-save lands. Colour band reflects
+                                running % so the admin can scan for stragglers. */}
+                            {maxPoints > 0 && (
+                              <span className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${scoreColor}`}>
+                                {currentPoints}/{maxPoints} ({scorePct}%)
+                              </span>
+                            )}
                             {suspicious > 0 && (
                               <span
                                 className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded ${
@@ -678,6 +742,13 @@ export default function ExamRoomPage() {
                         )}
                       </div>
                       <div className="w-20 flex justify-end items-center gap-1">
+                        <button
+                          onClick={() => navigate(`/users/${p.user_id}`)}
+                          className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent hover:bg-accent-light transition-colors"
+                          title={t('room.viewProfile')}
+                        >
+                          <User size={14} />
+                        </button>
                         {started && (
                           <button
                             onClick={() => navigate(`/manage/${examId}/report/${p.user_id}`)}

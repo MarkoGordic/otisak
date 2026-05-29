@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Loader2, Plus, Users, Upload, Search,
-  ChevronLeft, ChevronRight, Pencil, Key,
+  ChevronLeft, ChevronRight, Pencil, Key, User,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -304,6 +304,7 @@ export default function AdminUsersPage() {
                 onRoleChange={handleRoleChange}
                 onEdit={setEditTarget}
                 onSetPassword={setPasswordTarget}
+                onOpenProfile={(id) => navigate(`/users/${id}`)}
                 t={t}
               />
             )}
@@ -368,10 +369,11 @@ type UserListProps = {
   onRoleChange: (id: string, role: string) => void;
   onEdit: (u: UserData) => void;
   onSetPassword: (u: UserData) => void;
+  onOpenProfile: (id: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange, onRoleChange, onEdit, onSetPassword, t }: UserListProps) {
+function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange, onRoleChange, onEdit, onSetPassword, onOpenProfile, t }: UserListProps) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
@@ -409,6 +411,7 @@ function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange,
             onRoleChange={onRoleChange}
             onEdit={onEdit}
             onSetPassword={onSetPassword}
+            onOpenProfile={onOpenProfile}
             t={t}
           />
         ))
@@ -450,10 +453,11 @@ type UserRowProps = {
   onRoleChange: (id: string, role: string) => void;
   onEdit: (u: UserData) => void;
   onSetPassword: (u: UserData) => void;
+  onOpenProfile: (id: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, t }: UserRowProps) {
+function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, onOpenProfile, t }: UserRowProps) {
   return (
     <div className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
       <div className="flex-1 min-w-0">
@@ -475,7 +479,15 @@ function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, t }: UserRowPr
       <div className="w-32 text-xs text-[var(--text-muted)]">
         {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : t('users.never')}
       </div>
-      <div className="w-24 flex items-center justify-end gap-1">
+      <div className="w-32 flex items-center justify-end gap-1">
+        <button
+          type="button"
+          title={t('users.openProfile')}
+          onClick={() => onOpenProfile(user.id)}
+          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-accent hover:bg-[var(--bg-tertiary)]"
+        >
+          <User size={14} />
+        </button>
         <button
           type="button"
           title={t('users.edit')}
