@@ -18,6 +18,7 @@ type Exam = {
   description: string | null;
   duration_minutes: number;
   pass_threshold: number;
+  has_pass_threshold: boolean;
   exam_mode: 'real' | 'practice';
   allow_review: boolean;
   shuffle_questions: boolean;
@@ -124,7 +125,14 @@ export default function ExamEditPage() {
         const found = (d.exams || []).find((e: Exam) => e.id === examId) || null;
         // Old API responses (or pre-migration rows) may lack the tags array;
         // default to [] so the chip editor never crashes on undefined.
-        if (found) setExam({ ...found, tags: Array.isArray(found.tags) ? found.tags : [] });
+        if (found) setExam({
+          ...found,
+          tags: Array.isArray(found.tags) ? found.tags : [],
+          // Default to TRUE for back-compat when the server has the field as
+          // undefined (old payloads pre-migration). Migration runs on boot,
+          // so this is only relevant during the rollout window.
+          has_pass_threshold: typeof found.has_pass_threshold === 'boolean' ? found.has_pass_threshold : true,
+        });
         else setExam(null);
       }
       if (qRes.ok) {
@@ -157,6 +165,7 @@ export default function ExamEditPage() {
           description: exam.description,
           duration_minutes: Number(exam.duration_minutes) || 60,
           pass_threshold: Number(exam.pass_threshold) || 50,
+          has_pass_threshold: exam.has_pass_threshold,
           exam_mode: exam.exam_mode,
           // Pass null through explicitly so an admin can detach the exam
           // from any subject. Assistants can't reach null here because the
@@ -194,6 +203,9 @@ export default function ExamEditPage() {
           description: 'description' in saved ? saved.description : prev.description,
           duration_minutes: Number(saved.duration_minutes ?? prev.duration_minutes),
           pass_threshold: Number(saved.pass_threshold ?? prev.pass_threshold),
+          has_pass_threshold: typeof (saved as { has_pass_threshold?: unknown }).has_pass_threshold === 'boolean'
+            ? !!(saved as { has_pass_threshold: boolean }).has_pass_threshold
+            : prev.has_pass_threshold,
           exam_mode: saved.exam_mode === 'practice' ? 'practice' : 'real',
           subject_id: newSubjectId,
           subject_name: matched ? matched.name : null,
@@ -508,7 +520,22 @@ export default function ExamEditPage() {
                     <input type="number" min={1} value={exam.duration_minutes} onChange={(e) => setExam({ ...exam, duration_minutes: Number(e.target.value) })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
                   </Field>
                   <Field label={t('examEdit.passThreshold')}>
-                    <input type="number" min={0} max={100} value={exam.pass_threshold} onChange={(e) => setExam({ ...exam, pass_threshold: Number(e.target.value) })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
+                    <div className="space-y-2">
+                      <Toggle
+                        label={exam.has_pass_threshold ? t('examEdit.hasPassThresholdOn') : t('examEdit.hasPassThresholdOff')}
+                        value={exam.has_pass_threshold}
+                        onChange={(v) => setExam({ ...exam, has_pass_threshold: v })}
+                      />
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={exam.pass_threshold}
+                        disabled={!exam.has_pass_threshold}
+                        onChange={(e) => setExam({ ...exam, pass_threshold: Number(e.target.value) })}
+                        className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      />
+                    </div>
                   </Field>
                   <Field label={t('examEdit.examMode')}>
                     <select value={exam.exam_mode} onChange={(e) => setExam({ ...exam, exam_mode: e.target.value as Exam['exam_mode'] })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">

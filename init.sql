@@ -69,6 +69,7 @@ CREATE TABLE otisak_exams (
   shuffle_questions BOOLEAN NOT NULL DEFAULT FALSE,
   shuffle_answers BOOLEAN NOT NULL DEFAULT FALSE,
   pass_threshold NUMERIC NOT NULL DEFAULT 50,
+  has_pass_threshold BOOLEAN NOT NULL DEFAULT TRUE,
   max_points NUMERIC NOT NULL DEFAULT 0,
   exam_mode TEXT NOT NULL DEFAULT 'real' CHECK (exam_mode IN ('real', 'practice')),
   self_service BOOLEAN NOT NULL DEFAULT FALSE,

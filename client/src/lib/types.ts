@@ -19,6 +19,7 @@ export interface OtisakExam {
   shuffle_questions: boolean;
   shuffle_answers: boolean;
   pass_threshold: number;
+  has_pass_threshold: boolean;
   max_points: number;
   exam_mode: OtisakExamMode;
   self_service: boolean;
@@ -93,6 +94,7 @@ export interface OtisakAttemptWithExam extends OtisakAttempt {
   exam_title: string;
   subject_name: string | null;
   pass_threshold: number;
+  has_pass_threshold: boolean;
 }
 
 export interface OtisakExamResults {

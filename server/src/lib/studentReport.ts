@@ -98,7 +98,8 @@ export async function buildStudentReportHTML(examId: string, userId: string): Pr
   const totalPoints = Number(attempt.total_points);
   const maxPoints = Number(attempt.max_points);
   const percentage = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
-  const passed = percentage >= Number(exam.pass_threshold);
+  const hasPassThreshold = (exam as { has_pass_threshold?: boolean }).has_pass_threshold !== false;
+  const passed = hasPassThreshold && percentage >= Number(exam.pass_threshold);
 
   const suspiciousEvents = activityLog.filter((e) => SUSPICIOUS_TYPES.has(e.event_type));
 
@@ -186,11 +187,18 @@ export async function buildStudentReportHTML(examId: string, userId: string): Pr
     </div>
   </div>
 
-  <div style="padding:20px;border-radius:12px;background:${passed ? 'rgba(5,46,22,0.4)' : 'rgba(69,10,10,0.4)'};border:2px solid ${passed ? '#059669' : '#dc2626'};margin-bottom:24px;text-align:center;">
-    <div style="font-size:48px;font-weight:700;color:${passed ? '#34d399' : '#f87171'};font-family:'JetBrains Mono',monospace;">${totalPoints}/${maxPoints}</div>
-    <div style="font-size:14px;color:${passed ? '#34d399' : '#f87171'};margin-top:4px;">${percentage}% | ${passed ? 'POLOZENO' : 'NIJE POLOZENO'}</div>
-    <div style="font-size:10px;color:#6b7280;margin-top:4px;">Prag: ${exam.pass_threshold}% | Vreme: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
-  </div>
+  ${hasPassThreshold
+    ? `<div style="padding:20px;border-radius:12px;background:${passed ? 'rgba(5,46,22,0.4)' : 'rgba(69,10,10,0.4)'};border:2px solid ${passed ? '#059669' : '#dc2626'};margin-bottom:24px;text-align:center;">
+        <div style="font-size:48px;font-weight:700;color:${passed ? '#34d399' : '#f87171'};font-family:'JetBrains Mono',monospace;">${totalPoints}/${maxPoints}</div>
+        <div style="font-size:14px;color:${passed ? '#34d399' : '#f87171'};margin-top:4px;">${percentage}% | ${passed ? 'POLOZENO' : 'NIJE POLOZENO'}</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:4px;">Prag: ${exam.pass_threshold}% | Vreme: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
+      </div>`
+    : `<div style="padding:20px;border-radius:12px;background:rgba(30,58,138,0.3);border:2px solid #3b82f6;margin-bottom:24px;text-align:center;">
+        <div style="font-size:48px;font-weight:700;color:#60a5fa;font-family:'JetBrains Mono',monospace;">${totalPoints}/${maxPoints}</div>
+        <div style="font-size:14px;color:#60a5fa;margin-top:4px;">${percentage}%</div>
+        <div style="font-size:10px;color:#6b7280;margin-top:4px;">Vreme: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
+      </div>`
+  }
 
   <div style="margin-bottom:24px;">
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">Statistika aktivnosti</div>
@@ -278,6 +286,7 @@ export function buildResultsTableHTML(args: {
   examTitle: string;
   subjectName: string | null;
   passThreshold: number;
+  hasPassThreshold?: boolean;
   rows: Array<{
     name: string | null;
     indexNumber: string | null;
@@ -290,9 +299,9 @@ export function buildResultsTableHTML(args: {
     suspiciousCount: number;
   }>;
 }): string {
-  const { examTitle, subjectName, passThreshold, rows } = args;
+  const { examTitle, subjectName, passThreshold, hasPassThreshold = true, rows } = args;
 
-  const passedCount = rows.filter((r) => r.passed).length;
+  const passedCount = hasPassThreshold ? rows.filter((r) => r.passed).length : 0;
   const avgPct = rows.length ? Math.round(rows.reduce((s, r) => s + r.percentage, 0) / rows.length) : 0;
 
   const rowsHtml = rows
@@ -300,15 +309,18 @@ export function buildResultsTableHTML(args: {
     .sort((a, b) => b.totalPoints - a.totalPoints)
     .map((r, i) => {
       const stripe = i % 2 === 0 ? '#0d1117' : '#111827';
-      const passColor = r.passed ? '#34d399' : '#f87171';
+      // When threshold is disabled, drop the verdict colouring and the Status
+      // column. The score becomes a neutral blue so admins don't read green as
+      // "passed" when there's no threshold to be passed.
+      const scoreColor = hasPassThreshold ? (r.passed ? '#34d399' : '#f87171') : '#60a5fa';
       return `<tr style="background:${stripe};">
         <td style="padding:8px 10px;font-size:11px;color:#cbd5e1;border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;">${i + 1}</td>
         <td style="padding:8px 10px;font-size:11px;color:#f1f5f9;border-bottom:1px solid #1f2937;">${escapeHtml(r.name || '—')}</td>
         <td style="padding:8px 10px;font-size:11px;color:#60a5fa;border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;">${escapeHtml(r.indexNumber || '—')}</td>
         <td style="padding:8px 10px;font-size:11px;color:#94a3b8;border-bottom:1px solid #1f2937;">${escapeHtml(r.email)}</td>
-        <td style="padding:8px 10px;font-size:11px;color:${passColor};border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;text-align:right;font-weight:600;">${r.totalPoints}/${r.maxPoints}</td>
-        <td style="padding:8px 10px;font-size:11px;color:${passColor};border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;text-align:right;">${r.percentage}%</td>
-        <td style="padding:8px 10px;font-size:10px;color:${passColor};border-bottom:1px solid #1f2937;text-transform:uppercase;letter-spacing:1px;">${r.passed ? 'POLOZENO' : 'NIJE'}</td>
+        <td style="padding:8px 10px;font-size:11px;color:${scoreColor};border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;text-align:right;font-weight:600;">${r.totalPoints}/${r.maxPoints}</td>
+        <td style="padding:8px 10px;font-size:11px;color:${scoreColor};border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;text-align:right;">${r.percentage}%</td>
+        ${hasPassThreshold ? `<td style="padding:8px 10px;font-size:10px;color:${scoreColor};border-bottom:1px solid #1f2937;text-transform:uppercase;letter-spacing:1px;">${r.passed ? 'POLOZENO' : 'NIJE'}</td>` : ''}
         <td style="padding:8px 10px;font-size:11px;color:#94a3b8;border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;text-align:right;">${formatDuration(r.timeSpentSeconds)}</td>
         <td style="padding:8px 10px;font-size:11px;color:${r.suspiciousCount > 0 ? '#ef4444' : '#6b7280'};border-bottom:1px solid #1f2937;text-align:right;font-weight:${r.suspiciousCount > 0 ? '700' : '400'};">${r.suspiciousCount}</td>
       </tr>`;
@@ -351,10 +363,10 @@ export function buildResultsTableHTML(args: {
       <div style="font-size:22px;font-weight:700;color:#3b82f6;font-family:'JetBrains Mono',monospace;">${rows.length}</div>
       <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">Studenata</div>
     </div>
-    <div style="padding:14px 16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;text-align:center;">
+    ${hasPassThreshold ? `<div style="padding:14px 16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;text-align:center;">
       <div style="font-size:22px;font-weight:700;color:#34d399;font-family:'JetBrains Mono',monospace;">${passedCount}</div>
       <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">Polozeno (prag ${passThreshold}%)</div>
-    </div>
+    </div>` : ''}
     <div style="padding:14px 16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;text-align:center;">
       <div style="font-size:22px;font-weight:700;color:#f59e0b;font-family:'JetBrains Mono',monospace;">${avgPct}%</div>
       <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">Prosek</div>
@@ -370,7 +382,7 @@ export function buildResultsTableHTML(args: {
         <th style="padding:8px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Email</th>
         <th style="padding:8px 10px;text-align:right;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Bodovi</th>
         <th style="padding:8px 10px;text-align:right;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">%</th>
-        <th style="padding:8px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Status</th>
+        ${hasPassThreshold ? `<th style="padding:8px 10px;text-align:left;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Status</th>` : ''}
         <th style="padding:8px 10px;text-align:right;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Vreme</th>
         <th style="padding:8px 10px;text-align:right;font-size:9px;color:#94a3b8;text-transform:uppercase;letter-spacing:1px;">Sumnjivo</th>
       </tr>

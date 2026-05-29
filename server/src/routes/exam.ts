@@ -272,6 +272,7 @@ router.get('/results', requireAuth, async (req: Request, res: Response) => {
           id: fullResults.exam.id,
           title: fullResults.exam.title,
           pass_threshold: fullResults.exam.pass_threshold,
+          has_pass_threshold: fullResults.exam.has_pass_threshold,
           allow_review: false,
         },
         questions: fullResults.questions.map((q) => ({
@@ -369,6 +370,7 @@ router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant']), 
         subject_name: exam.subject_name,
         duration_minutes: exam.duration_minutes,
         pass_threshold: Number(exam.pass_threshold),
+        has_pass_threshold: exam.has_pass_threshold,
       },
       student: {
         id: student.id,
@@ -454,8 +456,13 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
       const s = String(v);
       return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
+    // When the exam opts out of a pass threshold, drop the verdict column from
+    // CSV and skip the per-row passed flag from the table snapshot. The PDF
+    // generators downstream use `has_pass_threshold` to suppress the same.
+    const hasPassThreshold = !!exam.has_pass_threshold;
     const csvHeader = [
-      'Ime', 'Indeks', 'Email', 'Bodovi', 'Maksimum', 'Procenat', 'Polozeno',
+      'Ime', 'Indeks', 'Email', 'Bodovi', 'Maksimum', 'Procenat',
+      ...(hasPassThreshold ? ['Polozeno'] : []),
       'Vreme (sekundi)', 'Pocetak', 'Kraj', 'Sumnjive aktivnosti',
     ];
     const csvRows: string[][] = [csvHeader];
@@ -469,7 +476,7 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
       const totalPoints = Number(row.total_points);
       const maxPoints = Number(row.max_points);
       const percentage = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
-      const passed = percentage >= Number(exam.pass_threshold);
+      const passed = hasPassThreshold ? percentage >= Number(exam.pass_threshold) : false;
       const suspiciousCount = suspiciousByUser.get(row.user_id) ?? 0;
       csvRows.push([
         row.user_name ?? '',
@@ -478,7 +485,7 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
         String(totalPoints),
         String(maxPoints),
         `${percentage}%`,
-        passed ? 'da' : 'ne',
+        ...(hasPassThreshold ? [passed ? 'da' : 'ne'] : []),
         String(row.time_spent_seconds),
         row.started_at ? new Date(row.started_at).toISOString() : '',
         row.finished_at ? new Date(row.finished_at).toISOString() : '',
@@ -528,6 +535,7 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
         examTitle: exam.title,
         subjectName: exam.subject_name,
         passThreshold: Number(exam.pass_threshold),
+        hasPassThreshold,
         rows: tableRows,
       });
       const tablePdf = await renderHtmlToPdf(tableHtml, browser, true);
@@ -632,6 +640,7 @@ router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), asy
         description: exam.description,
         duration_minutes: Number(exam.duration_minutes),
         pass_threshold: Number(exam.pass_threshold),
+        has_pass_threshold: !!exam.has_pass_threshold,
         exam_mode: exam.exam_mode,
         allow_review: exam.allow_review,
         shuffle_questions: exam.shuffle_questions,

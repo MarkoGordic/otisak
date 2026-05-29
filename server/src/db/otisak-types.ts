@@ -26,6 +26,10 @@ export interface OtisakExam {
   shuffle_questions: boolean;
   shuffle_answers: boolean;
   pass_threshold: number;
+  // When false, results screens / PDFs render score-only (no pass/fail
+  // verdict) and the pass_threshold value is ignored. Defaults TRUE for
+  // back-compat: every existing exam keeps the historical verdict UI.
+  has_pass_threshold: boolean;
   max_points: number;
   exam_mode: OtisakExamMode;
   self_service: boolean;
@@ -112,6 +116,7 @@ export interface OtisakAttemptWithExam extends OtisakAttempt {
   exam_title: string;
   subject_name: string | null;
   pass_threshold: number;
+  has_pass_threshold: boolean;
 }
 
 export interface OtisakAttemptAnswer {
@@ -140,6 +145,7 @@ export interface CreateOtisakExamInput {
   shuffle_questions?: boolean;
   shuffle_answers?: boolean;
   pass_threshold?: number;
+  has_pass_threshold?: boolean;
   exam_mode?: OtisakExamMode;
   self_service?: boolean;
   repeat_interval_minutes?: number;

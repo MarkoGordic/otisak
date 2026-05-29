@@ -182,7 +182,10 @@ export default function DashboardPage() {
   const totalPoints = completedAttempts.reduce((s, a) => s + Number(a.total_points), 0);
   const totalMaxPoints = completedAttempts.reduce((s, a) => s + Number(a.max_points), 0);
   const avgPercent = totalMaxPoints > 0 ? Math.round((totalPoints / totalMaxPoints) * 100) : 0;
+  // Only count exams that actually have a pass threshold — thresholdless
+  // exams have no notion of "passed" so they shouldn't inflate this stat.
   const passedCount = completedAttempts.filter(a => {
+    if (a.has_pass_threshold === false) return false;
     const pct = Number(a.max_points) > 0 ? (Number(a.total_points) / Number(a.max_points)) * 100 : 0;
     return pct >= Number(a.pass_threshold ?? 50);
   }).length;
@@ -200,6 +203,9 @@ export default function DashboardPage() {
   const filteredHistory = attempts.filter(a => {
     if (!a.submitted) return false;
     if (historySubject !== 'all' && a.subject_name !== historySubject) return false;
+    // A thresholdless exam never matches the passed/failed filter — only the
+    // "all" view includes it. Mirrors the score-only result rendering.
+    if (historyStatus !== 'all' && a.has_pass_threshold === false) return false;
     const pct = Number(a.max_points) > 0 ? Math.round((Number(a.total_points) / Number(a.max_points)) * 100) : 0;
     const passed = pct >= Number(a.pass_threshold ?? 50);
     if (historyStatus === 'passed' && !passed) return false;
@@ -309,7 +315,9 @@ export default function DashboardPage() {
                                   <div className="flex items-center gap-1.5"><CalendarIcon size={14} className="text-[var(--text-muted)]" />{formatDate(exam.scheduled_at)}</div>
                                   <div className="flex items-center gap-1.5"><Clock size={14} className="text-[var(--text-muted)]" />{exam.duration_minutes} {t('dashboard.min')}</div>
                                   <div className="flex items-center gap-1.5"><HashIcon size={14} className="text-[var(--text-muted)]" />{exam.question_count} {t('dashboard.questions')}</div>
-                                  <div className="flex items-center gap-1.5"><TargetIcon size={14} className="text-[var(--text-muted)]" />{t('dashboard.pass')}: {exam.pass_threshold}%</div>
+                                  {exam.has_pass_threshold !== false && (
+                                    <div className="flex items-center gap-1.5"><TargetIcon size={14} className="text-[var(--text-muted)]" />{t('dashboard.pass')}: {exam.pass_threshold}%</div>
+                                  )}
                                   {exam.negative_points_enabled && (
                                     <div className="flex items-center gap-1.5 text-danger"><AlertTriangle size={14} /><span className="text-xs">-{exam.negative_points_value} {t('dashboard.afterWrong', { count: exam.negative_points_threshold })}</span></div>
                                   )}
@@ -404,7 +412,8 @@ export default function DashboardPage() {
                         <div className="flex flex-col">
                           {filteredHistory.map((attempt) => {
                             const pct = Number(attempt.max_points) > 0 ? Math.round((Number(attempt.total_points) / Number(attempt.max_points)) * 100) : 0;
-                            const passed = pct >= Number(attempt.pass_threshold ?? 50);
+                            const noThreshold = attempt.has_pass_threshold === false;
+                            const passed = !noThreshold && pct >= Number(attempt.pass_threshold ?? 50);
                             const subjectColor = getSubjectColor(attempt.subject_name);
                             return (
                               <div key={attempt.id}
@@ -421,9 +430,9 @@ export default function DashboardPage() {
                                   </div>
                                 </div>
                                 <div className="w-32 hidden md:block text-[13px] text-[var(--text-muted)] truncate pr-4">{formatDate(attempt.started_at)}</div>
-                                <div className="w-24 text-center"><span className={`text-base font-mono font-bold ${passed ? 'text-success' : 'text-danger'}`}>{pct}%</span></div>
+                                <div className="w-24 text-center"><span className={`text-base font-mono font-bold ${noThreshold ? 'text-accent' : passed ? 'text-success' : 'text-danger'}`}>{pct}%</span></div>
                                 <div className="w-20 text-center hidden md:block text-[13px] font-mono text-[var(--text-muted)]">{formatDuration(Number(attempt.time_spent_seconds || 0))}</div>
-                                <div className="w-24 text-center"><Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? t('dashboard.passed') : t('dashboard.failed')}</Badge></div>
+                                <div className="w-24 text-center">{noThreshold ? <Badge variant="neutral" size="sm">&#8212;</Badge> : <Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? t('dashboard.passed') : t('dashboard.failed')}</Badge>}</div>
                                 <div className="w-20 flex justify-end">
                                   <Button variant="ghost" size="sm" className="text-accent hover:text-accent-hover px-2" rightIcon={<ExternalLink size={14} />}>{t('dashboard.view')}</Button>
                                 </div>

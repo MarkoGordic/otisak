@@ -173,10 +173,10 @@ export async function createOtisakExam(
   const tags = normaliseTags(data.tags);
   const result = await query<OtisakExam>(
     `INSERT INTO otisak_exams (title, subject_id, description, duration_minutes, scheduled_at,
-       allow_review, shuffle_questions, shuffle_answers, pass_threshold, created_by,
+       allow_review, shuffle_questions, shuffle_answers, pass_threshold, has_pass_threshold, created_by,
        exam_mode, self_service, repeat_interval_minutes, auto_activate, uses_question_bank, is_public,
        negative_points_enabled, negative_points_value, negative_points_threshold, partial_scoring, tags)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING *`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22) RETURNING *`,
     [
       data.title,
       data.subject_id || null,
@@ -187,6 +187,7 @@ export async function createOtisakExam(
       data.shuffle_questions ?? false,
       data.shuffle_answers ?? false,
       data.pass_threshold ?? 50,
+      data.has_pass_threshold ?? true,
       createdBy,
       data.exam_mode || 'real',
       data.self_service ?? false,
@@ -272,7 +273,7 @@ export async function updateOtisakExamStatus(
 
 export async function updateOtisakExam(
   examId: string,
-  data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'allow_review' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring' | 'exam_mode' | 'subject_id' | 'tags'>>
+  data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'has_pass_threshold' | 'allow_review' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring' | 'exam_mode' | 'subject_id' | 'tags'>>
 ): Promise<OtisakExam | null> {
   // Block edits that would break the demo lock. The demo is identified by
   // its title, so renaming it would orphan the lock and let the demo be
@@ -293,6 +294,7 @@ export async function updateOtisakExam(
   if (data.description !== undefined) { updates.push(`description = $${idx++}`); values.push(data.description); }
   if (data.duration_minutes !== undefined) { updates.push(`duration_minutes = $${idx++}`); values.push(data.duration_minutes); }
   if (data.pass_threshold !== undefined) { updates.push(`pass_threshold = $${idx++}`); values.push(data.pass_threshold); }
+  if (data.has_pass_threshold !== undefined) { updates.push(`has_pass_threshold = $${idx++}`); values.push(data.has_pass_threshold); }
   if (data.allow_review !== undefined) { updates.push(`allow_review = $${idx++}`); values.push(data.allow_review); }
   if (data.shuffle_questions !== undefined) { updates.push(`shuffle_questions = $${idx++}`); values.push(data.shuffle_questions); }
   if (data.shuffle_answers !== undefined) { updates.push(`shuffle_answers = $${idx++}`); values.push(data.shuffle_answers); }
@@ -1223,7 +1225,7 @@ export async function getAttemptResults(attemptId: string): Promise<OtisakExamRe
 }
 
 export async function getUserAttempts(userId: string, mode?: string | null): Promise<OtisakAttemptWithExam[]> {
-  let sql = `SELECT a.*, e.title as exam_title, e.pass_threshold, s.name as subject_name
+  let sql = `SELECT a.*, e.title as exam_title, e.pass_threshold, e.has_pass_threshold, s.name as subject_name
      FROM otisak_attempts a
      JOIN otisak_exams e ON a.exam_id = e.id
      LEFT JOIN otisak_subjects s ON e.subject_id = s.id

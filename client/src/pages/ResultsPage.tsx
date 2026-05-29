@@ -134,7 +134,11 @@ export default function ResultsPage() {
   const totalPoints = Number(results?.attempt?.total_points ?? 0);
   const maxPoints = Number(results?.attempt?.max_points ?? 0);
   const percentage = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
-  const passed = results?.exam ? percentage >= Number(results.exam.pass_threshold) : false;
+  // When the exam opts out of a pass threshold, results render as a neutral
+  // "Done" verdict — no green/red, no Položio / Nije položio copy. Defaults
+  // TRUE for back-compat with older payloads.
+  const hasPassThreshold = (results?.exam as { has_pass_threshold?: boolean } | undefined)?.has_pass_threshold !== false;
+  const passed = hasPassThreshold && results?.exam ? percentage >= Number(results.exam.pass_threshold) : false;
   const correctCount = results?.questions?.filter((q) => q.points_awarded > 0).length ?? 0;
   const totalQuestions = results?.questions?.length ?? 0;
   const timeSpent = results?.attempt?.time_spent_seconds ?? 0;
@@ -159,11 +163,13 @@ export default function ResultsPage() {
           results ? (
             <motion.span initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}
               className={`text-2xl sm:text-3xl font-light tracking-[0.2em] uppercase ${
-                passed
-                  ? (isDark ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-green-600')
-                  : (isDark ? 'text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'text-amber-600')
+                !hasPassThreshold
+                  ? (isDark ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'text-blue-600')
+                  : passed
+                    ? (isDark ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-green-600')
+                    : (isDark ? 'text-amber-500 drop-shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'text-amber-600')
               }`}>
-              {passed ? t('results.passed') : t('results.title')}
+              {!hasPassThreshold ? t('results.title') : passed ? t('results.passed') : t('results.title')}
             </motion.span>
           ) : null
         }
@@ -198,14 +204,19 @@ export default function ResultsPage() {
                 <div className="flex flex-col gap-1 min-w-0">
                   <span className={`text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium truncate ${subText}`}>{results.exam.title}</span>
                   <span className={`text-[10px] sm:text-xs ${isDark ? 'text-gray-500' : 'text-slate-500'}`}>
-                    {percentage}% &#8226; {passed ? t('results.passedLabel') : t('results.notPassed')}
-                    {Number(results.exam.pass_threshold) > 0 && <span className={isDark ? 'text-gray-600' : 'text-slate-400'}> ({t('results.thresholdLabel', { value: results.exam.pass_threshold })})</span>}
+                    {percentage}%
+                    {hasPassThreshold && <> &#8226; {passed ? t('results.passedLabel') : t('results.notPassed')}</>}
+                    {hasPassThreshold && Number(results.exam.pass_threshold) > 0 && (
+                      <span className={isDark ? 'text-gray-600' : 'text-slate-400'}> ({t('results.thresholdLabel', { value: results.exam.pass_threshold })})</span>
+                    )}
                   </span>
                 </div>
                 <div className={`text-3xl sm:text-5xl font-mono tracking-wider font-bold flex-shrink-0 ${
-                  passed
-                    ? (isDark ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-green-600')
-                    : (isDark ? 'text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.4)]' : 'text-red-600')
+                  !hasPassThreshold
+                    ? (isDark ? 'text-blue-400 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)]' : 'text-blue-600')
+                    : passed
+                      ? (isDark ? 'text-green-500 drop-shadow-[0_0_15px_rgba(34,197,94,0.4)]' : 'text-green-600')
+                      : (isDark ? 'text-red-400 drop-shadow-[0_0_15px_rgba(248,113,113,0.4)]' : 'text-red-600')
                 }`}>
                   {totalPoints}/{maxPoints}
                 </div>

@@ -174,6 +174,8 @@ const sr: Record<I18nKey, string> = {
   'examEdit.description': 'Opis',
   'examEdit.duration': 'Trajanje (min)',
   'examEdit.passThreshold': 'Prag prolaza (%)',
+  'examEdit.hasPassThresholdOn': 'Položio / nije položio se prikazuje',
+  'examEdit.hasPassThresholdOff': 'Bez prikaza položio / nije položio',
   'examEdit.examMode': 'Režim',
   'examEdit.subject': 'Predmet',
   'examEdit.noSubject': 'Bez predmeta',

@@ -109,6 +109,15 @@ const steps: readonly Step[] = [
         ON otisak_exams USING GIN (tags)
     `);
   }],
+  ['010_exam_has_pass_threshold', async () => {
+    // Opt-in pass/fail verdict. Default TRUE so every existing exam keeps
+    // the historical "Položeno / Nije položeno" rendering — admins flip it
+    // off per exam to make results show score-only.
+    await query(`
+      ALTER TABLE otisak_exams
+      ADD COLUMN IF NOT EXISTS has_pass_threshold BOOLEAN NOT NULL DEFAULT TRUE
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {

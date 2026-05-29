@@ -173,6 +173,8 @@ const srCyrl: Record<I18nKey, string> = {
   'examEdit.description': 'Опис',
   'examEdit.duration': 'Трајање (мин)',
   'examEdit.passThreshold': 'Праг пролаза (%)',
+  'examEdit.hasPassThresholdOn': 'Положио / није положио се приказује',
+  'examEdit.hasPassThresholdOff': 'Без приказа положио / није положио',
   'examEdit.examMode': 'Режим',
   'examEdit.subject': 'Предмет',
   'examEdit.noSubject': 'Без предмета',

@@ -42,6 +42,9 @@ export async function importExamFromJson(
     description: typeof examIn.description === 'string' ? examIn.description : null,
     duration_minutes: Number(examIn.duration_minutes) || 60,
     pass_threshold: Number(examIn.pass_threshold) || 50,
+    // Default TRUE so legacy exports (pre-flag) round-trip with the historical
+    // pass/fail rendering preserved.
+    has_pass_threshold: typeof examIn.has_pass_threshold === 'boolean' ? examIn.has_pass_threshold : true,
     exam_mode: overrides.exam_mode ?? (examIn.exam_mode === 'practice' ? 'practice' : 'real'),
     allow_review: !!examIn.allow_review,
     shuffle_questions: !!examIn.shuffle_questions,

@@ -170,6 +170,8 @@ const en = {
   'examEdit.description': 'Description',
   'examEdit.duration': 'Duration (min)',
   'examEdit.passThreshold': 'Pass threshold (%)',
+  'examEdit.hasPassThresholdOn': 'Pass / fail verdict enabled',
+  'examEdit.hasPassThresholdOff': 'No pass / fail verdict',
   'examEdit.examMode': 'Mode',
   'examEdit.subject': 'Subject',
   'examEdit.noSubject': 'No subject',
