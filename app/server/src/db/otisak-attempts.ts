@@ -4,6 +4,13 @@
 import { query, transaction } from './client';
 import { getOtisakExamById } from './otisak-exams';
 import { getOtisakQuestions } from './otisak-questions';
+import {
+  scoreOrdering,
+  scoreMatching,
+  scoreFillBlank,
+  scoreMultiChoice,
+  type MultiChoiceAnswer,
+} from './otisak-scoring';
 import type {
   OtisakExam,
   OtisakAttempt,
@@ -103,46 +110,53 @@ export async function submitAttemptAnswers(
   const attemptExamId = examCheck.rows[0]?.exam_id;
   if (!attemptExamId) return;
 
-  // Drop any answer whose question_id does not belong to this attempt's exam.
-  // Without this, a student could POST answers referencing a question_id from
-  // a different exam — the row would still get inserted and counted toward
-  // their score.
+  // Validate question ownership AND fetch question metadata in one query, so the
+  // per-answer loop does no per-iteration SELECTs (this used to be an N+1).
+  // Answers whose question_id does not belong to this attempt's exam are dropped
+  // - otherwise a student could POST a question_id from a different exam and
+  // have it counted toward their score.
   let safeAnswers = answers;
+  const questionMeta = new Map<string, { type: string; content: string | null; points: number }>();
   if (answers.length > 0) {
     const ids = answers.map((a) => a.question_id).filter(Boolean);
     if (ids.length > 0) {
-      const valid = await query<{ id: string }>(
-        `SELECT id FROM otisak_questions WHERE exam_id = $1 AND id = ANY($2::uuid[])`,
+      const valid = await query<{ id: string; type: string; content: string | null; points: number }>(
+        `SELECT id, type, content, points FROM otisak_questions WHERE exam_id = $1 AND id = ANY($2::uuid[])`,
         [attemptExamId, ids],
       );
-      const validSet = new Set(valid.rows.map((r) => r.id));
-      safeAnswers = answers.filter((a) => validSet.has(a.question_id));
+      for (const r of valid.rows) {
+        questionMeta.set(r.id, { type: r.type, content: r.content, points: r.points });
+      }
+      safeAnswers = answers.filter((a) => questionMeta.has(a.question_id));
       if (safeAnswers.length === 0) return;
     }
   }
 
+  // Batch-fetch all answer choices for the multi-choice questions in one query
+  // (also part of killing the former N+1).
+  const answersByQuestion = new Map<string, MultiChoiceAnswer[]>();
+  const qids = [...new Set(safeAnswers.map((a) => a.question_id).filter(Boolean))];
+  if (qids.length > 0) {
+    const aRows = await query<{ question_id: string; id: string; is_correct: boolean }>(
+      `SELECT question_id, id, is_correct FROM otisak_answers WHERE question_id = ANY($1::uuid[])`,
+      [qids],
+    );
+    for (const r of aRows.rows) {
+      const list = answersByQuestion.get(r.question_id) ?? [];
+      list.push({ id: r.id, is_correct: r.is_correct });
+      answersByQuestion.set(r.question_id, list);
+    }
+  }
+
   for (const ans of safeAnswers) {
+    const meta = questionMeta.get(ans.question_id);
     if (ans.text_answer !== undefined && ans.text_answer !== null) {
-      const qInfo = await query<{ type: string; content: string | null; points: number }>(
-        `SELECT type, content, points FROM otisak_questions WHERE id = $1`,
-        [ans.question_id]
-      );
-      const qType = qInfo.rows[0]?.type;
-      const qContent = qInfo.rows[0]?.content;
-      const qPoints = qInfo.rows[0]?.points ?? 0;
+      const qType = meta?.type;
+      const qContent = meta?.content ?? null;
+      const qPoints = Number(meta?.points || 0);
 
       if (qType === 'ordering' && qContent) {
-        // Strict all-or-nothing: any item out of place → 0. partial_scoring no
-        // longer relaxes this for compound types (per the "any wrong = 0" rule).
-        let pointsAwarded = 0;
-        try {
-          const correctData = JSON.parse(qContent);
-          const correctOrder: string[] = correctData.items || [];
-          const studentOrder: string[] = JSON.parse(ans.text_answer || '[]');
-          if (JSON.stringify(studentOrder) === JSON.stringify(correctOrder)) {
-            pointsAwarded = qPoints;
-          }
-        } catch { /* invalid JSON */ }
+        const pointsAwarded = scoreOrdering(qContent, ans.text_answer, qPoints, false);
         await query(
           `INSERT INTO otisak_attempt_answers (attempt_id, question_id, text_answer, points_awarded)
            VALUES ($1, $2, $3, $4)
@@ -154,22 +168,7 @@ export async function submitAttemptAnswers(
       }
 
       if (qType === 'matching' && qContent) {
-        // Strict all-or-nothing: any mismatch → 0.
-        let pointsAwarded = 0;
-        try {
-          const correctData = JSON.parse(qContent);
-          const leftArr: string[] = correctData.left || [];
-          const rightArr: string[] = correctData.right || [];
-          const studentMatches: Record<string, string> = JSON.parse(ans.text_answer || '{}');
-          const totalPairs = leftArr.length;
-          let correctCount = 0;
-          for (let i = 0; i < leftArr.length; i++) {
-            if (studentMatches[leftArr[i]] === rightArr[i]) correctCount++;
-          }
-          if (totalPairs > 0 && correctCount === totalPairs) {
-            pointsAwarded = qPoints;
-          }
-        } catch { /* invalid JSON */ }
+        const pointsAwarded = scoreMatching(qContent, ans.text_answer, qPoints);
         await query(
           `INSERT INTO otisak_attempt_answers (attempt_id, question_id, text_answer, points_awarded)
            VALUES ($1, $2, $3, $4)
@@ -181,23 +180,7 @@ export async function submitAttemptAnswers(
       }
 
       if (qType === 'fill_blank' && qContent) {
-        // Strict all-or-nothing: any blank wrong or empty → 0.
-        let pointsAwarded = 0;
-        try {
-          const correctData = JSON.parse(qContent);
-          const blanks: Array<{ id: string; correct: string }> = correctData.blanks || [];
-          const studentFills: Record<string, string> = JSON.parse(ans.text_answer || '{}');
-          const totalBlanks = blanks.length;
-          let correctCount = 0;
-          for (const blank of blanks) {
-            const studentVal = (studentFills[blank.id] || '').trim().toLowerCase();
-            const correctVal = (blank.correct || '').trim().toLowerCase();
-            if (studentVal === correctVal) correctCount++;
-          }
-          if (totalBlanks > 0 && correctCount === totalBlanks) {
-            pointsAwarded = qPoints;
-          }
-        } catch { /* invalid JSON */ }
+        const pointsAwarded = scoreFillBlank(qContent, ans.text_answer, qPoints);
         await query(
           `INSERT INTO otisak_attempt_answers (attempt_id, question_id, text_answer, points_awarded)
            VALUES ($1, $2, $3, $4)
@@ -225,44 +208,13 @@ export async function submitAttemptAnswers(
         ? [ans.selected_answer_id]
         : [];
 
-    let pointsAwarded = 0;
-
-    if (selectedIds.length > 0) {
-      const allAnswers = await query<{ id: string; is_correct: boolean; points: number }>(
-        `SELECT a.id, a.is_correct, q.points
-         FROM otisak_answers a
-         JOIN otisak_questions q ON a.question_id = q.id
-         WHERE a.question_id = $1`,
-        [ans.question_id]
-      );
-
-      if (allAnswers.rows.length > 0) {
-        const questionPoints = allAnswers.rows[0].points;
-        const correctIds = new Set(allAnswers.rows.filter((a) => a.is_correct).map((a) => a.id));
-        const totalCorrect = correctIds.size;
-        const selectedSet = new Set(selectedIds);
-
-        if (totalCorrect <= 1) {
-          if (selectedIds.length === 1 && correctIds.has(selectedIds[0])) {
-            pointsAwarded = questionPoints;
-          }
-        } else {
-          // Multi-correct rule: any wrong selection → 0, full stop. Picking all
-          // correct (and only correct) → full points. Picking a strict subset
-          // of correct with no wrong → proportional credit IFF partial_scoring
-          // is on; without the flag the question is all-or-nothing.
-          const correctSelected = [...selectedSet].filter((id) => correctIds.has(id)).length;
-          const wrongSelected = [...selectedSet].filter((id) => !correctIds.has(id)).length;
-          if (wrongSelected === 0) {
-            if (correctSelected === totalCorrect) {
-              pointsAwarded = questionPoints;
-            } else if (partialScoring && correctSelected > 0) {
-              pointsAwarded = Math.round((correctSelected / totalCorrect) * questionPoints * 100) / 100;
-            }
-          }
-        }
-      }
-    }
+    const allAnswers = answersByQuestion.get(ans.question_id) ?? [];
+    const pointsAwarded = scoreMultiChoice(
+      selectedIds,
+      allAnswers,
+      Number(meta?.points || 0),
+      partialScoring,
+    );
 
     const primarySelectedId = selectedIds.length > 0 ? selectedIds[0] : null;
 
@@ -357,48 +309,14 @@ export async function rescoreExam(examId: string): Promise<number> {
       for (const aa of aaRes.rows) {
         const q = questions.get(aa.question_id);
         if (!q) continue; // question was deleted; row stays but contributes 0
-        let pointsAwarded = 0;
+        let pointsAwarded: number;
 
         if (q.type === 'ordering' && q.content) {
-          try {
-            const correctData = JSON.parse(q.content);
-            const correctOrder: string[] = correctData.items || [];
-            const studentOrder: string[] = JSON.parse(aa.text_answer || '[]');
-            if (correctOrder.length > 0 && JSON.stringify(studentOrder) === JSON.stringify(correctOrder)) {
-              pointsAwarded = Number(q.points || 0);
-            }
-          } catch { /* invalid JSON → 0 */ }
+          pointsAwarded = scoreOrdering(q.content, aa.text_answer, Number(q.points || 0), true);
         } else if (q.type === 'matching' && q.content) {
-          try {
-            const correctData = JSON.parse(q.content);
-            const leftArr: string[] = correctData.left || [];
-            const rightArr: string[] = correctData.right || [];
-            const studentMatches: Record<string, string> = JSON.parse(aa.text_answer || '{}');
-            const totalPairs = leftArr.length;
-            let correctCount = 0;
-            for (let i = 0; i < leftArr.length; i++) {
-              if (studentMatches[leftArr[i]] === rightArr[i]) correctCount++;
-            }
-            if (totalPairs > 0 && correctCount === totalPairs) {
-              pointsAwarded = Number(q.points || 0);
-            }
-          } catch { /* invalid JSON → 0 */ }
+          pointsAwarded = scoreMatching(q.content, aa.text_answer, Number(q.points || 0));
         } else if (q.type === 'fill_blank' && q.content) {
-          try {
-            const correctData = JSON.parse(q.content);
-            const blanks: Array<{ id: string; correct: string }> = correctData.blanks || [];
-            const studentFills: Record<string, string> = JSON.parse(aa.text_answer || '{}');
-            const totalBlanks = blanks.length;
-            let correctCount = 0;
-            for (const blank of blanks) {
-              const studentVal = (studentFills[blank.id] || '').trim().toLowerCase();
-              const correctVal = (blank.correct || '').trim().toLowerCase();
-              if (studentVal === correctVal) correctCount++;
-            }
-            if (totalBlanks > 0 && correctCount === totalBlanks) {
-              pointsAwarded = Number(q.points || 0);
-            }
-          } catch { /* invalid JSON → 0 */ }
+          pointsAwarded = scoreFillBlank(q.content, aa.text_answer, Number(q.points || 0));
         } else if (q.type === 'open_text') {
           // Carry over the AI-graded score (or 0 if still pending). Rescoring
           // shouldn't overwrite what the grader produced; admin can re-run AI
@@ -406,34 +324,13 @@ export async function rescoreExam(examId: string): Promise<number> {
           pointsAwarded = Number(aa.points_awarded || 0);
         } else {
           // Multi-choice (text/code/image). Same rules as submitAttemptAnswers:
-          // any wrong pick → 0. All correct → full. Subset of correct with no
-          // wrong → proportional iff partial_scoring.
+          // any wrong pick -> 0. All correct -> full. Subset of correct with no
+          // wrong -> proportional iff partial_scoring.
           const selectedIds = (aa.selected_answer_ids && aa.selected_answer_ids.length > 0)
             ? aa.selected_answer_ids
             : (aa.selected_answer_id ? [aa.selected_answer_id] : []);
           const allAnswers = answersByQuestion.get(q.id) ?? [];
-          if (selectedIds.length > 0 && allAnswers.length > 0) {
-            const questionPoints = Number(q.points || 0);
-            const correctIds = new Set(allAnswers.filter((a) => a.is_correct).map((a) => a.id));
-            const totalCorrect = correctIds.size;
-            const selectedSet = new Set(selectedIds);
-
-            if (totalCorrect <= 1) {
-              if (selectedIds.length === 1 && correctIds.has(selectedIds[0])) {
-                pointsAwarded = questionPoints;
-              }
-            } else {
-              const correctSelected = [...selectedSet].filter((id) => correctIds.has(id)).length;
-              const wrongSelected = [...selectedSet].filter((id) => !correctIds.has(id)).length;
-              if (wrongSelected === 0) {
-                if (correctSelected === totalCorrect) {
-                  pointsAwarded = questionPoints;
-                } else if (partialScoring && correctSelected > 0) {
-                  pointsAwarded = Math.round((correctSelected / totalCorrect) * questionPoints * 100) / 100;
-                }
-              }
-            }
-          }
+          pointsAwarded = scoreMultiChoice(selectedIds, allAnswers, Number(q.points || 0), partialScoring);
         }
 
         await client.query(
