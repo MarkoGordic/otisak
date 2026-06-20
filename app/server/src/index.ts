@@ -4,7 +4,6 @@ import path from 'path';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import helmet from 'helmet';
-import morgan from 'morgan';
 
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
@@ -25,6 +24,7 @@ import { closePool } from './db/client';
 import { pruneOldErrorLogs } from './db/error-log';
 import { assertSessionSecretIsSafe } from './session';
 import { requestContext } from './middleware/requestContext';
+import { accessLog } from './middleware/accessLog';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './lib/logger';
 import { reportError } from './lib/reportError';
@@ -80,13 +80,10 @@ app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
 // AsyncLocalStorage context so every downstream log line is correlated.
 app.use(requestContext);
 
-// HTTP access logger. Skipped for the health check so the noise doesn't
-// drown actual traffic. Format keeps the essentials: IP, verb, path, status,
-// response time — enough for an ad-hoc debug session without a full log
-// stack. Production deployments can pipe this into journald / loki.
-app.use(morgan(':remote-addr :method :url :status :response-time ms', {
-  skip: (req) => req.url === '/api/health',
-}));
+// Structured HTTP access log (replaces morgan): one line per request with the
+// requestId, method, url, status, and duration. Pipe stdout into journald /
+// loki in production. The health check is skipped so polling stays quiet.
+app.use(accessLog);
 
 // Security headers (X-Content-Type-Options, X-Frame-Options, HSTS where TLS,
 // etc.). CSP is disabled because the Vite-built SPA loads inline styles +
