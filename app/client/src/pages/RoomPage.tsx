@@ -10,6 +10,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Sidebar, MobileNav } from '../components/Sidebar';
+import { formatElapsed } from '../lib/format';
 import { useLang } from '../components/LangProvider';
 import { useToast } from '../components/Toast';
 import { useExamSocket } from '../lib/useExamSocket';
@@ -61,13 +62,6 @@ type LiveStats = {
 };
 
 const SUSPICIOUS_BADGE_THRESHOLD = 5;
-
-function formatElapsed(secs: number): string {
-  if (!secs || secs < 0) return '00:00';
-  const m = Math.floor(secs / 60);
-  const s = secs % 60;
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
 
 export default function ExamRoomPage() {
   const navigate = useNavigate();

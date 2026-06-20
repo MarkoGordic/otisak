@@ -5,6 +5,7 @@ import {
   FileText, CheckCircle2, ExternalLink,
 } from 'lucide-react';
 
+import { formatDateSr as formatDate, formatDurationLong as formatDuration } from '../lib/format';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { Badge } from '../components/ui/Badge';
@@ -41,22 +42,6 @@ type Profile = {
   attempts: OtisakAttemptWithExam[];
   stats: ProfileStats;
 };
-
-function formatDate(d: string | Date | null): string {
-  if (!d) return '—';
-  const dt = new Date(d);
-  return dt.toLocaleDateString('sr-RS', { day: '2-digit', month: '2-digit', year: 'numeric' }).replace(/\//g, '.');
-}
-
-function formatDuration(s: number): string {
-  if (!s || s <= 0) return '0s';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${sec}s`;
-  return `${sec}s`;
-}
 
 export default function UserProfilePage() {
   const navigate = useNavigate();

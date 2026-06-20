@@ -5,6 +5,7 @@ import {
   CheckCircle2, ChevronDown, ChevronRight, FileText,
 } from 'lucide-react';
 
+import { formatDurationLong as formatDuration } from '../lib/format';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { Badge } from '../components/ui/Badge';
@@ -50,16 +51,6 @@ type ExamStats = {
 };
 
 type SortKey = 'position' | 'success' | 'avg' | 'attempts';
-
-function formatDuration(s: number): string {
-  if (!s || s <= 0) return '0s';
-  const h = Math.floor(s / 3600);
-  const m = Math.floor((s % 3600) / 60);
-  const sec = s % 60;
-  if (h > 0) return `${h}h ${m}m`;
-  if (m > 0) return `${m}m ${sec}s`;
-  return `${sec}s`;
-}
 
 export default function ExamStatsPage() {
   const navigate = useNavigate();

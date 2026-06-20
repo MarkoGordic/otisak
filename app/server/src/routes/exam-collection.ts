@@ -17,7 +17,7 @@ import {
 } from '../db/auth-helpers';
 import { importExamFromJson } from '../lib/importExam';
 import { finishExamForEveryone } from '../lib/finishExam';
-import { normaliseTags } from '../db/otisak';
+import { normalizeExamTags } from '../db/otisak';
 
 // Build the common filter set used by both admin and assistant `GET /exams` —
 // status, statuses (CSV), subject_id, exam_mode, tags (CSV), scheduled_from,
@@ -30,7 +30,7 @@ function parseExamFilters(q: Record<string, unknown>) {
     statuses: csv(q.statuses),
     subject_id: typeof q.subject_id === 'string' && q.subject_id ? q.subject_id : undefined,
     exam_mode: typeof q.exam_mode === 'string' && q.exam_mode ? q.exam_mode : undefined,
-    tags: normaliseTags(csv(q.tags)),
+    tags: normalizeExamTags(csv(q.tags)),
     scheduled_from: typeof q.scheduled_from === 'string' && q.scheduled_from ? q.scheduled_from : undefined,
     scheduled_to: typeof q.scheduled_to === 'string' && q.scheduled_to ? q.scheduled_to : undefined,
   };

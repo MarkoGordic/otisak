@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { formatDateRelativeEn as formatDate, formatDurationShort as formatDuration } from '../lib/format';
 import {
   BarChart3,
   Fingerprint,
@@ -51,22 +52,6 @@ function getSubjectColor(subjectName: string | null) {
     hash = subjectName.charCodeAt(i) + ((hash << 5) - hash);
   }
   return SUBJECT_PALETTE[Math.abs(hash) % SUBJECT_PALETTE.length];
-}
-
-function formatDate(d: string | Date | null) {
-  if (!d) return '\u2014';
-  const date = new Date(d);
-  const now = new Date();
-  if (date.toDateString() === now.toDateString()) {
-    return `Today, ${date.toLocaleTimeString('en', { hour: '2-digit', minute: '2-digit' })}`;
-  }
-  return date.toLocaleDateString('en', { day: '2-digit', month: 'short', year: 'numeric' });
-}
-
-function formatDuration(seconds: number) {
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return m > 0 ? `${m}m ${s}s` : `${s}s`;
 }
 
 function getExamStatusInfo(exam: OtisakExamWithSubject) {

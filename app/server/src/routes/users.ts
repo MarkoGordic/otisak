@@ -3,6 +3,7 @@ import { requireAuth, requireRole } from '../middleware';
 import { findUserById } from '../db/users';
 import { getUserAttempts } from '../db/otisak';
 import { getAssignedSubjectIds } from '../db/auth-helpers';
+import { query } from '../db/client';
 
 const router = Router();
 
@@ -41,7 +42,6 @@ router.get('/:userId/profile', requireRole(['admin', 'assistant']), async (req: 
       }
       const assignedSet = new Set(assignedSubjectIds);
       const examIds = attempts.map((a) => a.exam_id);
-      const { query } = await import('../db/client');
       const subjMap = examIds.length > 0
         ? await query<{ id: string; subject_id: string | null }>(
             `SELECT id, subject_id FROM otisak_exams WHERE id = ANY($1::uuid[])`,
