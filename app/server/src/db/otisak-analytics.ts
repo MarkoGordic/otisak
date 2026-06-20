@@ -133,7 +133,34 @@ export async function getLiveExamStats(examId: string): Promise<{
     time_spent_seconds: number;
     suspicious_count: number;
   }>(
-    `SELECT a.user_id,
+    // Pre-aggregate per attempt in two scoped CTEs and LEFT JOIN them, instead
+    // of three correlated subqueries that re-ran once per attempt row. The
+    // predicates (answered, running points, suspicious event types) are copied
+    // verbatim so the numbers are identical. Running score reflects the live
+    // state because submitAttemptAnswers updates points_awarded on every save.
+    `WITH attempt_ids AS (
+       SELECT id FROM otisak_attempts WHERE exam_id = $1
+     ),
+     answer_agg AS (
+       SELECT aa.attempt_id,
+              COUNT(*) FILTER (
+                WHERE aa.selected_answer_id IS NOT NULL
+                  OR (aa.selected_answer_ids IS NOT NULL AND array_length(aa.selected_answer_ids, 1) > 0)
+                  OR (aa.text_answer IS NOT NULL AND length(trim(aa.text_answer)) > 0)
+              )::int AS answered_count,
+              COALESCE(SUM(aa.points_awarded), 0)::numeric AS current_points
+       FROM otisak_attempt_answers aa
+       WHERE aa.attempt_id IN (SELECT id FROM attempt_ids)
+       GROUP BY aa.attempt_id
+     ),
+     susp_agg AS (
+       SELECT al.attempt_id, COUNT(*)::int AS suspicious_count
+       FROM exam_activity_log al
+       WHERE al.event_type = ANY($2::text[])
+         AND al.attempt_id IN (SELECT id FROM attempt_ids)
+       GROUP BY al.attempt_id
+     )
+     SELECT a.user_id,
             u.name AS user_name,
             u.email AS user_email,
             u.index_number,
@@ -141,29 +168,13 @@ export async function getLiveExamStats(examId: string): Promise<{
             a.started_at,
             a.finished_at,
             a.time_spent_seconds,
-            (
-              SELECT COUNT(*)::int FROM otisak_attempt_answers aa
-              WHERE aa.attempt_id = a.id
-                AND (
-                  aa.selected_answer_id IS NOT NULL
-                  OR (aa.selected_answer_ids IS NOT NULL AND array_length(aa.selected_answer_ids, 1) > 0)
-                  OR (aa.text_answer IS NOT NULL AND length(trim(aa.text_answer)) > 0)
-                )
-            ) AS answered_count,
-            (
-              -- Running score in real time. submitAttemptAnswers updates
-              -- points_awarded on every auto-save, so this reflects the
-              -- live state without any extra grading work.
-              SELECT COALESCE(SUM(points_awarded), 0)::numeric FROM otisak_attempt_answers aa
-              WHERE aa.attempt_id = a.id
-            ) AS current_points,
-            (
-              SELECT COUNT(*)::int FROM exam_activity_log al
-              WHERE al.attempt_id = a.id
-                AND al.event_type = ANY($2::text[])
-            ) AS suspicious_count
+            COALESCE(an.answered_count, 0) AS answered_count,
+            COALESCE(an.current_points, 0)::numeric AS current_points,
+            COALESCE(s.suspicious_count, 0) AS suspicious_count
      FROM otisak_attempts a
      JOIN users u ON a.user_id = u.id
+     LEFT JOIN answer_agg an ON an.attempt_id = a.id
+     LEFT JOIN susp_agg s ON s.attempt_id = a.id
      WHERE a.exam_id = $1
        AND u.role = 'student'
      ORDER BY a.started_at ASC`,
