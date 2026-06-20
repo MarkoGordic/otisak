@@ -25,6 +25,8 @@ const sr: Record<I18nKey, string> = {
   'login.error.network': 'Greška u mreži. Pokušajte ponovo.',
   'login.backToHome': 'Nazad na početnu',
   'login.error.failed': 'Prijava nije uspela',
+  'login.disclaimer':
+    'Prijavom na korisnički nalog garantujete ispravnost unetih podataka. Svaka zloupotreba je kažnjiva.',
 
   // Sidebar
   'nav.dashboard': 'Početna',
@@ -629,7 +631,8 @@ const sr: Record<I18nKey, string> = {
   'home.waiting': 'Čekanje',
 
   // Footer
-  'footer.warning': 'Varanje je strogo zabranjeno. Sva aktivnost se prati i beleži. Kršenje vodi disciplinskom postupku.',
+  'footer.warning':
+    'Svaka vrsta neovlašćenog korišćenja pomoći ili prepisivanja tokom ispita strogo je zabranjena. U slučaju kršenja ovog pravila, predviđene su disciplinske mere, uključujući isključenje sa ispita i mogućnost zabrane pristupanja ispitnim rokovima u budućnosti.',
 
   // Account (samostalna promena lozinke)
   'account.changePassword': 'Promeni lozinku',

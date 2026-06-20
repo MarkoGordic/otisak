@@ -21,6 +21,8 @@ const en = {
   'login.error.network': 'Network error. Please try again.',
   'login.backToHome': 'Back to entry',
   'login.error.failed': 'Login failed',
+  'login.disclaimer':
+    'By signing in, you confirm that the information you provide is accurate. Any misuse is punishable.',
 
   // Sidebar
   'nav.dashboard': 'Dashboard',
@@ -625,7 +627,8 @@ const en = {
   'home.waiting': 'Waiting',
 
   // Footer
-  'footer.warning': 'Cheating is strictly prohibited. All activity is monitored and logged. Violations result in disciplinary action.',
+  'footer.warning':
+    'Any unauthorized assistance or copying during the exam is strictly prohibited. Violations are subject to disciplinary measures, including removal from the exam and a possible ban from future exam terms.',
 
   // Account (self-service)
   'account.changePassword': 'Change password',

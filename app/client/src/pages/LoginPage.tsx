@@ -179,6 +179,10 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          <p className={`mt-5 text-[11px] leading-relaxed text-center ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+            {t('login.disclaimer')}
+          </p>
         </div>
 
         {/* Version */}
