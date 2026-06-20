@@ -1,4 +1,6 @@
 import { Pool, PoolClient, QueryResult, QueryResultRow } from 'pg';
+import { logger } from '../lib/logger';
+import { getRequestId } from '../lib/requestContext';
 
 let pool: Pool | null = null;
 
@@ -15,7 +17,7 @@ function getPool(): Pool {
       connectionTimeoutMillis: 2000,
     });
     pool.on('error', (err: Error) => {
-      console.error('Unexpected error on idle client', err);
+      logger.error({ err }, 'unexpected error on idle postgres client');
     });
   }
   return pool;
@@ -29,7 +31,10 @@ export async function query<T extends QueryResultRow = QueryResultRow>(
   try {
     return await client.query<T>(text, params);
   } catch (error) {
-    console.error('Database query error:', error);
+    // Log with the correlated requestId, then rethrow. The HTTP error handler
+    // persists the resulting 5xx once, so we do not persist here (avoids
+    // duplicate rows for one user-visible failure).
+    logger.error({ err: error, requestId: getRequestId() }, 'database query error');
     throw error;
   }
 }

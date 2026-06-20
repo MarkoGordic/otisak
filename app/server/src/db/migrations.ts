@@ -1,13 +1,14 @@
 import { query } from './client';
+import { logger } from '../lib/logger';
 
 // Lightweight, idempotent schema migrations executed on every server start.
 // We deliberately don't pull in a full migration framework (knex, prisma-migrate,
-// ...): the project ships init.sql for fresh installs, and the only DB changes
+// ...): the project ships db/schema.sql for fresh installs, and the only DB changes
 // after the initial cut are additive columns + backfills + new indexes.
 //
 // Add new steps at the bottom of the `steps` array. Each step must be:
 //   - Idempotent (re-running it doesn't break anything)
-//   - Safe on a fresh DB created from init.sql (no-op if schema already matches)
+//   - Safe on a fresh DB created from db/schema.sql (no-op if schema already matches)
 //   - Fast enough to run on every startup (use IF NOT EXISTS, gate backfills
 //     with a WHERE clause that excludes already-migrated rows)
 //
@@ -118,6 +119,36 @@ const steps: readonly Step[] = [
       ADD COLUMN IF NOT EXISTS has_pass_threshold BOOLEAN NOT NULL DEFAULT TRUE
     `);
   }],
+  ['011_app_error_log', async () => {
+    // Persistent error store for the observability layer. Server 5xx, job/ws
+    // failures, and client-reported errors land here and are surfaced in the
+    // admin error viewer. Kept in the same DB so there is no extra infra and no
+    // data leaves the server.
+    await query(`
+      CREATE TABLE IF NOT EXISTS app_error_log (
+        id          UUID PRIMARY KEY,
+        request_id  TEXT,
+        source      TEXT NOT NULL,
+        status_code INT,
+        code        TEXT,
+        name        TEXT,
+        message     TEXT,
+        stack       TEXT,
+        route       TEXT,
+        user_id     UUID,
+        context     JSONB NOT NULL DEFAULT '{}',
+        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_app_error_log_created
+        ON app_error_log (created_at DESC)
+    `);
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_app_error_log_request
+        ON app_error_log (request_id)
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {
@@ -139,5 +170,5 @@ export async function runMigrations(): Promise<void> {
     );
   }
 
-  console.log('Migrations: schema up to date.');
+  logger.info('migrations: schema up to date');
 }

@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { findUserByEmail, findUserById, updateLastLogin, createUser, updateUserPasswordHash } from '../db/users';
@@ -28,7 +28,7 @@ const loginLimiter = rateLimit({
 const DUMMY_HASH = bcrypt.hashSync('::dummy::', 10);
 
 // POST /auth/login
-router.post('/login', loginLimiter, async (req: Request, res: Response) => {
+router.post('/login', loginLimiter, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password } = req.body;
 
@@ -76,8 +76,7 @@ router.post('/login', loginLimiter, async (req: Request, res: Response) => {
       },
     });
   } catch (error) {
-    console.error('Login error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return next(error);
   }
 });
 
@@ -88,7 +87,7 @@ router.post('/logout', (_req: Request, res: Response) => {
 });
 
 // GET /auth/session
-router.get('/session', async (req: Request, res: Response) => {
+router.get('/session', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const cookieValue = req.cookies?.[SESSION_COOKIE];
     if (!cookieValue) {
@@ -105,8 +104,7 @@ router.get('/session', async (req: Request, res: Response) => {
       user: session.user,
     });
   } catch (error) {
-    console.error('Session error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return next(error);
   }
 });
 
@@ -123,7 +121,7 @@ const passwordChangeLimiter = rateLimit({
   message: { error: 'Too many password change attempts. Try again in 15 minutes.' },
 });
 
-router.patch('/password', passwordChangeLimiter, requireAuth, async (req: Request, res: Response) => {
+router.patch('/password', passwordChangeLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { current_password, new_password } = req.body || {};
     if (typeof current_password !== 'string' || typeof new_password !== 'string') {
@@ -148,13 +146,12 @@ router.patch('/password', passwordChangeLimiter, requireAuth, async (req: Reques
     await updateUserPasswordHash(fresh.id, hash);
     return res.json({ success: true });
   } catch (error) {
-    console.error('Self password change error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return next(error);
   }
 });
 
 // POST /auth/register - admin only
-router.post('/register', requireAuth, requireRole(['admin']), async (req: Request, res: Response) => {
+router.post('/register', requireAuth, requireRole(['admin']), async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { email, password, name, role, index_number } = req.body;
 
@@ -186,8 +183,7 @@ router.post('/register', requireAuth, requireRole(['admin']), async (req: Reques
       },
     });
   } catch (error) {
-    console.error('Register error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return next(error);
   }
 });
 

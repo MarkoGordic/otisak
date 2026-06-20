@@ -9,26 +9,35 @@ import morgan from 'morgan';
 import authRoutes from './routes/auth';
 import adminRoutes from './routes/admin';
 import subjectRoutes from './routes/subjects';
-import examsRoutes from './routes/exams';
+import examCollectionRoutes from './routes/exam-collection';
 import examRoutes from './routes/exam';
 import practiceRoutes from './routes/practice';
 import questionsRoutes from './routes/questions';
 import historyRoutes from './routes/history';
 import usersRoutes from './routes/users';
+import clientLogRoutes from './routes/clientLog';
 import { setupWebSocket } from './ws/events';
 import { startLiveStatsAggregator, stopLiveStatsAggregator } from './ws/liveStatsAggregator';
 import { startExamExpiryWatcher, stopExamExpiryWatcher } from './jobs/examExpiryWatcher';
 import { ensureBootstrapAdmin, ensureDemoExam } from './bootstrap';
 import { runMigrations } from './db/migrations';
 import { closePool } from './db/client';
+import { pruneOldErrorLogs } from './db/error-log';
 import { assertSessionSecretIsSafe } from './session';
+import { requestContext } from './middleware/requestContext';
+import { errorHandler } from './middleware/errorHandler';
+import { logger } from './lib/logger';
+import { reportError } from './lib/reportError';
+
+// Retention window for the persisted error log (days). Pruned at boot and daily.
+const ERROR_LOG_RETENTION_DAYS = 30;
 
 // Refuse to boot with an empty / known-default / too-short SESSION_SECRET.
 // Forged session cookies would otherwise let anyone impersonate an admin.
 try {
   assertSessionSecretIsSafe();
 } catch (e) {
-  console.error('FATAL:', (e as Error).message);
+  logger.fatal((e as Error).message);
   process.exit(1);
 }
 
@@ -38,11 +47,11 @@ try {
 // process. Surviving in a half-broken state is worse — it can mean
 // in-flight DB transactions never finalise.
 process.on('unhandledRejection', (reason) => {
-  console.error('FATAL: unhandled promise rejection', reason);
+  reportError(reason, { source: 'process', context: { kind: 'unhandledRejection' } });
   process.exit(1);
 });
 process.on('uncaughtException', (err) => {
-  console.error('FATAL: uncaught exception', err);
+  reportError(err, { source: 'process', context: { kind: 'uncaughtException' } });
   process.exit(1);
 });
 
@@ -66,6 +75,10 @@ const app = express();
 // running without a reverse proxy this is a no-op since the chain is empty.
 // Default 1; set TRUST_PROXY_HOPS to override (e.g. "2" for nested proxies).
 app.set('trust proxy', Number(process.env.TRUST_PROXY_HOPS) || 1);
+
+// First middleware: stamp a requestId, bind a child logger, and open the
+// AsyncLocalStorage context so every downstream log line is correlated.
+app.use(requestContext);
 
 // HTTP access logger. Skipped for the health check so the noise doesn't
 // drown actual traffic. Format keeps the essentials: IP, verb, path, status,
@@ -106,12 +119,14 @@ app.use(express.json({ limit: '1mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/otisak/subjects', subjectRoutes);
-app.use('/api/otisak/exams', examsRoutes);
+app.use('/api/otisak/exams', examCollectionRoutes);
 app.use('/api/otisak/exams/:examId', examRoutes);
 app.use('/api/otisak/users', usersRoutes);
 app.use('/api/otisak/practice', practiceRoutes);
 app.use('/api/otisak/questions', questionsRoutes);
 app.use('/api/otisak/history', historyRoutes);
+// Client-side error ingestion (unauthenticated, rate limited).
+app.use('/api/_log', clientLogRoutes);
 
 // Health check
 app.get('/api/health', (_req, res) => {
@@ -134,6 +149,10 @@ app.get('*', (_req, res) => {
   res.sendFile(path.join(clientDist, 'index.html'));
 });
 
+// Centralized error handler. Registered last; Express routes any error from a
+// handler that calls next(err) (or an asyncHandler-wrapped rejection) here.
+app.use(errorHandler);
+
 async function start(): Promise<void> {
   assertEnv();
 
@@ -143,6 +162,19 @@ async function start(): Promise<void> {
   await runMigrations();
   await ensureBootstrapAdmin();
   await ensureDemoExam();
+
+  // Keep the error log bounded: prune once now, then daily. The interval is
+  // unref'd so it never holds the process open on its own.
+  pruneOldErrorLogs(ERROR_LOG_RETENTION_DAYS).catch((e) =>
+    reportError(e, { source: 'job', context: { job: 'pruneOldErrorLogs' } }),
+  );
+  setInterval(
+    () =>
+      pruneOldErrorLogs(ERROR_LOG_RETENTION_DAYS).catch((e) =>
+        reportError(e, { source: 'job', context: { job: 'pruneOldErrorLogs' } }),
+      ),
+    24 * 60 * 60 * 1000,
+  ).unref();
 
   const server = http.createServer(app);
   const wss = setupWebSocket(server);
@@ -158,8 +190,7 @@ async function start(): Promise<void> {
 
   const PORT = process.env.PORT || 3001;
   server.listen(PORT, () => {
-    console.log(`OTISAK server running on port ${PORT}`);
-    console.log(`Client served from: ${clientDist}`);
+    logger.info({ port: PORT, clientDist }, `OTISAK server running on port ${PORT}`);
   });
 
   // Graceful shutdown. SIGTERM is what Docker / orchestrators send on
@@ -172,21 +203,21 @@ async function start(): Promise<void> {
   async function shutdown(signal: string): Promise<void> {
     if (shuttingDown) return;
     shuttingDown = true;
-    console.log(`${signal} received; shutting down gracefully`);
+    logger.info({ signal }, `${signal} received; shutting down gracefully`);
     // Stop background intervals first so they don't try to schedule queries
     // mid-pool-drain.
     stopExamExpiryWatcher();
     stopLiveStatsAggregator();
     server.close((err) => {
-      if (err) console.error('HTTP server close error:', err);
+      if (err) logger.error({ err }, 'HTTP server close error');
     });
     wss.close((err) => {
-      if (err) console.error('WS server close error:', err);
+      if (err) logger.error({ err }, 'WS server close error');
     });
     try {
       await closePool();
     } catch (err) {
-      console.error('DB pool close error:', err);
+      logger.error({ err }, 'DB pool close error');
     }
     // 2 s grace; if any handle survives, force exit so the supervisor
     // can restart us cleanly rather than running half-dead.
@@ -197,7 +228,7 @@ async function start(): Promise<void> {
 }
 
 start().catch((err) => {
-  console.error('FATAL: startup failed', err);
+  reportError(err, { source: 'process', context: { kind: 'startup' } });
   process.exit(1);
 });
 

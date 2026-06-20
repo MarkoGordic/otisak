@@ -5,6 +5,7 @@ import { findUserById } from '../db/users';
 import { logEvents } from '../db/activity-log';
 import { query } from '../db/client';
 import { markExamMonitored, unmarkExamMonitored, listMonitoredExams } from './liveStatsAggregator';
+import { reportError } from '../lib/reportError';
 
 // Map of examId -> Set of WebSocket connections (admin-only room broadcasts; legacy)
 const roomSubscriptions = new Map<string, Set<WebSocket>>();
@@ -170,7 +171,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
             }
           }
         } catch (error) {
-          console.error('WebSocket message error:', error);
+          reportError(error, { source: 'ws', userId: user.id, context: { phase: 'message' } });
         }
       });
 
@@ -202,10 +203,10 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
       });
 
       ws.on('error', (error) => {
-        console.error('WebSocket error:', error);
+        reportError(error, { source: 'ws', userId: user.id, context: { phase: 'socket' } });
       });
     } catch (error) {
-      console.error('WebSocket connection error:', error);
+      reportError(error, { source: 'ws', context: { phase: 'connection' } });
       ws.close(4000, 'Internal error');
     }
   });

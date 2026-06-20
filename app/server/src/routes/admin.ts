@@ -4,6 +4,9 @@ import { getAllUsers, updateUser, updateUserPasswordHash } from '../db/users';
 import { getAllSettings, setSetting } from '../db/settings';
 import { requireAuth, requireRole } from '../middleware';
 import { query } from '../db/client';
+import { asyncHandler } from '../lib/asyncHandler';
+import { listRecentErrors, getErrorById } from '../db/error-log';
+import { NotFoundError } from '../lib/errors';
 import {
   listSubjectAssignments,
   assignUserToSubject,
@@ -328,5 +331,31 @@ router.delete('/subjects/:subjectId/assignments/:userId', async (req: Request, r
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// GET /admin/errors - recent entries from the application error log. Supports
+// keyset pagination (?before=<iso>) and filtering by ?requestId / ?source.
+router.get(
+  '/errors',
+  asyncHandler(async (req: Request, res: Response) => {
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const rows = await listRecentErrors({
+      limit: Number.isFinite(limit) ? limit : undefined,
+      before: typeof req.query.before === 'string' ? req.query.before : undefined,
+      requestId: typeof req.query.requestId === 'string' ? req.query.requestId : undefined,
+      source: typeof req.query.source === 'string' ? req.query.source : undefined,
+    });
+    return res.json({ errors: rows });
+  }),
+);
+
+// GET /admin/errors/:id - one error entry with its full stack and context.
+router.get(
+  '/errors/:id',
+  asyncHandler(async (req: Request, res: Response) => {
+    const row = await getErrorById(req.params.id);
+    if (!row) throw new NotFoundError('Error entry not found');
+    return res.json({ entry: row });
+  }),
+);
 
 export default router;

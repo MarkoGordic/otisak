@@ -1,4 +1,5 @@
 import { getLiveExamStats } from '../db/otisak';
+import { reportError } from '../lib/reportError';
 
 type LiveStats = Awaited<ReturnType<typeof getLiveExamStats>>;
 
@@ -53,7 +54,7 @@ export async function refreshLiveStatsNow(examId: string): Promise<LiveStats | n
     monitoredExams.add(examId);
     return stats;
   } catch (err) {
-    console.error(`refreshLiveStatsNow(${examId}) failed`, err);
+    reportError(err, { source: 'job', context: { job: 'refreshLiveStatsNow', examId } });
     return null;
   }
 }
@@ -70,7 +71,7 @@ export function startLiveStatsAggregator(): void {
           const stats = await getLiveExamStats(examId);
           liveStatsCache.set(examId, stats);
         } catch (err) {
-          console.error(`liveStats aggregator (${examId}) failed`, err);
+          reportError(err, { source: 'job', context: { job: 'liveStatsAggregator', examId } });
         }
       })
     );

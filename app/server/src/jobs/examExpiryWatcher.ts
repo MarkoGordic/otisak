@@ -1,5 +1,7 @@
 import { query } from '../db/client';
 import { finishExamForEveryone, isExamPastDeadline } from '../lib/finishExam';
+import { logger } from '../lib/logger';
+import { reportError } from '../lib/reportError';
 
 // Background job: every WATCH_INTERVAL_MS, find active exams whose timer has expired
 // and force-finish them.
@@ -34,15 +36,21 @@ async function tick(): Promise<void> {
             redirectStudents: false,
           });
           if (finished.ok) {
-            console.log(`examExpiryWatcher: auto-finished exam ${row.id} (${finished.finishedCount} attempts submitted)`);
+            logger.info(
+              { examId: row.id, finishedCount: finished.finishedCount },
+              'examExpiryWatcher: auto-finished exam',
+            );
           }
         }
       } catch (err) {
-        console.error(`examExpiryWatcher: tick failed for exam ${row.id}`, err);
+        reportError(err, {
+          source: 'job',
+          context: { job: 'examExpiryWatcher', examId: row.id },
+        });
       }
     }
   } catch (err) {
-    console.error('examExpiryWatcher: top-level tick failed', err);
+    reportError(err, { source: 'job', context: { job: 'examExpiryWatcher', phase: 'top-level' } });
   }
 }
 
@@ -50,7 +58,9 @@ export function startExamExpiryWatcher(): void {
   if (timer) return;
   // First tick immediately so a server restart right at the deadline doesn't
   // wait the full interval before catching up.
-  tick().catch((err) => console.error('examExpiryWatcher: initial tick failed', err));
+  tick().catch((err) =>
+    reportError(err, { source: 'job', context: { job: 'examExpiryWatcher', phase: 'initial' } }),
+  );
   timer = setInterval(tick, WATCH_INTERVAL_MS);
 }
 

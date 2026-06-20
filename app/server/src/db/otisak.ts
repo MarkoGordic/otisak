@@ -2,6 +2,7 @@
 // ========================================
 
 import { query, transaction } from './client';
+import { ConflictError } from '../lib/errors';
 import type {
   OtisakSubject,
   OtisakExam,
@@ -170,7 +171,7 @@ export async function createOtisakExam(
 ): Promise<OtisakExam> {
   // Tags get normalised once on the way in: lowercased, trimmed, deduped,
   // empties dropped. Saves us from re-doing it on every read.
-  const tags = normaliseTags(data.tags);
+  const tags = normalizeExamTags(data.tags);
   const result = await query<OtisakExam>(
     `INSERT INTO otisak_exams (title, subject_id, description, duration_minutes, scheduled_at,
        allow_review, shuffle_questions, shuffle_answers, pass_threshold, has_pass_threshold, created_by,
@@ -208,7 +209,7 @@ export async function createOtisakExam(
 // Lowercase + trim + dedupe + drop empties. Public so the API layer can call it
 // when accepting `?tags=foo,Bar,foo` query params and emit the same canonical
 // form for filtering as we store on the row.
-export function normaliseTags(raw: unknown): string[] {
+export function normalizeExamTags(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
   const seen = new Set<string>();
   const out: string[] = [];
@@ -229,10 +230,11 @@ export function normaliseTags(raw: unknown): string[] {
 // the only thing that creates that exact string.
 export const DEMO_EXAM_TITLE = 'Šaljivi test: crtani junaci';
 
-// Sentinel thrown when a mutation touches the seeded demo exam. The route
-// layer catches by message and returns a 409 with a friendly translation.
-export class DemoExamLockedError extends Error {
-  constructor() { super('DEMO_EXAM_LOCKED'); }
+// Sentinel thrown when a mutation touches the seeded demo exam. Extends
+// ConflictError so the centralized error handler maps it to a 409 with the
+// DEMO_EXAM_LOCKED code; the existing route-level catch keeps working too.
+export class DemoExamLockedError extends ConflictError {
+  constructor() { super('DEMO_EXAM_LOCKED', 'DEMO_EXAM_LOCKED'); }
 }
 
 export async function isDemoExamId(examId: string): Promise<boolean> {
@@ -306,7 +308,7 @@ export async function updateOtisakExam(
   if (data.negative_points_value !== undefined) { updates.push(`negative_points_value = $${idx++}`); values.push(data.negative_points_value); }
   if (data.negative_points_threshold !== undefined) { updates.push(`negative_points_threshold = $${idx++}`); values.push(data.negative_points_threshold); }
   if (data.partial_scoring !== undefined) { updates.push(`partial_scoring = $${idx++}`); values.push(data.partial_scoring); }
-  if (data.tags !== undefined) { updates.push(`tags = $${idx++}`); values.push(normaliseTags(data.tags)); }
+  if (data.tags !== undefined) { updates.push(`tags = $${idx++}`); values.push(normalizeExamTags(data.tags)); }
   if (data.exam_mode !== undefined) {
     // Only allow the two known modes; don't trust the client to send anything else.
     const mode = data.exam_mode === 'practice' ? 'practice' : 'real';

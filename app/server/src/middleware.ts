@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import type { Logger } from 'pino';
 import { parseSessionCookie, SESSION_COOKIE } from './session';
 import { findUserById } from './db/users';
 import type { User } from './db/types';
@@ -8,6 +9,10 @@ declare global {
   namespace Express {
     interface Request {
       user?: User;
+      // Set by the requestContext middleware (runs first), so every handler can
+      // rely on them being present.
+      id: string;
+      log: Logger;
     }
   }
 }
@@ -35,8 +40,9 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     markSessionActive(user.id, session.id);
     next();
   } catch (error) {
-    console.error('Auth middleware error:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    // Unexpected failure (e.g. DB down): forward to the centralized error
+    // handler so it is logged, persisted, and returned with a requestId.
+    return next(error);
   }
 }
 
