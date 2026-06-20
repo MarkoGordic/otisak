@@ -35,6 +35,7 @@ const sr: Record<I18nKey, string> = {
   'nav.subjects': 'Predmeti',
   'nav.questionBank': 'Banka pitanja',
   'nav.users': 'Korisnici',
+  'nav.logs': 'Logovi',
   'nav.lightMode': 'Svetli režim',
   'nav.darkMode': 'Tamni režim',
   'nav.settings': 'Podešavanja',

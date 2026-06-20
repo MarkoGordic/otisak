@@ -34,6 +34,7 @@ const srCyrl: Record<I18nKey, string> = {
   'nav.subjects': 'Предмети',
   'nav.questionBank': 'Банка питања',
   'nav.users': 'Корисници',
+  'nav.logs': 'Логови',
   'nav.lightMode': 'Светли режим',
   'nav.darkMode': 'Тамни режим',
   'nav.settings': 'Подешавања',

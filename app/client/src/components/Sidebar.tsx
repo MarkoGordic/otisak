@@ -13,6 +13,7 @@ import {
   Sun,
   Moon,
   Key,
+  ScrollText,
 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';
@@ -45,6 +46,7 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
     ] : []),
     ...(isAdmin ? [
       { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
+      { id: 'logs', label: t('nav.logs'), icon: ScrollText, href: '/admin/logs' },
       { id: 'settings', label: t('nav.settings'), icon: Settings, href: '/admin/settings' },
     ] : []),
     // Documentation - visible to everyone with a session.

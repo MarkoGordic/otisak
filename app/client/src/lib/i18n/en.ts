@@ -31,6 +31,7 @@ const en = {
   'nav.subjects': 'Subjects',
   'nav.questionBank': 'Question Bank',
   'nav.users': 'Users',
+  'nav.logs': 'Logs',
   'nav.lightMode': 'Light Mode',
   'nav.darkMode': 'Dark Mode',
   'nav.settings': 'Settings',
