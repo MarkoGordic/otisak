@@ -193,7 +193,9 @@ export default function AdminErrorsPage() {
                         <div>
                           <div className="text-[var(--text-muted)] mb-1">stack</div>
                           <pre className="whitespace-pre-wrap break-all text-[var(--text-secondary)] bg-[var(--bg-primary)] rounded p-2 max-h-72 overflow-auto">
-                            {detail ? detail.stack || detail.message || '(nema stack-a)' : 'Ucitavanje...'}
+                            {detail && detail.id === r.id
+                              ? detail.stack || detail.message || '(nema stack-a)'
+                              : 'Ucitavanje...'}
                           </pre>
                         </div>
                       </div>

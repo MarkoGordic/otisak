@@ -523,7 +523,7 @@ const bs: Record<I18nKey, string> = {
   'results.collapseAll': 'Скупи све',
   'results.expandAll': 'Прошири све',
   'results.yourAnswer': 'Ваш одговор',
-  'results.noAnswer': 'Одговор није унет',
+  'results.noAnswer': 'Одговор није унесен',
   'results.aiFeedback': 'AI повратна информација',
   'results.aiPending': 'Чекање на AI оцјењивање...',
   'results.aiGrading': 'AI оцјењује...',
