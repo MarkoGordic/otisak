@@ -17,14 +17,14 @@
 # ========================================
 FROM node:20-alpine AS client-build
 WORKDIR /app
-COPY client/package.json client/package-lock.json* ./client/
+COPY app/client/package.json app/client/package-lock.json* ./client/
 RUN --mount=type=cache,target=/root/.npm \
     cd client && npm ci --no-audit --no-fund
-COPY client/ ./client/
+COPY app/client/ ./client/
 # Bilingual docs ship inside the client bundle: vite's import.meta.glob in
-# client/src/lib/docs.ts reads from ../../../docs/**/*.md, so docs/ has to
+# app/client/src/lib/docs.ts reads from ../../../docs/**/*.md, so docs/ has to
 # be physically present next to client/ at build time.
-COPY docs/ ./docs/
+COPY app/docs/ ./docs/
 WORKDIR /app/client
 RUN npm run build
 
@@ -38,10 +38,10 @@ WORKDIR /app/server
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     npm_config_cache=/root/.npm
-COPY server/package.json server/package-lock.json* ./
+COPY app/server/package.json app/server/package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --no-audit --no-fund
-COPY server/ ./
+COPY app/server/ ./
 RUN npm run build
 
 # ========================================
@@ -52,7 +52,7 @@ WORKDIR /app/server
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     npm_config_cache=/root/.npm
-COPY server/package.json server/package-lock.json* ./
+COPY app/server/package.json app/server/package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --no-audit --no-fund
 

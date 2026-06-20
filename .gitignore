@@ -6,5 +6,5 @@ dist/
 
 # Vite emits these next to the config when the user has `tsc -b` running in
 # their editor; they're build artefacts, not source.
-client/vite.config.d.ts
-client/vite.config.d.ts.map
+app/client/vite.config.d.ts
+app/client/vite.config.d.ts.map

@@ -24,7 +24,7 @@
 **/*.swp
 
 # Top-level meta — not needed at runtime.
-# IMPORTANT: do NOT blanket-exclude **/*.md. The client bundles docs/**/*.md
+# IMPORTANT: do NOT blanket-exclude **/*.md. The client bundles app/docs/**/*.md
 # at build time (via import.meta.glob) to render them at /docs in the app —
 # a wildcard exclusion here silently produces an empty docs site.
 /README.md
@@ -42,6 +42,5 @@ deploy.sh
 **/tmp
 **/temp
 
-# Sample / fixture data the build doesn't need
-PrimerPI*.json
-seed.sql
+# SQL — used by the Postgres container (compose volume), never by the app build
+/db

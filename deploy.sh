@@ -6,10 +6,10 @@ set -e
 #                      the postgres volume, so the admin gets re-bootstrapped
 #                      with a brand-new random password and you lose all data.
 #                      Without this flag we keep the DB, just rebuild the app.
-#   --seed             After bring-up, run seed.sql against the DB. Currently
+#   --seed             After bring-up, run db/seed.sql against the DB. Currently
 #                      a no-op (the file is empty by design — admin comes from
 #                      the server bootstrap, students from the CSV importer).
-#                      The flag is kept so the entry point survives if seed.sql
+#                      The flag is kept so the entry point survives if db/seed.sql
 #                      is ever repopulated.
 #   --no-pull          Skip "git pull" (useful for testing local changes).
 #   --port N / -p N    Host port the app listens on (1024–65535). Persisted
@@ -42,7 +42,7 @@ Flags:
                     the postgres volume, so the admin gets re-bootstrapped
                     with a brand-new random password and you lose all data.
                     Without this flag we keep the DB, just rebuild the app.
-  --seed, -seed     After bring-up, run seed.sql against the DB. Currently
+  --seed, -seed     After bring-up, run db/seed.sql against the DB. Currently
                     a no-op (the file is empty by design — admin comes from
                     the server bootstrap, students from the CSV importer).
   --no-pull         Skip "git pull" (useful for testing local changes).
@@ -402,7 +402,7 @@ done
 if [ "$SEED" = true ]; then
   echo "[6/6] Seeding database (subject + question bank)..."
   CONTAINER=$($DC ps -q db)
-  docker exec -i "$CONTAINER" psql -U otisak -d otisak < seed.sql 2>&1
+  docker exec -i "$CONTAINER" psql -U otisak -d otisak < db/seed.sql 2>&1
   echo "Seed complete."
 else
   echo "[6/6] Skipping seed (file is empty by design — nothing to load)."

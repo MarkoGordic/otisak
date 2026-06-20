@@ -2,7 +2,7 @@ import { randomInt } from 'crypto';
 import bcrypt from 'bcryptjs';
 import { query } from './db/client';
 import { importExamFromJson, type ExamImportInput } from './lib/importExam';
-import saljiviTest from './seeds/saljivi-test.json';
+import demoExam from './seeds/demo-exam.json';
 
 // Alphanumeric, no easily-confused characters (no 0/O, 1/l/I).
 const PASSWORD_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
@@ -62,7 +62,7 @@ export async function ensureBootstrapAdmin(): Promise<void> {
 // to be first in the table). Failures are logged but do not crash boot.
 export async function ensureDemoExam(): Promise<void> {
   try {
-    const demoTitle = (saljiviTest as ExamImportInput).exam?.title;
+    const demoTitle = (demoExam as ExamImportInput).exam?.title;
     if (typeof demoTitle !== 'string' || !demoTitle.trim()) return;
 
     const existing = await query<{ id: string }>(
@@ -84,7 +84,7 @@ export async function ensureDemoExam(): Promise<void> {
     // template exam. We seed a dedicated "Demo" subject the first time so
     // the demo doesn't pollute any real course's subject list.
     const DEMO_SUBJECT_NAME = 'Demo';
-    let subject = await query<{ id: string }>(
+    const subject = await query<{ id: string }>(
       'SELECT id FROM otisak_subjects WHERE name = $1 LIMIT 1',
       [DEMO_SUBJECT_NAME]
     );
@@ -98,7 +98,7 @@ export async function ensureDemoExam(): Promise<void> {
       subjectId = inserted.rows[0].id;
     }
 
-    const result = await importExamFromJson(saljiviTest as ExamImportInput, adminId, {
+    const result = await importExamFromJson(demoExam as ExamImportInput, adminId, {
       exam_mode: 'practice',
       self_service: true,
       is_public: true,

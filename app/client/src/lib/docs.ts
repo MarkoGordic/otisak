@@ -1,12 +1,12 @@
-// Build-time bundling of every markdown file under the top-level docs/ tree.
+// Build-time bundling of every markdown file under the app/docs/ tree.
 // Vite resolves these globs at compile time and inlines the markdown content as
 // strings (so the docs ship inside the JS bundle), and image files as URLs (so
 // `![](../_assets/foo.png)` references in markdown resolve to a real bundled
 // asset URL at runtime).
 //
 // Glob keys end up looking like "../../../docs/sr/exams.md" — the path is three
-// levels up because this file lives at client/src/lib/, and the docs/ tree is
-// at the repo root next to client/.
+// levels up because this file lives at app/client/src/lib/, and the docs/ tree
+// is at app/docs, next to app/client/.
 const RAW_FILES = import.meta.glob<string>('../../../docs/**/*.md', {
   query: '?raw',
   import: 'default',
