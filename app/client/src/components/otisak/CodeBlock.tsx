@@ -14,7 +14,8 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
 
   useEffect(() => {
     if (hljsCache) { setHljs(hljsCache); return; }
-    import('highlight.js').then(mod => {
+    // Slim curated build (core + common languages) loaded as one on-demand chunk.
+    import('../../lib/hljs').then(mod => {
       hljsCache = mod.default;
       setHljs(mod.default);
     });

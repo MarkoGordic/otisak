@@ -3,6 +3,20 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    rollupOptions: {
+      output: {
+        // Split the big shared vendors into their own long-lived chunks so a
+        // code change does not bust their cache, and they are not duplicated
+        // across the lazy route chunks. The markdown stack rides into the lazy
+        // DocsPage chunk on its own; highlight.js is dynamically imported.
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
+          motion: ['framer-motion'],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     // Allow Vite's dev-mode file server to read markdown from the app/docs/
