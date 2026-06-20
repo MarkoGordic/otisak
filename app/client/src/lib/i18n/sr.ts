@@ -11,6 +11,7 @@ const sr: Record<I18nKey, string> = {
   'app.title': 'OTISAK',
   'app.subtitle': 'Sistem za automatsko testiranje',
   'app.version': 'v 2.0',
+  'app.author': 'Marko Gordić',
 
   // Login
   'login.title': 'Prijavite se na svoj nalog',

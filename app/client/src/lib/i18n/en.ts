@@ -7,6 +7,7 @@ const en = {
   'app.title': 'OTISAK',
   'app.subtitle': 'Automated Test & Assessment System',
   'app.version': 'v 2.0',
+  'app.author': 'Marko Gordić',
 
   // Login
   'login.title': 'Sign in to your account',

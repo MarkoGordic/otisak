@@ -8,6 +8,7 @@ const bs: Record<I18nKey, string> = {
   'app.title': 'OTISAK',
   'app.subtitle': 'Систем за аутоматско тестирање',
   'app.version': 'v 2.0',
+  'app.author': 'Марко Гордић',
 
   // Login
   'login.title': 'Пријавите се на свој налог',
