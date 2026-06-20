@@ -25,7 +25,7 @@ export type ExamImportOverrides = Partial<Pick<
 // Build a single exam + its questions + answers from a JSON dump.
 // Returns the new exam and the number of questions actually created.
 //
-// Validation here is intentionally minimal — title is required, the rest
+// Validation here is intentionally minimal - title is required, the rest
 // falls back to sensible defaults so legacy fixtures keep importing.
 // The route layer should reject malformed payloads before calling in.
 export async function importExamFromJson(

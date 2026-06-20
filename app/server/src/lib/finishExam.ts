@@ -73,7 +73,7 @@ export async function finishExamForEveryone(
   return { ok: true, finishedCount };
 }
 
-// True when the exam timer has run out — i.e. exam_started_at + duration + extra
+// True when the exam timer has run out - i.e. exam_started_at + duration + extra
 // has elapsed, accounting for any lockdown pauses. Mirrors the per-attempt
 // autoFinishIfExpired check but operates on the exam as a whole.
 export async function isExamPastDeadline(examId: string): Promise<boolean> {

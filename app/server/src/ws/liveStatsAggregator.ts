@@ -7,7 +7,7 @@ type LiveStats = Awaited<ReturnType<typeof getLiveExamStats>>;
 //
 // Why: previously each admin's RoomPage made an on-demand DB call. With multiple
 // admins watching, that compounds. Worse, the per-student progress was pushed
-// via WS on every autosave — which only fires every 30s on the student side, so
+// via WS on every autosave - which only fires every 30s on the student side, so
 // the admin saw 30s+ stale numbers. The new model:
 //
 //   1. Server keeps a small set of "monitored" exam IDs (set when an admin
@@ -45,7 +45,7 @@ export function getCachedLiveStats(examId: string): LiveStats | null {
   return liveStatsCache.get(examId) ?? null;
 }
 
-// Force a fresh aggregate now (e.g., right after a student submits — caller
+// Force a fresh aggregate now (e.g., right after a student submits - caller
 // wants the next /live-stats to reflect that without waiting up to 5s).
 export async function refreshLiveStatsNow(examId: string): Promise<LiveStats | null> {
   try {

@@ -110,7 +110,7 @@ CREATE TABLE otisak_questions (
   ai_grading_instructions TEXT,
   bank_question_id UUID,
   -- TRUE = student picks any subset of correct answers (checkboxes).
-  -- FALSE = single-correct (radio). Authoritative — not derived from is_correct count.
+  -- FALSE = single-correct (radio). Authoritative - not derived from is_correct count.
   multi_answer BOOLEAN NOT NULL DEFAULT FALSE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -411,7 +411,7 @@ CREATE UNIQUE INDEX idx_exam_requests_one_pending ON exam_requests(exam_id, user
 -- MIGRATIONS LOG
 -- Each schema migration step recorded by the server-side migration runner.
 -- Idempotent: rows are inserted ON CONFLICT DO NOTHING the first time a step
--- runs successfully. Informational only — gating logic lives in migrations.ts.
+-- runs successfully. Informational only - gating logic lives in migrations.ts.
 -- ========================================
 
 CREATE TABLE migrations (

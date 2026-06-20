@@ -6,9 +6,9 @@ The room is `/manage/:examId`. Available for any exam in `active` status. This i
 
 Three areas:
 
-1. **Header** — exam title, status, timer, big action buttons.
-2. **Live stats panel** — per-student progress.
-3. **Requests queue** — late-join requests and other student requests waiting on you.
+1. **Header** - exam title, status, timer, big action buttons.
+2. **Live stats panel** - per-student progress.
+3. **Requests queue** - late-join requests and other student requests waiting on you.
 
 Data refreshes via WebSocket on every event (`exam.started`, `student.joined`, `student.submitted`, `request.created`, `lockdown.changed`). REST polling at 5s falls back if the socket drops.
 
@@ -46,8 +46,8 @@ Use for: contested objection, flaky network, fire alarm, anything that needs to 
 
 If a student tries to join after the timer started, they get a button that creates a request. It lands in your queue with name, index, and timestamp.
 
-- **Odobri** — server creates an attempt, sets the deadline to the exam's current deadline (so the student gets the remaining time), lets them in.
-- **Odbij** — student is notified.
+- **Odobri** - server creates an attempt, sets the deadline to the exam's current deadline (so the student gets the remaining time), lets them in.
+- **Odbij** - student is notified.
 
 Requests stay pending until you decide or the exam closes.
 
@@ -78,8 +78,8 @@ Click a row for per-question progress and start time.
 
 Two options, both at the bottom of the room page:
 
-- **Završi** — server marks the exam `completed`, submits unfinished attempts (scored with whatever is saved), broadcasts `exam.finished`. Students transition out of the exam screen.
-- **Završi sve i preusmeri** — same plus a `redirect: true` flag that sends students to home instead of the results screen.
+- **Završi** - server marks the exam `completed`, submits unfinished attempts (scored with whatever is saved), broadcasts `exam.finished`. Students transition out of the exam screen.
+- **Završi sve i preusmeri** - same plus a `redirect: true` flag that sends students to home instead of the results screen.
 
 Both are final. The DB blocks `completed` to `active`.
 
@@ -88,5 +88,5 @@ Both are final. The DB blocks `completed` to `active`.
 Read-only, but you can still:
 
 - Open per-student reports from the live stats panel.
-- Export CSV and per-student PDFs — see [Results](exams.md#results).
-- Trigger AI grading for open-text answers if you didn't grade inline — see [AI grading](exams.md#ai-grading).
+- Export CSV and per-student PDFs - see [Results](exams.md#results).
+- Trigger AI grading for open-text answers if you didn't grade inline - see [AI grading](exams.md#ai-grading).

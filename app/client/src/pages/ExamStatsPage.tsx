@@ -167,7 +167,7 @@ export default function ExamStatsPage() {
             <div className="min-w-0">
               <h1 className="text-lg font-display font-bold text-[var(--text-primary)] truncate">{stats?.exam.title || t('examStats.title')}</h1>
               <div className="text-xs text-[var(--text-muted)] truncate">
-                {stats?.exam.subject_name || '—'}
+                {stats?.exam.subject_name || '-'}
                 {partial && <> &middot; <span className="text-warning">{t('examStats.partial')}</span></>}
               </div>
             </div>
@@ -187,7 +187,7 @@ export default function ExamStatsPage() {
                 <StatCard icon={<CheckCircle2 size={20} strokeWidth={1.75} />} iconBg="var(--success-light)" iconColor="var(--success)" value={`${stats.overall.avg_percent}%`} label={t('examStats.stat.avg')} />
                 <StatCard icon={<TrendingUp size={20} strokeWidth={1.75} />} iconBg="var(--info-light)" iconColor="var(--info)" value={`${stats.overall.max_percent}%`} label={t('examStats.stat.max')} />
                 <StatCard icon={<TrendingDown size={20} strokeWidth={1.75} />} iconBg="var(--danger-light)" iconColor="var(--danger)" value={`${stats.overall.min_percent}%`} label={t('examStats.stat.min')} />
-                <StatCard icon={<Trophy size={20} strokeWidth={1.75} />} iconBg="var(--warning-light)" iconColor="var(--warning)" value={stats.overall.pass_rate === null ? '—' : `${stats.overall.pass_rate}%`} label={t('examStats.stat.passRate')} />
+                <StatCard icon={<Trophy size={20} strokeWidth={1.75} />} iconBg="var(--warning-light)" iconColor="var(--warning)" value={stats.overall.pass_rate === null ? '-' : `${stats.overall.pass_rate}%`} label={t('examStats.stat.passRate')} />
                 <StatCard icon={<Clock size={20} strokeWidth={1.75} />} iconBg="var(--accent-light)" iconColor="var(--accent)" value={formatDuration(stats.overall.avg_time_seconds)} label={t('examStats.stat.avgTime')} />
               </div>
 

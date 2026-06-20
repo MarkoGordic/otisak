@@ -1,6 +1,6 @@
 // `as const` (applied below at the export) makes every key a literal in the
 // inferred type. Sister locale files import that type and are forced by
-// TypeScript to provide the same key set — a missing or stale key fails the
+// TypeScript to provide the same key set - a missing or stale key fails the
 // build instead of silently falling back to English at runtime.
 const en = {
   // App
@@ -399,7 +399,7 @@ const en = {
   'userProfile.notFound': 'User not found.',
   'userProfile.loadFailed': 'Failed to load profile.',
   'examStats.title': 'Exam statistics',
-  'examStats.partial': 'partial — exam still active',
+  'examStats.partial': 'partial - exam still active',
   'examStats.forbidden': 'You do not have access to these statistics.',
   'examStats.notFound': 'Exam not found.',
   'examStats.loadFailed': 'Failed to load statistics.',
@@ -560,7 +560,7 @@ const en = {
   'exam.awaitingApproval.pill': 'Pending request',
   'exam.awaitingApproval.dontClose': 'Do not close this window',
 
-  // Room (admin) — requests + timer adjust
+  // Room (admin) - requests + timer adjust
   'room.requests.title': 'Join requests',
   'room.requests.empty': 'No pending requests.',
   'room.requests.late_join': 'Late join',

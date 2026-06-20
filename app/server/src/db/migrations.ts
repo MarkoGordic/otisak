@@ -14,7 +14,7 @@ import { logger } from '../lib/logger';
 //
 // The `migrations` table is informational: every successful step is recorded
 // on first run with a timestamp, so ops can see "when did this index land?".
-// We do NOT gate execution on the table — steps are already idempotent and
+// We do NOT gate execution on the table - steps are already idempotent and
 // gating would silently skip a step on a DB where the row was hand-removed.
 type Step = readonly [id: string, fn: () => Promise<void>];
 
@@ -61,7 +61,7 @@ const steps: readonly Step[] = [
   ['005_check_negative_points_value', async () => {
     // NOT VALID lets us add the constraint to future writes without forcing a
     // full-table re-validation of existing rows. If any historic row violates
-    // (extremely unlikely — there's no UI path to a negative value), the
+    // (extremely unlikely - there's no UI path to a negative value), the
     // constraint still rejects new violations.
     await query(`
       DO $$ BEGIN
@@ -112,7 +112,7 @@ const steps: readonly Step[] = [
   }],
   ['010_exam_has_pass_threshold', async () => {
     // Opt-in pass/fail verdict. Default TRUE so every existing exam keeps
-    // the historical "Položeno / Nije položeno" rendering — admins flip it
+    // the historical "Položeno / Nije položeno" rendering - admins flip it
     // off per exam to make results show score-only.
     await query(`
       ALTER TABLE otisak_exams

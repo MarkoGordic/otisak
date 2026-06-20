@@ -23,7 +23,7 @@ export default function ResultsPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  // Centralized theme tokens — same idea as on ExamPage / JoinPage. Keeps the JSX
+  // Centralized theme tokens - same idea as on ExamPage / JoinPage. Keeps the JSX
   // below readable and makes it easy to tweak the light-mode palette in one place.
   const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
   const titleText = isDark ? 'text-white' : 'text-slate-900';
@@ -94,7 +94,7 @@ export default function ResultsPage() {
 
   // Poll for AI grading. Capped at 100 attempts (~5 minutes at 3s interval)
   // so a stuck AI backend doesn't leave the poll running indefinitely until
-  // the student closes the tab — we instead set status to 'pending' and let
+  // the student closes the tab - we instead set status to 'pending' and let
   // them refresh manually if/when grading finishes server-side.
   useEffect(() => {
     if (!pollingAi || !results?.attempt?.id) return;
@@ -135,7 +135,7 @@ export default function ResultsPage() {
   const maxPoints = Number(results?.attempt?.max_points ?? 0);
   const percentage = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
   // When the exam opts out of a pass threshold, results render as a neutral
-  // "Done" verdict — no green/red, no Položio / Nije položio copy. Defaults
+  // "Done" verdict - no green/red, no Položio / Nije položio copy. Defaults
   // TRUE for back-compat with older payloads.
   const hasPassThreshold = (results?.exam as { has_pass_threshold?: boolean } | undefined)?.has_pass_threshold !== false;
   const passed = hasPassThreshold && results?.exam ? percentage >= Number(results.exam.pass_threshold) : false;
@@ -149,7 +149,7 @@ export default function ResultsPage() {
       <div className="md:hidden">
         <ToggleCluster variant="solid" position="fixed" />
       </div>
-      {/* Soft ambient glow — terminal "finished" screen. In light mode we use blue
+      {/* Soft ambient glow - terminal "finished" screen. In light mode we use blue
           tints instead of white so the page doesn't feel like an empty void. */}
       <div className="fixed inset-0 pointer-events-none">
         <div className={`absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full blur-[180px] ${isDark ? 'bg-white/[0.06]' : 'bg-blue-300/15'}`} />
@@ -184,7 +184,7 @@ export default function ResultsPage() {
           </div>
         ) : (
           <>
-            {/* Terminal "exam finished" banner — student cannot navigate away */}
+            {/* Terminal "exam finished" banner - student cannot navigate away */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
@@ -256,7 +256,7 @@ export default function ResultsPage() {
               </motion.div>
             )}
 
-            {/* Per-question recap — points only, no text or answers */}
+            {/* Per-question recap - points only, no text or answers */}
             {results.questions && results.questions.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
@@ -295,7 +295,7 @@ export default function ResultsPage() {
               </motion.div>
             )}
 
-            {/* Intentionally no navigation button — once the exam is over,
+            {/* Intentionally no navigation button - once the exam is over,
                 the student stays on this terminal screen. */}
             <motion.p
               initial={{ opacity: 0 }}

@@ -76,7 +76,7 @@ export default function DocsPage() {
 
   const content = (
     <>
-      {/* Topic nav for the 4 doc pages — sits inside the main column so the
+      {/* Topic nav for the 4 doc pages - sits inside the main column so the
           app's global Sidebar (when present) stays usable. */}
       <DocsTopicNav
         pages={pagesForLang}

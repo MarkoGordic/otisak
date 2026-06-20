@@ -230,7 +230,7 @@ export async function submitAttemptAnswers(
 
 // Replay scoring for every stored attempt of an exam against the *current*
 // question shape (points, correct flags, type-specific content). Used after
-// an admin edits questions on a completed exam — the historical record of
+// an admin edits questions on a completed exam - the historical record of
 // what each student picked / typed stays the same, but `points_awarded`
 // and the attempt totals are recomputed from scratch using the new scale.
 //
@@ -282,7 +282,7 @@ export async function rescoreExam(examId: string): Promise<number> {
       answersByQuestion.set(a.question_id, list);
     }
 
-    // All submitted attempts. Live (not yet submitted) attempts are excluded —
+    // All submitted attempts. Live (not yet submitted) attempts are excluded -
     // a rescore on an in-progress student wouldn't be meaningful and they'll
     // be re-scored normally at submit.
     const attemptRes = await client.query<{ id: string }>(
@@ -387,7 +387,7 @@ export async function finishAttempt(
   // The previous design read scores OUTSIDE the UPDATE and relied on the
   // `WHERE submitted = FALSE` guard to make the UPDATE a no-op for the loser.
   // That's enough to prevent double-submit, but not to prevent the loser from
-  // computing scores against stale rows and overwriting nothing — which still
+  // computing scores against stale rows and overwriting nothing - which still
   // wastes a transaction-worth of work and could trigger the live-stats
   // broadcast twice. Wrapping everything in one transaction with SELECT FOR
   // UPDATE serialises the work and lets the loser early-out cheaply.

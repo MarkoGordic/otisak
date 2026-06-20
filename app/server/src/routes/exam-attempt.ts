@@ -84,7 +84,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     // question / answer ordering that `getAttemptResults` (and therefore the
     // results screen + per-student PDF) will compute later. Without this the
     // student saw canonical position order while results came out shuffled.
-    // Only runs when the student has an attempt — admins/assistants viewing
+    // Only runs when the student has an attempt - admins/assistants viewing
     // the same endpoint should keep canonical order for editing flows.
     if (attempt && user.role === 'student') {
       const seed = Number(attempt.shuffle_seed) | 0;
@@ -137,7 +137,7 @@ router.post('/attempt', requireAuth, requireRole(['student']), async (req: Reque
 
     let attempt = await getActiveAttempt(examId, user.id);
 
-    // If no active attempt, start one — but ONLY if the student hasn't already
+    // If no active attempt, start one - but ONLY if the student hasn't already
     // submitted this exam. Without this guard a student could call /attempt
     // again after submitting and silently overwrite their previous result.
     if (!attempt) {
@@ -348,7 +348,7 @@ router.post('/join', async (req: Request, res: Response) => {
 
     // Late-join detection: if the admin has already started the exam,
     // submit a late_join request that the admin must approve.
-    // Read fresh — never from the 1s poll cache — so we never miss a /start
+    // Read fresh - never from the 1s poll cache - so we never miss a /start
     // that fired in the same second the student joined.
     let pendingRequestId: string | null = null;
     const exam = await getOtisakExamById(examId);
@@ -473,7 +473,7 @@ router.post('/events', requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Too many events in one batch' });
     }
 
-    // Verify the attempt belongs to this user and exam — prevent log poisoning across students
+    // Verify the attempt belongs to this user and exam - prevent log poisoning across students
     const userAttempts = await getUserAttempts(req.user!.id);
     const owns = userAttempts.some((a) => a.id === attempt_id && a.exam_id === examId);
     if (!owns) {
@@ -489,10 +489,10 @@ router.post('/events', requireAuth, async (req: Request, res: Response) => {
 });
 
 // ============================================================================
-// REQUEST QUEUE — admin approval for student-initiated actions
+// REQUEST QUEUE - admin approval for student-initiated actions
 // ============================================================================
 
-// POST /exams/:examId/requests — student creates a request (whitelist enforced server-side)
+// POST /exams/:examId/requests - student creates a request (whitelist enforced server-side)
 router.post('/requests', requireAuth, async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
@@ -525,7 +525,7 @@ router.post('/requests', requireAuth, async (req: Request, res: Response) => {
   }
 });
 
-// GET /exams/:examId/requests/mine — auth: caller's own requests for this exam
+// GET /exams/:examId/requests/mine - auth: caller's own requests for this exam
 router.get('/requests/mine', requireAuth, async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);

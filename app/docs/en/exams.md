@@ -8,11 +8,11 @@ Screen: `/manage`. Lists exams for the subjects you're assigned to (assistant) o
 draft  →  scheduled  →  active  →  completed  →  archived
 ```
 
-- **draft** — editable: questions, settings, title.
-- **scheduled** — optionally pinned to a date. Enrolled students see it on the dashboard.
-- **active** — students can join. Avoid edits from this point on.
-- **completed** — final. The DB blocks any move back to `active`.
-- **archived** — hidden from the main list.
+- **draft** - editable: questions, settings, title.
+- **scheduled** - optionally pinned to a date. Enrolled students see it on the dashboard.
+- **active** - students can join. Avoid edits from this point on.
+- **completed** - final. The DB blocks any move back to `active`.
+- **archived** - hidden from the main list.
 
 The `completed → active` transition is blocked at the DB layer. No UI button or stray API call can undo a finished exam.
 
@@ -21,10 +21,10 @@ The `completed → active` transition is blocked at the DB layer. No UI button o
 Two paths:
 
 1. **By hand.** `/manage`, **Nov ispit**. Fields:
-   - **Title** — visible to students.
-   - **Subject** — required. Dropdown shows your assigned subjects (admins see all).
-   - **Duration** — minutes, default 60.
-   - **Mode** — `real` or `practice`. Practice defaults `self_service = true` and `is_public = true`. Real defaults both off.
+   - **Title** - visible to students.
+   - **Subject** - required. Dropdown shows your assigned subjects (admins see all).
+   - **Duration** - minutes, default 60.
+   - **Mode** - `real` or `practice`. Practice defaults `self_service = true` and `is_public = true`. Real defaults both off.
 
    Saves as `draft`.
 
@@ -127,9 +127,9 @@ If you're an assistant and the matched subject isn't yours, the server returns `
 
 From the `/manage` row:
 
-- **Aktiviraj** — `draft` or `scheduled` to `active`. Students can join. Timer starts when you click **Pokreni tajmer** in the room.
-- **Završi** — `active` to `completed`. Final. Cannot reopen.
-- **Arhiviraj** — hides from the main listing.
+- **Aktiviraj** - `draft` or `scheduled` to `active`. Students can join. Timer starts when you click **Pokreni tajmer** in the room.
+- **Završi** - `active` to `completed`. Final. Cannot reopen.
+- **Arhiviraj** - hides from the main listing.
 
 Once `completed`, results become visible to students if `allow_review` is on.
 
@@ -137,9 +137,9 @@ Once `completed`, results become visible to students if `allow_review` is on.
 
 **Rezultati** in the room header (`/manage/:examId`) downloads a ZIP with:
 
-- `results.csv` — one row per student: score, max, percentage, pass or fail, time spent, timestamps.
-- `results-table.pdf` — same data as a printable table.
-- `per-student/` — one PDF per student with their answers, the correct answers, and per-question points.
+- `results.csv` - one row per student: score, max, percentage, pass or fail, time spent, timestamps.
+- `results-table.pdf` - same data as a printable table.
+- `per-student/` - one PDF per student with their answers, the correct answers, and per-question points.
 
 The ZIP is generated on the fly. For large cohorts it can take a minute. Don't refresh.
 
@@ -176,8 +176,8 @@ Per-answer grading: ~3-5s. Progress is live.
 
 Two ways to provide an API key:
 
-- **Server key** — stored on the exam's AI settings. Server pays for grading. Set this up in `/admin/ai`.
-- **Student keys** — set `allow_student_api_keys = true` on the exam. Each student attaches their own key from their profile. They pay for grading. Use for take-home or extracurricular exams.
+- **Server key** - stored on the exam's AI settings. Server pays for grading. Set this up in `/admin/ai`.
+- **Student keys** - set `allow_student_api_keys = true` on the exam. Each student attaches their own key from their profile. They pay for grading. Use for take-home or extracurricular exams.
 
 `max_student_credits` caps how much a single student can spend through their key on this exam.
 

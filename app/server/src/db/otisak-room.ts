@@ -16,7 +16,7 @@ export async function startExamTimer(examId: string): Promise<OtisakExam | null>
   // Auto-activate scheduled/draft exams when the admin clicks Start. Idempotent
   // for already-active exams (COALESCE preserves an existing exam_started_at
   // so a second click doesn't reset every student's timer).
-  // Completed and archived exams are intentionally NOT eligible — once an exam
+  // Completed and archived exams are intentionally NOT eligible - once an exam
   // ends it stays ended.
   const result = await query<OtisakExam>(
     `UPDATE otisak_exams

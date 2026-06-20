@@ -46,7 +46,7 @@ export async function getAssignedSubjectIds(userId: string): Promise<string[]> {
 
 // Authoritative gate for "can this user mutate this exam?".
 // Loads only the exam.subject_id then defers to isSubjectManageableByUser.
-// Exams without a subject can only be touched by an admin — assistants need
+// Exams without a subject can only be touched by an admin - assistants need
 // a subject assignment to act on something, otherwise the model has no
 // scope to enforce.
 export async function canUserManageExam(

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src=".github/banner.png" alt="OTISAK — platforma za ispitivanje" width="680">
+  <img src=".github/banner.png" alt="OTISAK - platforma za ispitivanje" width="680">
 </p>
 
 <p align="center">A self-hosted exam and assessment platform.</p>
@@ -41,4 +41,4 @@ End-user documentation lives in [`app/docs/`](app/docs/) and is served in-app at
 
 ## License
 
-MIT — see [`LICENSE`](LICENSE).
+MIT - see [`LICENSE`](LICENSE).

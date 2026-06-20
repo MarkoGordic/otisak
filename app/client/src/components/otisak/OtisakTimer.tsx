@@ -7,7 +7,7 @@ interface TimerProps {
   // ISO timestamp of when the admin started the exam (exam.exam_started_at).
   // Null while the exam is in the lobby phase. While null the timer shows the
   // full configured duration as a static placeholder and does NOT count down.
-  // Never substitute attempt.started_at here — that would start the countdown
+  // Never substitute attempt.started_at here - that would start the countdown
   // the moment the student joins, not when the exam actually starts.
   startedAt: string | null;
   pausedSeconds?: number;
@@ -99,7 +99,7 @@ export function OtisakTimer({
         ? 'drop-shadow-[0_0_8px_rgba(239,68,68,0.6)]'
         : 'drop-shadow-[0_0_8px_rgba(34,197,94,0.6)]';
 
-  // Local theme — only used to swap the digit-box surface; the foreground color is
+  // Local theme - only used to swap the digit-box surface; the foreground color is
   // already encoded in `digitColor` (green/red/sky) and works against both surfaces.
   const { theme } = useTheme();
   const isDark = theme === 'dark';

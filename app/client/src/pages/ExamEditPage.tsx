@@ -94,7 +94,7 @@ export default function ExamEditPage() {
   const [draftLang, setDraftLang] = useState('python');
   const [draftImage, setDraftImage] = useState('');
   const [draftAnswers, setDraftAnswers] = useState<Answer[]>(blankAnswers());
-  // Explicit single vs multi flag — stored on the question itself, NOT derived from
+  // Explicit single vs multi flag - stored on the question itself, NOT derived from
   // is_correct count anymore. Admin picks here, JSON imports get a field, exports
   // round-trip it. Defaults to false (single) for new drafts.
   const [draftMulti, setDraftMulti] = useState(false);
@@ -375,7 +375,7 @@ export default function ExamEditPage() {
       toast.error(t('examEdit.questionTextRequired'));
       return;
     }
-    // Build the patch from the draft. We intentionally don't send `type` —
+    // Build the patch from the draft. We intentionally don't send `type` -
     // the server rejects type changes (would invalidate answer semantics).
     const body: Record<string, unknown> = {
       id: qid,

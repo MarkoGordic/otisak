@@ -20,7 +20,7 @@ export function OtisakHeader({ user, centerContent, actionButton, showDate = tru
   const { theme } = useTheme();
   const isDark = theme === 'dark';
 
-  // Live clock — ticks every second so the student always sees the current wall-clock
+  // Live clock - ticks every second so the student always sees the current wall-clock
   // time alongside the countdown. `dateLabel` overrides the date half when provided.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {

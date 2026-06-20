@@ -40,7 +40,7 @@ export default function HomePage() {
     }
   }, []);
 
-  // Admin/assistant: this isn't a meaningful screen — push them to the dashboard.
+  // Admin/assistant: this isn't a meaningful screen - push them to the dashboard.
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -51,7 +51,7 @@ export default function HomePage() {
         if (mounted && data.authenticated && (data.user?.role === 'admin' || data.user?.role === 'assistant')) {
           navigate('/admin/home', { replace: true });
         }
-      } catch { /* student or unauthenticated — stay on the picker */ }
+      } catch { /* student or unauthenticated - stay on the picker */ }
     })();
     return () => { mounted = false; };
   }, [navigate]);
@@ -62,7 +62,7 @@ export default function HomePage() {
     return () => clearInterval(interval);
   }, [load]);
 
-  // Theme-aware palette helpers — keeps the JSX readable.
+  // Theme-aware palette helpers - keeps the JSX readable.
   const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
   const titleClass = isDark ? 'text-white drop-shadow-lg' : 'text-slate-900';
   const subtitleClass = isDark ? 'text-gray-400' : 'text-slate-600';
@@ -88,7 +88,7 @@ export default function HomePage() {
 
   return (
     <div className={`min-h-screen w-full ${pageBg} flex flex-col items-center relative overflow-hidden transition-colors`}>
-      {/* Background glows — softer in light mode so they don't blow out the page */}
+      {/* Background glows - softer in light mode so they don't blow out the page */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className={`absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/20' : 'bg-blue-400/30'}`} />
         <div className={`absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/15' : 'bg-indigo-300/30'}`} style={{ animationDelay: '1s' }} />

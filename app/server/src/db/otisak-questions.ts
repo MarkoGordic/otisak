@@ -36,7 +36,7 @@ export async function getOtisakQuestions(examId: string): Promise<OtisakQuestion
   }
 
   // multi_answer is read straight off the row now. Authoring (createOtisakQuestion +
-  // JSON import) is responsible for setting it correctly — single source of truth in
+  // JSON import) is responsible for setting it correctly - single source of truth in
   // the DB, not derived at read time.
   return questions.map((q) => ({
     ...q,
@@ -79,7 +79,7 @@ export async function createOtisakQuestion(
   const nextPos = data.position ?? (posResult.rows[0].max_pos + 1);
 
   // multi_answer resolution: caller's explicit value wins. If omitted, fall back
-  // to "any question with 2+ correct answers is multi-select" — matches the
+  // to "any question with 2+ correct answers is multi-select" - matches the
   // pre-column behaviour and the docs for legacy JSON imports.
   const multiAnswer = typeof data.multi_answer === 'boolean'
     ? data.multi_answer
@@ -108,7 +108,7 @@ export async function createOtisakQuestion(
 
 // Patch a question in place. Validates the same length caps as create. When
 // `answers` is supplied the existing answer rows for the question are wiped
-// and reinserted from the patch — keeping diffs of answer ids would force
+// and reinserted from the patch - keeping diffs of answer ids would force
 // callers to track which existing rows to keep, which the inline editor
 // doesn't need. Runs in a transaction so a half-applied write can't leave
 // the question with mismatched answers.
@@ -172,7 +172,7 @@ export async function updateOtisakQuestion(
     if (data.answers !== undefined) {
       // Replace the answer set. Saved attempts reference answers by id via
       // otisak_attempt_answers.selected_answer_id(s); deleting answers here will
-      // null those refs (ON DELETE SET NULL) — fine for edits while the exam is
+      // null those refs (ON DELETE SET NULL) - fine for edits while the exam is
       // a draft, and explicitly the caller's responsibility past that point.
       await client.query('DELETE FROM otisak_answers WHERE question_id = $1', [questionId]);
       answers = [];

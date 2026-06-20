@@ -80,7 +80,7 @@ export default function LoginPage() {
         </div>
       </div>
 
-      {/* Back to student picker — mirrors the "Admin login" pill on the home page */}
+      {/* Back to student picker - mirrors the "Admin login" pill on the home page */}
       <button
         type="button"
         onClick={() => navigate('/')}

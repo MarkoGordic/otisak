@@ -141,7 +141,7 @@ export default function UserProfilePage() {
                     <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
                       {profile.user.index_number && <span className="font-mono">{profile.user.index_number}</span>}
                       <span>&middot; {t('userProfile.memberSince')}: {formatDate(profile.user.created_at)}</span>
-                      <span>&middot; {t('userProfile.lastLogin')}: {profile.user.last_login_at ? formatDate(profile.user.last_login_at) : '—'}</span>
+                      <span>&middot; {t('userProfile.lastLogin')}: {profile.user.last_login_at ? formatDate(profile.user.last_login_at) : '-'}</span>
                     </div>
                   </div>
                 </div>
@@ -180,7 +180,7 @@ export default function UserProfilePage() {
                               <span className="text-sm font-medium text-[var(--text-primary)] truncate">{a.exam_title}</span>
                             </div>
                             <div className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
-                              {a.subject_name ?? '—'} &middot; {formatDate(a.started_at)} &middot; {formatDuration(Number(a.time_spent_seconds || 0))}
+                              {a.subject_name ?? '-'} &middot; {formatDate(a.started_at)} &middot; {formatDuration(Number(a.time_spent_seconds || 0))}
                             </div>
                           </div>
                           <div className="w-24 text-right">

@@ -102,7 +102,7 @@ export default function DashboardPage() {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         const data = await res.json();
         if (!data.authenticated) { navigate('/admin', { replace: true }); return; }
-        // Staff don't take exams — bounce them to the admin home.
+        // Staff don't take exams - bounce them to the admin home.
         if (data.user?.role === 'admin' || data.user?.role === 'assistant') {
           navigate('/admin/home', { replace: true });
           return;
@@ -167,7 +167,7 @@ export default function DashboardPage() {
   const totalPoints = completedAttempts.reduce((s, a) => s + Number(a.total_points), 0);
   const totalMaxPoints = completedAttempts.reduce((s, a) => s + Number(a.max_points), 0);
   const avgPercent = totalMaxPoints > 0 ? Math.round((totalPoints / totalMaxPoints) * 100) : 0;
-  // Only count exams that actually have a pass threshold — thresholdless
+  // Only count exams that actually have a pass threshold - thresholdless
   // exams have no notion of "passed" so they shouldn't inflate this stat.
   const passedCount = completedAttempts.filter(a => {
     if (a.has_pass_threshold === false) return false;
@@ -188,7 +188,7 @@ export default function DashboardPage() {
   const filteredHistory = attempts.filter(a => {
     if (!a.submitted) return false;
     if (historySubject !== 'all' && a.subject_name !== historySubject) return false;
-    // A thresholdless exam never matches the passed/failed filter — only the
+    // A thresholdless exam never matches the passed/failed filter - only the
     // "all" view includes it. Mirrors the score-only result rendering.
     if (historyStatus !== 'all' && a.has_pass_threshold === false) return false;
     const pct = Number(a.max_points) > 0 ? Math.round((Number(a.total_points) / Number(a.max_points)) * 100) : 0;

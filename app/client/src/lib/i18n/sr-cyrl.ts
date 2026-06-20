@@ -1,6 +1,6 @@
 import type { I18nKey } from './en';
 
-// Serbian — Cyrillic script.
+// Serbian - Cyrillic script.
 // Mirror of sr.ts (Latin). Acronyms (OTISAK, JSON, CSV, AI, URL, MATH101) stay Latin
 // per Serbian publishing convention.
 //
@@ -402,7 +402,7 @@ const srCyrl: Record<I18nKey, string> = {
   'userProfile.notFound': 'Корисник није пронађен.',
   'userProfile.loadFailed': 'Учитавање профила није успело.',
   'examStats.title': 'Статистика испита',
-  'examStats.partial': 'делимично — испит још траје',
+  'examStats.partial': 'делимично - испит још траје',
   'examStats.forbidden': 'Немате приступ овој статистици.',
   'examStats.notFound': 'Испит није пронађен.',
   'examStats.loadFailed': 'Учитавање статистике није успело.',
@@ -563,7 +563,7 @@ const srCyrl: Record<I18nKey, string> = {
   'exam.awaitingApproval.pill': 'Захтев на чекању',
   'exam.awaitingApproval.dontClose': 'Не затварајте овај прозор',
 
-  // Room (admin) — requests + timer adjust
+  // Room (admin) - requests + timer adjust
   'room.requests.title': 'Захтеви за приступ',
   'room.requests.empty': 'Нема захтева на чекању.',
   'room.requests.late_join': 'Закаснели приступ',

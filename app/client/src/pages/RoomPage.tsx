@@ -133,7 +133,7 @@ export default function ExamRoomPage() {
       setExam(data.exam);
       setParticipants(data.participants || []);
       if (data.exam?.exam_started_at) setStarted(true);
-      // Closed exams render the slim read-only view — skip lockdown / room-status /
+      // Closed exams render the slim read-only view - skip lockdown / room-status /
       // requests since none of those controls apply anymore. Still load live-stats
       // so the per-student report list shows scores.
       const isClosed = data.exam?.status === 'completed' || data.exam?.status === 'archived';
@@ -162,7 +162,7 @@ export default function ExamRoomPage() {
   useEffect(() => { loadRoom(); }, [loadRoom]);
 
   // WebSocket: realtime channel for admin-side events (requests, lockdown, timer, started).
-  // Stats are deliberately NOT pushed via this socket — see the polling effect below for why.
+  // Stats are deliberately NOT pushed via this socket - see the polling effect below for why.
   // exam.submitted is the one exception: it's a hint to immediately re-poll stats so the
   // "X of Y submitted" counter ticks up without waiting up to 5s for the next poll cycle.
   const { connected } = useExamSocket(examId, useCallback((evt) => {
@@ -188,7 +188,7 @@ export default function ExamRoomPage() {
 
   // Live-stats polling. The server runs a 5s background aggregator and caches the result;
   // the admin pulls from that cache. This is the source of truth for per-student progress
-  // and the finished/total counter — *not* the websocket. Polling is independent of socket
+  // and the finished/total counter - *not* the websocket. Polling is independent of socket
   // state so a flaky WS doesn't kill the live UI.
   useEffect(() => {
     if (!started) return;
@@ -207,7 +207,7 @@ export default function ExamRoomPage() {
     return () => { if (pollRef.current) clearInterval(pollRef.current); };
   }, [connected, loadRoom]);
 
-  // Live exam timer (admin view) — same algorithm as student timer so the two stay in sync.
+  // Live exam timer (admin view) - same algorithm as student timer so the two stay in sync.
   const timer = useExamTimer({
     startedAt: exam?.exam_started_at ?? null,
     durationSeconds: (exam?.duration_minutes ?? 0) * 60,
@@ -494,7 +494,7 @@ export default function ExamRoomPage() {
         </header>
 
         <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 z-10">
-          {/* Join Link Card — hidden once the exam is running */}
+          {/* Join Link Card - hidden once the exam is running */}
           {!started && (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -570,7 +570,7 @@ export default function ExamRoomPage() {
             )}
           </div>
 
-          {/* Live exam timer — only meaningful while the exam is running. Same algorithm as student timer. */}
+          {/* Live exam timer - only meaningful while the exam is running. Same algorithm as student timer. */}
           {started && exam?.exam_started_at && (
             <motion.div
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
@@ -616,7 +616,7 @@ export default function ExamRoomPage() {
             </motion.div>
           )}
 
-          {/* Participants list — when running, each row shows live progress + suspicious counter */}
+          {/* Participants list - when running, each row shows live progress + suspicious counter */}
           <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl overflow-hidden">
             <div className="flex items-center px-5 py-3 bg-[var(--bg-tertiary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
               <div className="w-8">#</div>
@@ -693,7 +693,7 @@ export default function ExamRoomPage() {
                           </div>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-[10px] text-[var(--text-muted)] font-mono">{formatElapsed(s?.time_spent_seconds ?? 0)}</span>
-                            {/* Live score chip — populates as soon as the
+                            {/* Live score chip - populates as soon as the
                                 first auto-save lands. Colour band reflects
                                 running % so the admin can scan for stragglers. */}
                             {maxPoints > 0 && (
@@ -785,7 +785,7 @@ export default function ExamRoomPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-success font-medium">{t('room.examRunning')}</p>
                 <p className="text-[var(--text-secondary)] text-xs">
-                  {t('room.startedAt', { time: exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : '—' })}
+                  {t('room.startedAt', { time: exam?.exam_started_at ? new Date(exam.exam_started_at).toLocaleTimeString() : '-' })}
                 </p>
               </div>
               <Button
@@ -909,7 +909,7 @@ export default function ExamRoomPage() {
             </motion.div>
           )}
 
-          {/* Pending requests + timer adjust — only useful once exam has started */}
+          {/* Pending requests + timer adjust - only useful once exam has started */}
           {started && (
             <>
               {/* REQUESTS */}

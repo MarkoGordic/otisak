@@ -257,7 +257,7 @@ export default function AdminUsersPage() {
                     <ul className="mt-2 space-y-1 max-h-40 overflow-y-auto">
                       {importSummary.items.skipped.map((s, i) => (
                         <li key={i} className="flex justify-between gap-3">
-                          <span className="font-mono">{s.index_number || '—'}</span>
+                          <span className="font-mono">{s.index_number || '-'}</span>
                           <span className="text-[var(--text-muted)]">{s.reason}</span>
                         </li>
                       ))}
@@ -464,7 +464,7 @@ function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, onOpenProfile,
         <div className="text-sm font-medium text-[var(--text-primary)] truncate">{user.name || user.email}</div>
         <div className="text-[11px] text-[var(--text-muted)] truncate">{user.email}</div>
       </div>
-      <div className="w-32 text-xs text-[var(--text-muted)] font-mono truncate">{user.index_number || '—'}</div>
+      <div className="w-32 text-xs text-[var(--text-muted)] font-mono truncate">{user.index_number || '-'}</div>
       <div className="w-36">
         <select
           value={user.role}

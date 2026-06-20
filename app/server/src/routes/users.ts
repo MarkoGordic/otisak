@@ -14,12 +14,12 @@ router.use(requireAuth);
 // Admin sees every attempt the student has on file. Assistants see only the
 // attempts tied to subjects they're assigned to (so an assistant in subject A
 // doesn't peek at scores the student earned in subject B). If the assistant
-// has no overlap, the response is a 403 — matches the manage-page scoping.
+// has no overlap, the response is a 403 - matches the manage-page scoping.
 //
 // Stats are derived in-process from the same attempt list the response
 // returns, so the client can re-derive them or trust the server's pre-rolled
 // numbers. Threshold-having exams are the only ones counted toward the
-// "passed" tally — keeps the metric meaningful when an exam opts out of a
+// "passed" tally - keeps the metric meaningful when an exam opts out of a
 // pass / fail verdict.
 router.get('/:userId/profile', requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {

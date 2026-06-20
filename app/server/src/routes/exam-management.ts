@@ -388,7 +388,7 @@ router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), asy
         explanation: q.explanation,
         ai_grading_instructions: q.ai_grading_instructions,
         // Carry the single/multi distinction in the export so a round-trip
-        // (export → re-import) preserves authoring intent — not just whatever
+        // (export → re-import) preserves authoring intent - not just whatever
         // is_correct count happens to be on disk.
         multi_answer: q.multi_answer,
         answers: q.answers.map((a) => ({
@@ -468,7 +468,7 @@ router.patch('/questions', requireAuth, requireRole(['admin', 'assistant']), asy
     if (!updated) return res.status(404).json({ error: 'Question not found' });
 
     // If the exam is already closed, every change here (points, answers,
-    // correct flags, content) can shift scoring outcomes — replay grading
+    // correct flags, content) can shift scoring outcomes - replay grading
     // against all stored attempts so the room's export reflects the new
     // scale immediately. Draft/scheduled/active exams: no attempts to
     // rescore (or rescoring would clash with in-flight students), skip.

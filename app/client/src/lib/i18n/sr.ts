@@ -1,6 +1,6 @@
 import type { I18nKey } from './en';
 
-// Serbian — Latin script with full diacritics (š, č, ć, ž, đ).
+// Serbian - Latin script with full diacritics (š, č, ć, ž, đ).
 // Cyrillic variant lives in sr-cyrl.ts.
 //
 // Typed as Record<I18nKey, string> so a key added to en.ts without a Serbian
@@ -403,7 +403,7 @@ const sr: Record<I18nKey, string> = {
   'userProfile.notFound': 'Korisnik nije pronađen.',
   'userProfile.loadFailed': 'Učitavanje profila nije uspelo.',
   'examStats.title': 'Statistika ispita',
-  'examStats.partial': 'delimično — ispit još traje',
+  'examStats.partial': 'delimično - ispit još traje',
   'examStats.forbidden': 'Nemate pristup ovoj statistici.',
   'examStats.notFound': 'Ispit nije pronađen.',
   'examStats.loadFailed': 'Učitavanje statistike nije uspelo.',
@@ -564,7 +564,7 @@ const sr: Record<I18nKey, string> = {
   'exam.awaitingApproval.pill': 'Zahtev na čekanju',
   'exam.awaitingApproval.dontClose': 'Ne zatvarajte ovaj prozor',
 
-  // Room (admin) — requests + timer adjust
+  // Room (admin) - requests + timer adjust
   'room.requests.title': 'Zahtevi za pristup',
   'room.requests.empty': 'Nema zahteva na čekanju.',
   'room.requests.late_join': 'Zakasneli pristup',

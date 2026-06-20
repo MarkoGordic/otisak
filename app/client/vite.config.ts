@@ -22,7 +22,7 @@ export default defineConfig({
     // Allow Vite's dev-mode file server to read markdown from the app/docs/
     // folder (one level above this client/ root). Without
     // this, import.meta.glob('../../docs/**/*.md') 503s in dev. Build is
-    // unaffected — the glob is statically resolved at build time and the
+    // unaffected - the glob is statically resolved at build time and the
     // contents get inlined into the bundle.
     fs: { allow: ['..'] },
     proxy: {

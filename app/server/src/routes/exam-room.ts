@@ -83,7 +83,7 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
 //   - mark every unsubmitted attempt as submitted (score is computed from
 //     whatever answers were saved before the cut-off)
 //   - close any open lockdown
-//   - flip exam.status to 'completed' (which is irreversible — the
+//   - flip exam.status to 'completed' (which is irreversible - the
 //     updateOtisakExamStatus DB layer refuses to flip back to 'active')
 //   - broadcast exam.finished so every connected student transitions out of
 //     the exam UI immediately. The optional `redirect` flag tells the client
@@ -127,7 +127,7 @@ router.post('/lockdown', requireAuth, requireRole(['admin', 'assistant']), async
   }
 });
 
-// GET /exams/:examId/requests — admin/assistant: list pending requests for the exam
+// GET /exams/:examId/requests - admin/assistant: list pending requests for the exam
 router.get('/requests', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
@@ -139,7 +139,7 @@ router.get('/requests', requireAuth, requireRole(['admin', 'assistant']), async 
   }
 });
 
-// POST /exams/:examId/requests/:id/decide — admin/assistant: approve or deny
+// POST /exams/:examId/requests/:id/decide - admin/assistant: approve or deny
 router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
@@ -176,10 +176,10 @@ router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistan
 });
 
 // ============================================================================
-// TIMER ADJUSTMENT — admin adds or removes seconds from the running clock
+// TIMER ADJUSTMENT - admin adds or removes seconds from the running clock
 // ============================================================================
 
-// POST /exams/:examId/adjust-timer — admin/assistant
+// POST /exams/:examId/adjust-timer - admin/assistant
 router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
@@ -200,7 +200,7 @@ router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), a
     const baseDuration = Number(exam.duration_minutes) * 60;
     const currentExtra = Number((exam as unknown as { extra_seconds?: number }).extra_seconds ?? 0);
     let nextExtra = currentExtra + Math.round(delta);
-    // Don't let total effective duration go below 30 seconds — gives the timer time to settle.
+    // Don't let total effective duration go below 30 seconds - gives the timer time to settle.
     if (baseDuration + nextExtra < 30) nextExtra = -baseDuration + 30;
 
     const updated = await query<{ id: string; extra_seconds: number; duration_minutes: number }>(
@@ -230,10 +230,10 @@ router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), a
 });
 
 // ============================================================================
-// KICK — admin/assistant removes a specific student from the running exam
+// KICK - admin/assistant removes a specific student from the running exam
 // ============================================================================
 
-// POST /exams/:examId/kick — body { user_id }
+// POST /exams/:examId/kick - body { user_id }
 // Finishes the student's attempt (if any) with whatever they had saved so the
 // row stays in the results table, clears the student's device-lock so they
 // can navigate freely, and broadcasts student.kicked so the target's browser

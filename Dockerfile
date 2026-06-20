@@ -33,7 +33,7 @@ RUN npm run build
 # ========================================
 FROM node:20-slim AS server-build
 WORKDIR /app/server
-# Skip chromium download during npm install — the runner image uses the
+# Skip chromium download during npm install - the runner image uses the
 # system chromium so the puppeteer-bundled one is wasted bytes here.
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \

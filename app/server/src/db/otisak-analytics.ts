@@ -207,7 +207,7 @@ export async function getLiveExamStats(examId: string): Promise<{
   };
 }
 
-// Per-exam analytics for the stats page. Reads from existing storage only —
+// Per-exam analytics for the stats page. Reads from existing storage only -
 // no new columns, no migration. Submitted attempts are the population. Each
 // per-question row carries success / partial / zero counts plus an answer
 // pick distribution for multi-choice questions (null for the compound types

@@ -18,7 +18,7 @@ BEGIN;
 -- keeps subjects/exams (their `created_by` flips to NULL via SET NULL).
 DELETE FROM users WHERE role <> 'admin';
 
--- Assistant account. No index_number — assistants don't need one.
+-- Assistant account. No index_number - assistants don't need one.
 INSERT INTO users (email, password_hash, name, role, index_number) VALUES
   ('asistent@example.com', '$2a$10$jvQhLNKsNlkI12H/fXTf6OAJQ/Rj.k01gfZ1Sg5SATO/Pa3BUpOnC', 'Tara Tarić', 'assistant', NULL);
 

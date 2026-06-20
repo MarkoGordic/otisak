@@ -49,7 +49,7 @@ export default function AdminHomePage() {
 
         const [examsRes, usersRes] = await Promise.all([
           fetch('/api/otisak/exams', { credentials: 'include' }),
-          // Users endpoint is admin-only — assistants will silently fail (403), which is fine.
+          // Users endpoint is admin-only - assistants will silently fail (403), which is fine.
           data.user?.role === 'admin'
             ? fetch('/api/admin/users', { credentials: 'include' })
             : Promise.resolve(null),
@@ -85,7 +85,7 @@ export default function AdminHomePage() {
   const activeExams = exams.filter((e) => e.status === 'active').length;
   const draftExams = exams.filter((e) => e.status === 'draft').length;
   const completedExams = exams.filter((e) => e.status === 'completed').length;
-  // Drafts that exist but have no questions yet — gentle nudge to finish.
+  // Drafts that exist but have no questions yet - gentle nudge to finish.
   const emptyDrafts = exams.filter((e) => e.status === 'draft' && (e.question_count ?? 0) === 0);
   const recentExams = [...exams]
     .sort((a, b) => {
@@ -124,7 +124,7 @@ export default function AdminHomePage() {
               </div>
             </div>
 
-            {/* Stats — clickable deep-links into the relevant manage view. */}
+            {/* Stats - clickable deep-links into the relevant manage view. */}
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
               <StatTile
                 icon={<Radio size={18} />}
@@ -149,14 +149,14 @@ export default function AdminHomePage() {
               />
               <StatTile
                 icon={<GraduationCap size={18} />}
-                value={studentCount ?? '—'}
+                value={studentCount ?? '-'}
                 label={t('adminHome.stat.students')}
                 tone="accent"
                 onClick={isAdmin ? () => navigate('/admin/users') : undefined}
               />
             </div>
 
-            {/* Empty-draft callout — only renders when there's work to finish. */}
+            {/* Empty-draft callout - only renders when there's work to finish. */}
             {emptyDrafts.length > 0 && (
               <div className="mb-6 rounded-xl border border-warning/30 bg-warning-light/40 p-4 flex items-start gap-3">
                 <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />

@@ -44,7 +44,7 @@ try {
 // Process-level safety nets. Unhandled rejections / uncaught exceptions
 // are almost always programmer bugs, not recoverable runtime conditions.
 // We log and fail fast: a supervisor (Docker, systemd) restarts the
-// process. Surviving in a half-broken state is worse — it can mean
+// process. Surviving in a half-broken state is worse - it can mean
 // in-flight DB transactions never finalise.
 process.on('unhandledRejection', (reason) => {
   reportError(reason, { source: 'process', context: { kind: 'unhandledRejection' } });

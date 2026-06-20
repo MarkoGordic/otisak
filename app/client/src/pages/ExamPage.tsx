@@ -43,7 +43,7 @@ export default function ExamPage() {
   const toast = useToast();
 
   // Centralized theme tokens used across loading/awaiting/lobby + main exam render.
-  // Each value is the same idea (bg surface, body text, accent text, etc.) — they just
+  // Each value is the same idea (bg surface, body text, accent text, etc.) - they just
   // resolve to dark-themed values when `isDark` is true and light values otherwise.
   const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
   const titleText = isDark ? 'text-white' : 'text-slate-900';
@@ -350,7 +350,7 @@ export default function ExamPage() {
           startTimeRef.current = tStart;
           setPhase('exam');
         } else if (!data.pendingRequest) {
-          // Request denied or removed by admin — kick back to home.
+          // Request denied or removed by admin - kick back to home.
           navigate('/', { replace: true });
         }
       } catch { /* silent */ }
@@ -666,7 +666,7 @@ export default function ExamPage() {
       return;
     }
 
-    // 409 ALREADY_SUBMITTED: the server already finished the attempt — either
+    // 409 ALREADY_SUBMITTED: the server already finished the attempt - either
     // the examExpiryWatcher beat us to it on timeout, or admin force-finished
     // from /finish-all in another tab. Either way the results page is the
     // right destination, not a stuck spinner.
@@ -684,7 +684,7 @@ export default function ExamPage() {
       return;
     }
 
-    // Manual submit, both attempts failed and not a 409 — hand the user back
+    // Manual submit, both attempts failed and not a 409 - hand the user back
     // to the exam UI so they can retry. Skip the setState if we've unmounted.
     if (mountedRef.current) {
       submittingRef.current = false;
@@ -869,7 +869,7 @@ export default function ExamPage() {
               durationSeconds={exam.duration_minutes * 60 + Number(exam.extra_seconds || 0)}
               // Source of truth is the exam's exam_started_at. Null until the
               // admin clicks "Pokreni tajmer". Don't fall back to
-              // attempt.started_at — that would start the countdown the
+              // attempt.started_at - that would start the countdown the
               // moment the student joins, not when the exam starts.
               startedAt={exam.exam_started_at ? (exam.exam_started_at as unknown as string) : null}
               pausedSeconds={pausedSeconds}

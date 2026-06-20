@@ -72,17 +72,17 @@ Rebuilds only `app`. DB volume untouched.
 ## Environment
 
 `~/otisak/.env` (mode 600). Keys:
-- `DATABASE_URL` — Postgres connection string
-- `NEXTAUTH_URL` — public URL (must match the URL users hit in browser)
-- `NEXTAUTH_SECRET` — generate with `openssl rand -hex 32`
-- `AI_GRADING_API_KEY` — optional, for the AI grading feature
-- `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` — created on first DB init only
+- `DATABASE_URL` - Postgres connection string
+- `NEXTAUTH_URL` - public URL (must match the URL users hit in browser)
+- `NEXTAUTH_SECRET` - generate with `openssl rand -hex 32`
+- `AI_GRADING_API_KEY` - optional, for the AI grading feature
+- `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` - created on first DB init only
 
 ## DANGER ZONE
 
 ```bash
 docker compose down -v             # destroys all DB data (users, exams, attempts)
-docker volume rm otisak_pgdata     # same — DB only
+docker volume rm otisak_pgdata     # same - DB only
 ```
 
 `docker compose down` keeps the volume.
@@ -101,7 +101,7 @@ If you decide to deploy alongside the other ELPIS services on `gordic.rs`:
 
 | Symptom | Check |
 |---|---|
-| App returns 500 on every request | DB schema not migrated — `docker logs otisak-app --tail 50` |
+| App returns 500 on every request | DB schema not migrated - `docker logs otisak-app --tail 50` |
 | Default admin login rejected | Already changed, or DB volume newer than initial seed |
 | AI grading fails silently | `AI_GRADING_API_KEY` missing/invalid; check app logs |
-| Postgres won't start | Volume created with old password — see `~/elpis/DEPLOYMENT.md` "Changing database passwords" |
+| Postgres won't start | Volume created with old password - see `~/elpis/DEPLOYMENT.md` "Changing database passwords" |

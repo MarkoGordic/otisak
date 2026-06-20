@@ -60,7 +60,7 @@ export function useExamSocket(
     let everConnected = false;
 
     // Server pings every 25s; we should hear *something* (ping, event, subscribed-ack)
-    // every minute at worst. If we don't, the socket is silently dead — force-close to
+    // every minute at worst. If we don't, the socket is silently dead - force-close to
     // trigger the reconnect path.
     const SILENCE_TIMEOUT_MS = 45_000;
     const resetSilenceTimer = () => {
@@ -126,7 +126,7 @@ export function useExamSocket(
       if (reconnectTimer) clearTimeout(reconnectTimer);
       if (silenceTimer) clearTimeout(silenceTimer);
       // Close in any state but CLOSED/CLOSING. WebSocket.close() during CONNECTING
-      // is legal and aborts the handshake — the previous check missed that case
+      // is legal and aborts the handshake - the previous check missed that case
       // and would leave the socket dangling until the browser timed it out.
       if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
         try { ws.close(1000, 'unmount'); } catch { /* ignore */ }

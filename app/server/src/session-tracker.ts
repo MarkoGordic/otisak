@@ -4,7 +4,7 @@
 // abandoned, so a student can recover from a crashed browser.
 //
 // State is process-local. For multi-process deployments this would need to
-// move to Redis (or similar) — fine for the single-container setup.
+// move to Redis (or similar) - fine for the single-container setup.
 
 const sessions = new Map<string, { sessionId: string; lastSeen: number }>();
 const STALE_MS = 5 * 60 * 1000; // 5 minutes

@@ -7,7 +7,7 @@ set -e
 #                      with a brand-new random password and you lose all data.
 #                      Without this flag we keep the DB, just rebuild the app.
 #   --seed             After bring-up, run db/seed.sql against the DB. Currently
-#                      a no-op (the file is empty by design — admin comes from
+#                      a no-op (the file is empty by design - admin comes from
 #                      the server bootstrap, students from the CSV importer).
 #                      The flag is kept so the entry point survives if db/seed.sql
 #                      is ever repopulated.
@@ -20,10 +20,10 @@ set -e
 #                      where firewall is managed elsewhere (cloud SG,
 #                      iptables, nftables, Docker Desktop on macOS, etc.).
 #                      Without this flag we still auto-skip if `ufw` isn't
-#                      on PATH — the flag suppresses the attempt entirely.
+#                      on PATH - the flag suppresses the attempt entirely.
 #   --set-admin-password [pwd]
 #                      Standalone mode. Updates the admin's bcrypt hash in
-#                      the running DB and exits — NO compose down, NO
+#                      the running DB and exits - NO compose down, NO
 #                      rebuild, NO restart. Requires the app + db
 #                      containers to already be up. If the password is
 #                      omitted, the script prompts for it (hidden input)
@@ -43,7 +43,7 @@ Flags:
                     with a brand-new random password and you lose all data.
                     Without this flag we keep the DB, just rebuild the app.
   --seed, -seed     After bring-up, run db/seed.sql against the DB. Currently
-                    a no-op (the file is empty by design — admin comes from
+                    a no-op (the file is empty by design - admin comes from
                     the server bootstrap, students from the CSV importer).
   --no-pull         Skip "git pull" (useful for testing local changes).
   -p N, --port N    Host port the app listens on (1024–65535). Value is
@@ -55,7 +55,7 @@ Flags:
                     ufw IS installed but you don't want to touch it.
   --set-admin-password [pwd]
                     STANDALONE MODE. Updates the admin's bcrypt hash in
-                    the live DB and exits — no rebuild, no restart, no
+                    the live DB and exits - no rebuild, no restart, no
                     git pull. App + db containers MUST already be up.
                     If 'pwd' is omitted the script prompts (hidden) and
                     asks for confirmation. Cannot combine with deploy
@@ -140,7 +140,7 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-# --set-admin-password is a standalone mode — refuse to combine it with
+# --set-admin-password is a standalone mode - refuse to combine it with
 # any flag that would alter the deploy. The user explicitly wants "just
 # change the password, nothing else".
 if [ "$SET_ADMIN_PWD_MODE" = true ]; then
@@ -152,7 +152,7 @@ if [ "$SET_ADMIN_PWD_MODE" = true ]; then
   fi
 fi
 
-# Validate port override (integer, 1024-65535 — privileged ports require root
+# Validate port override (integer, 1024-65535 - privileged ports require root
 # binding inside the host network namespace, which docker desktop won't grant).
 if [ -n "$PORT_OVERRIDE" ]; then
   if ! [[ "$PORT_OVERRIDE" =~ ^[0-9]+$ ]] || [ "$PORT_OVERRIDE" -lt 1024 ] || [ "$PORT_OVERRIDE" -gt 65535 ]; then
@@ -164,7 +164,7 @@ fi
 # Pick a compose runner. Modern docker bundles "docker compose" (v2 plugin).
 # Older / minimalist installs only ship the standalone "docker-compose" (v1)
 # binary. Prefer v2 when both exist; fall back to v1; bail out with a clear
-# message if neither is present. We also nudge BuildKit on for v1 — without
+# message if neither is present. We also nudge BuildKit on for v1 - without
 # it, the Dockerfile's `--mount=type=cache` lines fail to parse.
 if docker compose version >/dev/null 2>&1; then
   DC="docker compose"
@@ -185,7 +185,7 @@ fi
 #
 # Touches NOTHING except the admin row in postgres. No compose down, no
 # rebuild, no restart, no git pull, no firewall, no .env writes. App + db
-# containers must already be running. We exit at the end of this block —
+# containers must already be running. We exit at the end of this block -
 # the deploy flow below is never reached.
 # ===========================================================================
 if [ "$SET_ADMIN_PWD_MODE" = true ]; then
@@ -229,7 +229,7 @@ if [ "$SET_ADMIN_PWD_MODE" = true ]; then
     fi
   fi
 
-  # Minimum length matches what a sensible policy enforces — short enough
+  # Minimum length matches what a sensible policy enforces - short enough
   # not to annoy admins, long enough that a leak isn't an instant win.
   if [ ${#NEW_ADMIN_PWD} -lt 8 ]; then
     echo "Error: password must be at least 8 characters." >&2
@@ -275,7 +275,7 @@ SQL
   LINE=$(printf '=%.0s' $(seq 1 72))
   echo ""
   echo "$LINE"
-  echo "Admin password updated. The app was NOT restarted — existing"
+  echo "Admin password updated. The app was NOT restarted - existing"
   echo "session cookies stay valid until they expire on their own."
   echo "  email: ${ADMIN_EMAIL}"
   echo "$LINE"
@@ -352,7 +352,7 @@ else
 fi
 echo ""
 
-# 3) Firewall — opens the chosen host port. Old rules from previous ports
+# 3) Firewall - opens the chosen host port. Old rules from previous ports
 # stay (ufw doesn't track them per-deploy); clean those up manually with
 # `sudo ufw status numbered` + `sudo ufw delete N` if you care.
 # Skipped entirely when --no-firewall is set, or when ufw isn't on PATH
@@ -405,7 +405,7 @@ if [ "$SEED" = true ]; then
   docker exec -i "$CONTAINER" psql -U otisak -d otisak < db/seed.sql 2>&1
   echo "Seed complete."
 else
-  echo "[6/6] Skipping seed (file is empty by design — nothing to load)."
+  echo "[6/6] Skipping seed (file is empty by design - nothing to load)."
 fi
 
 echo ""
@@ -449,7 +449,7 @@ BOOTSTRAP_SEEN=false
 # --clean ALWAYS rotates the admin password and prints it. The volume was
 # wiped, so even though server-side bootstrap will already have set a random
 # password, we deterministically re-set it here so the script knows exactly
-# what it is — no log scraping, no race.
+# what it is - no log scraping, no race.
 if [ "$CLEAN" = true ]; then
   echo "Forcing a fresh admin password..."
 
@@ -487,7 +487,7 @@ SQL
     then
       BOOTSTRAP_SEEN=true
     else
-      ADMIN_PASSWORD=""  # SQL failed — fall through to the log-scrape path
+      ADMIN_PASSWORD=""  # SQL failed - fall through to the log-scrape path
     fi
   fi
 fi
@@ -511,9 +511,9 @@ echo ""
 echo "$LINE"
 if [ "$BOOTSTRAP_SEEN" = true ] && [ -n "$ADMIN_PASSWORD" ]; then
   if [ "$CLEAN" = true ]; then
-    echo "ADMIN ACCOUNT (forced new password — save this NOW):"
+    echo "ADMIN ACCOUNT (forced new password - save this NOW):"
   else
-    echo "ADMIN ACCOUNT (newly bootstrapped — save this NOW):"
+    echo "ADMIN ACCOUNT (newly bootstrapped - save this NOW):"
   fi
   echo "  email:    ${ADMIN_EMAIL}"
   echo "  password: ${ADMIN_PASSWORD}"

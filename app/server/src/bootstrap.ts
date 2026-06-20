@@ -45,10 +45,10 @@ export async function ensureBootstrapAdmin(): Promise<void> {
     console.log('OTISAK · admin account bootstrapped');
     console.log(`  email:    ${email}`);
     console.log(`  password: ${password}`);
-    console.log('  Save this password now — it is not stored in plaintext anywhere.');
+    console.log('  Save this password now - it is not stored in plaintext anywhere.');
     console.log(`${line}\n`);
   } catch (err) {
-    // Never let bootstrap failure crash the server — log and continue.
+    // Never let bootstrap failure crash the server - log and continue.
     console.error('Bootstrap admin failed:', err);
   }
 }

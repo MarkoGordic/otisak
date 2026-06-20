@@ -39,7 +39,7 @@ function getSecret(): string {
   return raw;
 }
 
-// Public — server startup calls this once and exits if secret is unsafe.
+// Public - server startup calls this once and exits if secret is unsafe.
 export function assertSessionSecretIsSafe(): void {
   if (!getSecret()) {
     throw new Error(

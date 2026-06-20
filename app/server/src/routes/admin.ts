@@ -14,7 +14,7 @@ import {
 } from '../db/auth-helpers';
 
 // Email format check shared by the create/update endpoints. Deliberately
-// loose — the DB has a UNIQUE constraint on the actual address, this just
+// loose - the DB has a UNIQUE constraint on the actual address, this just
 // stops obvious typos from reaching the insert.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -81,7 +81,7 @@ router.patch('/users', async (req: Request, res: Response) => {
   }
 });
 
-// PATCH /admin/users/password — set a new password for any user.
+// PATCH /admin/users/password - set a new password for any user.
 // Body: { id, password }. Minimum length 6 to match the create flow.
 router.patch('/users/password', async (req: Request, res: Response) => {
   try {
@@ -155,7 +155,7 @@ router.post('/users/import-csv', async (req: Request, res: Response) => {
 
 // Compose the student e-mail.
 //
-// Index format we expect: "xxNNN-YYYY" — two-letter smer + index number + dash
+// Index format we expect: "xxNNN-YYYY" - two-letter smer + index number + dash
 // + 4-digit year (e.g. "ra1-2025"). When the format matches we synthesise:
 //   <prezime>.<smer><number>.<year>@example.edu   e.g. petrovic.ra1.2025@example.edu
 // If the format does NOT match (or anything else goes sideways) we fall back
@@ -223,7 +223,7 @@ function parseStudentCsv(csv: string): { rows: Array<{ id: string; ime: string; 
   const rows: Array<{ id: string; ime: string; prezime: string; indeks: string }> = [];
   for (const line of lines) {
     const cells = splitRow(line);
-    if (cells.length < 4) continue; // not enough columns — skip
+    if (cells.length < 4) continue; // not enough columns - skip
     rows.push({
       id: (cells[0] || '').trim(),
       ime: (cells[1] || '').trim(),
@@ -248,7 +248,7 @@ router.get('/settings', async (_req: Request, res: Response) => {
 
 // Whitelist of writable settings keys. The settings PATCH endpoint is
 // admin-only but we still constrain the keys so a typo (or a buggy client)
-// can't quietly write garbage into app_settings — every legitimate key has
+// can't quietly write garbage into app_settings - every legitimate key has
 // a UI control somewhere that knows how to read it back.
 const ALLOWED_SETTING_KEYS = new Set([
   'practice_mode_enabled',
@@ -298,7 +298,7 @@ router.get('/subjects/:subjectId/assignments', async (req: Request, res: Respons
   }
 });
 
-// POST /admin/subjects/:subjectId/assignments — body { user_id, role? }
+// POST /admin/subjects/:subjectId/assignments - body { user_id, role? }
 // Role defaults to 'assistant' (the only one wired up on the client today,
 // but the schema allows 'professor' so we accept it).
 router.post('/subjects/:subjectId/assignments', async (req: Request, res: Response) => {

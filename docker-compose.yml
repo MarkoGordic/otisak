@@ -30,7 +30,7 @@ services:
       # `SESSION_SECRET=... docker compose up`). The server refuses to start
       # if this value is empty, the placeholder, or shorter than 16 chars.
       # deploy.sh auto-generates a 64-char hex value into .env on first run.
-      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set — see deploy.sh or set it via .env}
+      SESSION_SECRET: ${SESSION_SECRET:?SESSION_SECRET must be set - see deploy.sh or set it via .env}
       CLIENT_URL: ${CLIENT_URL:-http://localhost:${HOST_PORT:-3000}}
       PORT: 3001
       NODE_ENV: production

@@ -39,7 +39,7 @@ export async function getOtisakExams(
     conditions.push(`e.status = $${params.length + 1}`);
     params.push(filters.status);
   }
-  // `statuses` is the multi-value variant — used by the manage page tabs
+  // `statuses` is the multi-value variant - used by the manage page tabs
   // (Aktivni = draft|scheduled|active in one query). When both `status` and
   // `statuses` are set, `status` wins (the caller probably narrowed inside
   // a tab) and `statuses` is ignored.
@@ -249,7 +249,7 @@ export async function updateOtisakExam(
     // Only allow the two known modes; don't trust the client to send anything else.
     const mode = data.exam_mode === 'practice' ? 'practice' : 'real';
     updates.push(`exam_mode = $${idx++}`); values.push(mode);
-    // Keep the practice-side flags in sync — practice exams are self-service + public,
+    // Keep the practice-side flags in sync - practice exams are self-service + public,
     // real exams are not. Skips when the caller explicitly set those fields above.
     if (data.self_service === undefined) {
       updates.push(`self_service = $${idx++}`); values.push(mode === 'practice');
@@ -270,7 +270,7 @@ export async function updateOtisakExam(
 }
 
 // deleteOtisakExam used to live here. It was removed alongside the DELETE
-// /api/otisak/exams route — exams are no longer deletable. Use the
+// /api/otisak/exams route - exams are no longer deletable. Use the
 // 'archived' status to take an exam out of the main listing.
 
 // ========================================

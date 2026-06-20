@@ -178,7 +178,7 @@ export default function QuestionBankPage() {
       setImageError(t('questions.imageInvalidType'));
       return;
     }
-    if (file.size > 4 * 1024 * 1024) { // 4 MB cap — fits within the server's 5 MB JSON limit with overhead
+    if (file.size > 4 * 1024 * 1024) { // 4 MB cap - fits within the server's 5 MB JSON limit with overhead
       setImageError(t('questions.imageTooBig'));
       return;
     }
@@ -269,7 +269,7 @@ export default function QuestionBankPage() {
               </div>
             </div>
 
-            {/* Tag chips — clickable filter, derived from full subject tag set */}
+            {/* Tag chips - clickable filter, derived from full subject tag set */}
             {(() => {
               const tags = allTags;
               if (tags.length === 0 && !tagFilter) return null;

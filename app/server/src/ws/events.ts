@@ -153,7 +153,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
 
           // Generic per-exam subscription used for admin-pushed events (start, lockdown, timer, request decisions).
           // SECURITY: only allow subscription if the user is privileged OR has a legitimate connection to this exam
-          // (enrollment, active attempt, or pending request). Verified server-side every time — never trust the client.
+          // (enrollment, active attempt, or pending request). Verified server-side every time - never trust the client.
           if (data.type === 'subscribe_exam' && typeof data.exam_id === 'string') {
             const examId = data.exam_id;
             const allowed = await isUserAllowedOnExam(examId, user.id, user.role);
@@ -161,7 +161,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
               if (!examSubscriptions.has(examId)) examSubscriptions.set(examId, new Set());
               examSubscriptions.get(examId)!.add(ws);
               // Admin/assistant subscriptions also "wake up" the live-stats aggregator for this exam.
-              // Students don't trigger this — they don't poll /live-stats.
+              // Students don't trigger this - they don't poll /live-stats.
               if (user.role === 'admin' || user.role === 'assistant') {
                 markExamMonitored(examId);
               }

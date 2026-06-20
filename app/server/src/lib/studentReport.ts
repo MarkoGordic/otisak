@@ -78,7 +78,7 @@ const SUSPICIOUS_TYPES = new Set([
 ]);
 
 // Single source of truth for the student-report HTML. Used both by the single-student
-// /report/:userId/pdf endpoint and by the bulk /export-results ZIP route — they would
+// /report/:userId/pdf endpoint and by the bulk /export-results ZIP route - they would
 // otherwise drift apart with every styling tweak.
 export async function buildStudentReportHTML(examId: string, userId: string): Promise<StudentReportResult> {
   const exam = await getOtisakExamById(examId);
@@ -281,7 +281,7 @@ export async function buildStudentReportHTML(examId: string, userId: string): Pr
 }
 
 // Build the HTML for the *summary* (results table) PDF. The CSV is a sibling artifact
-// — this is the formatted-table version that prints nicely as a one-shot overview.
+// - this is the formatted-table version that prints nicely as a one-shot overview.
 export function buildResultsTableHTML(args: {
   examTitle: string;
   subjectName: string | null;
@@ -315,8 +315,8 @@ export function buildResultsTableHTML(args: {
       const scoreColor = hasPassThreshold ? (r.passed ? '#34d399' : '#f87171') : '#60a5fa';
       return `<tr style="background:${stripe};">
         <td style="padding:8px 10px;font-size:11px;color:#cbd5e1;border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;">${i + 1}</td>
-        <td style="padding:8px 10px;font-size:11px;color:#f1f5f9;border-bottom:1px solid #1f2937;">${escapeHtml(r.name || '—')}</td>
-        <td style="padding:8px 10px;font-size:11px;color:#60a5fa;border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;">${escapeHtml(r.indexNumber || '—')}</td>
+        <td style="padding:8px 10px;font-size:11px;color:#f1f5f9;border-bottom:1px solid #1f2937;">${escapeHtml(r.name || '-')}</td>
+        <td style="padding:8px 10px;font-size:11px;color:#60a5fa;border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;">${escapeHtml(r.indexNumber || '-')}</td>
         <td style="padding:8px 10px;font-size:11px;color:#94a3b8;border-bottom:1px solid #1f2937;">${escapeHtml(r.email)}</td>
         <td style="padding:8px 10px;font-size:11px;color:${scoreColor};border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;text-align:right;font-weight:600;">${r.totalPoints}/${r.maxPoints}</td>
         <td style="padding:8px 10px;font-size:11px;color:${scoreColor};border-bottom:1px solid #1f2937;font-family:'JetBrains Mono',monospace;text-align:right;">${r.percentage}%</td>
@@ -413,7 +413,7 @@ const PUPPETEER_PDF_TIMEOUT_MS = 30_000;
 export async function renderHtmlToPdf(html: string, browserPromise: Awaitable<import('puppeteer').Browser>, landscape = false): Promise<Buffer> {
   const browser = await browserPromise;
   const page = await browser.newPage();
-  // domcontentloaded is significantly more reliable than networkidle0 — fonts
+  // domcontentloaded is significantly more reliable than networkidle0 - fonts
   // load from a CDN over the open internet and the previous `networkidle0`
   // waited for *every* outbound request to settle. domcontentloaded fires when
   // the inline HTML/CSS is parsed, which is enough for our report (no JS
@@ -433,7 +433,7 @@ export async function renderHtmlToPdf(html: string, browserPromise: Awaitable<im
     });
     return Buffer.from(pdf);
   } finally {
-    // Always close the page — even if setContent / pdf throws, leaking pages
+    // Always close the page - even if setContent / pdf throws, leaking pages
     // would pile up inside the long-lived browser singleton.
     await page.close().catch((err) => console.error('renderHtmlToPdf: page.close failed', err));
   }

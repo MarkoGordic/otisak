@@ -1,4 +1,4 @@
-# Build artifacts and deps — re-installed inside the build stages
+# Build artifacts and deps - re-installed inside the build stages
 **/node_modules
 **/dist
 **/.vite
@@ -10,7 +10,7 @@
 .gitignore
 .github
 
-# Local env / secrets — server reads these from compose, never from build context
+# Local env / secrets - server reads these from compose, never from build context
 .env
 .env.*
 **/.env
@@ -23,15 +23,15 @@
 **/Thumbs.db
 **/*.swp
 
-# Top-level meta — not needed at runtime.
+# Top-level meta - not needed at runtime.
 # IMPORTANT: do NOT blanket-exclude **/*.md. The client bundles app/docs/**/*.md
-# at build time (via import.meta.glob) to render them at /docs in the app —
+# at build time (via import.meta.glob) to render them at /docs in the app -
 # a wildcard exclusion here silently produces an empty docs site.
 /README.md
 /DEPLOYMENT.md
 /CHANGELOG.md
 
-# Docker / deploy meta — not needed inside the image
+# Docker / deploy meta - not needed inside the image
 Dockerfile
 docker-compose.yml
 .dockerignore
@@ -42,5 +42,5 @@ deploy.sh
 **/tmp
 **/temp
 
-# SQL — used by the Postgres container (compose volume), never by the app build
+# SQL - used by the Postgres container (compose volume), never by the app build
 /db

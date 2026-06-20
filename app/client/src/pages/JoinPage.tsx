@@ -26,7 +26,7 @@ export default function JoinExamPage() {
   const isDark = theme === 'dark';
 
   // Pre-baked theme tokens used across the five phase returns below. Keeping them in one
-  // place avoids 30 inline ternaries — and makes it obvious where each chunk of styling lives.
+  // place avoids 30 inline ternaries - and makes it obvious where each chunk of styling lives.
   const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
   const titleClass = isDark ? 'text-white drop-shadow-lg' : 'text-slate-900';
   const subtitleClass = isDark ? 'text-blue-400/80' : 'text-blue-600/80';
@@ -133,7 +133,7 @@ export default function JoinExamPage() {
       setUserName(data.user?.name || '');
       setUserIndex(data.user?.index_number || indexNumber);
 
-      // Late join: admin already started — navigate into the exam page where
+      // Late join: admin already started - navigate into the exam page where
       // the "waiting for approval" state takes over.
       if (data.late_join) {
         navigate(`/exam/${examId}`);

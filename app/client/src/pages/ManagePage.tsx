@@ -44,7 +44,7 @@ export default function ManagePage() {
     { value: 'active', label: t('manage.active') },
   ];
 
-  // Per-status admin actions. Completed and archived exams are read-only —
+  // Per-status admin actions. Completed and archived exams are read-only -
   // they can be archived (housekeeping) but never reopened.
   const statusActions: Record<string, Array<{ label: string; status: string; icon: React.ReactNode }>> = {
     draft: [
@@ -68,7 +68,7 @@ export default function ManagePage() {
   const [subjects, setSubjects] = useState<Subject[]>([]);
 
   // Tab + filter state. All filtering happens client-side over the cached
-  // `exams` list — the request already returns the assistant-scoped set.
+  // `exams` list - the request already returns the assistant-scoped set.
   const [tab, setTab] = useState<ManageTab>('aktivni');
   const [statusFilter, setStatusFilter] = useState('all');
   const [subjectFilter, setSubjectFilter] = useState('all');
@@ -229,7 +229,7 @@ export default function ManagePage() {
     return true;
   });
 
-  // Collected tag pool for the filter dropdown — every tag seen on any exam
+  // Collected tag pool for the filter dropdown - every tag seen on any exam
   // in scope, sorted alphabetically. Recomputes per render; small N.
   const tagPool = Array.from(new Set(
     exams.flatMap((e) => (Array.isArray(e.tags) ? e.tags : []).map((x) => x.toLowerCase()))

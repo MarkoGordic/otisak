@@ -1,5 +1,5 @@
 // Generic admin-approval queue for student requests during an exam.
-// New request types: register a handler in REQUEST_HANDLERS below — that's it.
+// New request types: register a handler in REQUEST_HANDLERS below - that's it.
 // All checks (whitelist, status, exam-validity) are enforced server-side.
 
 import { query, transaction } from './client';
@@ -47,14 +47,14 @@ const REQUEST_GUARDS: Record<ExamRequestType, (ctx: GuardContext) => Promise<{ o
     const exam = await getOtisakExamById(examId);
     if (!exam) return { ok: false, error: 'Exam not found' };
     if (exam.status !== 'active') return { ok: false, error: 'Exam is not active' };
-    if (!exam.exam_started_at) return { ok: false, error: 'Exam has not started yet — no late-join needed' };
+    if (!exam.exam_started_at) return { ok: false, error: 'Exam has not started yet - no late-join needed' };
     const existing = await getActiveAttempt(examId, userId);
     if (existing) return { ok: false, error: 'You already have an active attempt' };
     return { ok: true };
   },
 };
 
-// ----- Per-type approval handlers — run inside the decide transaction. -----
+// ----- Per-type approval handlers - run inside the decide transaction. -----
 type HandlerContext = {
   client: PoolClient;
   request: ExamRequestRow;

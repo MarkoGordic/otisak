@@ -272,7 +272,7 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
   const assignedIds = new Set(assignments.map((a) => a.user_id));
   // Anyone with role 'assistant' (or 'admin' for completeness) who isn't
   // already assigned to this subject. Filter is plain substring over name
-  // and email — the user list is small (one screen of staff).
+  // and email - the user list is small (one screen of staff).
   const candidates = users
     .filter((u) => (u.role === 'assistant' || u.role === 'admin') && !assignedIds.has(u.id))
     .filter((u) => {
@@ -368,7 +368,7 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
                 className="w-full h-9 px-3 mb-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
               />
               {candidates.length === 0 ? (
-                <p className="text-xs text-[var(--text-muted)] py-2">—</p>
+                <p className="text-xs text-[var(--text-muted)] py-2">-</p>
               ) : (
                 <ul className="space-y-1 max-h-56 overflow-y-auto">
                   {candidates.slice(0, 30).map((u) => (

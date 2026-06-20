@@ -8,8 +8,8 @@ Screen: `/subjects`. Subjects group exams and bank questions. Each exam and bank
 
 ## Edit and delete
 
-- Pencil icon — inline edit.
-- Trash icon — delete. Cascades: all exams and bank questions for the subject are deleted too. Admin only.
+- Pencil icon - inline edit.
+- Trash icon - delete. Cascades: all exams and bank questions for the subject are deleted too. Admin only.
 
 ## Assistants
 

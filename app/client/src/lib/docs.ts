@@ -4,7 +4,7 @@
 // `![](../_assets/foo.png)` references in markdown resolve to a real bundled
 // asset URL at runtime).
 //
-// Glob keys end up looking like "../../../docs/sr/exams.md" — the path is three
+// Glob keys end up looking like "../../../docs/sr/exams.md" - the path is three
 // levels up because this file lives at app/client/src/lib/, and the docs/ tree
 // is at app/docs, next to app/client/.
 const RAW_FILES = import.meta.glob<string>('../../../docs/**/*.md', {
@@ -57,7 +57,7 @@ const IMAGE_URLS: Record<string, string> = {};
 // Secondary basename → URL index. Used as a fallback when the literal path
 // resolution misses (e.g. the markdown wrote `./assets/foo.png` but the file
 // actually lives at docs/assets/foo.png). Keys are just the filename so a
-// duplicate basename across folders is overwritten — fine in practice since
+// duplicate basename across folders is overwritten - fine in practice since
 // the docs root is small and authors don't tend to reuse names.
 const IMAGE_BY_BASENAME: Record<string, string> = {};
 for (const [path, url] of Object.entries(IMAGE_FILES)) {
@@ -123,7 +123,7 @@ export function findPage(language: DocsLanguage, slug: string): DocsPage | undef
 //      breaking the page over.
 export function resolveImage(page: DocsPage, src: string): string | null {
   if (!src) return null;
-  // Absolute URLs (http://, data:, etc.) — leave alone.
+  // Absolute URLs (http://, data:, etc.) - leave alone.
   if (/^[a-z][a-z0-9+\-.]*:/i.test(src) || src.startsWith('//')) {
     return null;
   }

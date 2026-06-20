@@ -17,7 +17,7 @@ export async function findUserById(id: string): Promise<User | null> {
   return result.rows[0] || null;
 }
 
-// Index format expected (post-migration): "ra1-2025" — letters + digits + dash + four-digit year.
+// Index format expected (post-migration): "ra1-2025" - letters + digits + dash + four-digit year.
 // Lookup is case-insensitive and whitespace-tolerant so a student typing "RA1-2025" or " ra1 - 2025 "
 // still matches a stored "ra1-2025".
 export function normalizeIndexNumber(raw: string): string {

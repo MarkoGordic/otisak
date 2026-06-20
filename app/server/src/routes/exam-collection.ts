@@ -19,7 +19,7 @@ import { importExamFromJson } from '../lib/importExam';
 import { finishExamForEveryone } from '../lib/finishExam';
 import { normalizeExamTags } from '../db/otisak';
 
-// Build the common filter set used by both admin and assistant `GET /exams` —
+// Build the common filter set used by both admin and assistant `GET /exams` -
 // status, statuses (CSV), subject_id, exam_mode, tags (CSV), scheduled_from,
 // scheduled_to. Encapsulated here so admin and assistant paths can't drift.
 function parseExamFilters(q: Record<string, unknown>) {
@@ -92,7 +92,7 @@ router.post('/', requireAuth, requireRole(['admin', 'assistant']), async (req: R
     const subjectId = typeof req.body?.subject_id === 'string' ? req.body.subject_id : null;
 
     // Assistants must own (be assigned to) the subject they're creating an
-    // exam under. Without a subject, no scope to enforce — admin only.
+    // exam under. Without a subject, no scope to enforce - admin only.
     if (!isAdmin) {
       if (!subjectId) {
         return res.status(400).json({ error: 'subject_id is required for assistants' });
@@ -128,7 +128,7 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
     if (!allowed) return res.status(403).json({ error: 'Not authorized to manage this exam' });
 
     // If an assistant is trying to MOVE this exam to a different subject,
-    // they must also be assigned to the target subject — otherwise they
+    // they must also be assigned to the target subject - otherwise they
     // could lift an exam out of their scope.
     if (!isAdmin && typeof fields.subject_id === 'string' && fields.subject_id) {
       const ok = await isSubjectManageableByUser(user.id, fields.subject_id, false);
@@ -198,7 +198,7 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
 //      reassign on import without editing the file.
 //   2. Otherwise fall back to matching `exam.subject_name` from the JSON
 //      against an existing subject by name (case-insensitive).
-//   3. Otherwise no subject (admin-only — assistants need a subject).
+//   3. Otherwise no subject (admin-only - assistants need a subject).
 router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
@@ -210,7 +210,7 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
 
     // Subject is now mandatory for every caller. The previous "fall back to
     // exam.subject_name from the JSON" path made it possible for an admin to
-    // import an exam without realising which subject it landed under —
+    // import an exam without realising which subject it landed under -
     // forcing an explicit pick removes that whole class of mistake.
     const subjectId = typeof body.subject_id === 'string' && body.subject_id
       ? body.subject_id
@@ -238,7 +238,7 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
   }
 });
 
-// DELETE /exams — disabled. Exams are not deletable, period. Once an exam
+// DELETE /exams - disabled. Exams are not deletable, period. Once an exam
 // has any attempts, deletion would silently destroy student data and audit
 // trail; for empty drafts the saved-up clicks aren't worth the risk either.
 // Use 'archived' status (PATCH) to take an exam out of the active list.
