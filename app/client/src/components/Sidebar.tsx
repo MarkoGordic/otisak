@@ -12,14 +12,13 @@ import {
   BookText,
   Sun,
   Moon,
-  Languages,
   Key,
 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';
 import { useToast } from './Toast';
 import { Button } from './ui/Button';
-import { nextLocale } from '../lib/i18n';
+import { LanguagePicker } from './LanguagePicker';
 
 type SidebarProps = {
   userName?: string;
@@ -31,10 +30,7 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const { theme, toggle } = useTheme();
-  const { t, locale, cycleLocale } = useLang();
-  // Sidebar shows the *currently active* language; tooltip hints at what clicking does.
-  const currentLangLabel = t(`lang.next.${locale}`);
-  const nextLangLabel = t(`lang.next.${nextLocale(locale)}`);
+  const { t } = useLang();
 
   const isAdmin = userRole === 'admin';
   const isStaff = userRole === 'admin' || userRole === 'assistant';
@@ -108,15 +104,10 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
           {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
         </button>
 
-        {/* Language cycle: en → sr-Latn → sr-Cyrl → en. Label = currently active. */}
-        <button
-          onClick={cycleLocale}
-          className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-1"
-          title={nextLangLabel}
-        >
-          <Languages size={18} strokeWidth={1.5} />
-          {currentLangLabel}
-        </button>
+        {/* Language picker: flag dropdown. Opens upward (sidebar bottom). */}
+        <div className="mb-1">
+          <LanguagePicker variant="sidebar" placement="top" />
+        </div>
 
         {/* User */}
         <div className="flex items-center gap-3 px-3 py-2">

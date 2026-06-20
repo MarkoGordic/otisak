@@ -1,21 +1,23 @@
 import sr from './sr';
 import srCyrl from './sr-cyrl';
+import bs from './bs';
 import en, { type I18nKey } from './en';
 
-export type Locale = 'en' | 'sr-Latn' | 'sr-Cyrl';
+export type Locale = 'en' | 'sr-Latn' | 'sr-Cyrl' | 'bs';
 export type { I18nKey };
 
 const translations: Record<Locale, Record<I18nKey, string>> = {
   'en': en,
   'sr-Latn': sr,
   'sr-Cyrl': srCyrl,
+  'bs': bs,
 };
 
-export const LOCALES: Locale[] = ['en', 'sr-Latn', 'sr-Cyrl'];
+export const LOCALES: Locale[] = ['en', 'sr-Latn', 'sr-Cyrl', 'bs'];
 
 // Accept legacy 'sr' values from older localStorage entries and map to sr-Latn.
 export function normalizeLocale(value: string | null | undefined): Locale {
-  if (value === 'sr-Latn' || value === 'sr-Cyrl' || value === 'en') return value;
+  if (value === 'sr-Latn' || value === 'sr-Cyrl' || value === 'en' || value === 'bs') return value;
   if (value === 'sr') return 'sr-Latn';
   return 'sr-Latn';
 }
@@ -40,4 +42,4 @@ export function t(key: string, locale: Locale = 'sr-Latn', params?: Record<strin
   return text;
 }
 
-export { sr, srCyrl, en };
+export { sr, srCyrl, bs, en };
