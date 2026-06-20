@@ -679,6 +679,12 @@ const srCyrl: Record<I18nKey, string> = {
   'room.stats.statusActive': 'У раду',
   'room.stats.statusFinished': 'Предао',
   'room.stats.statusIdle': 'Спреман',
+
+  // Generic API/network error messages (used by the central api client)
+  'error.network': 'Мрежна грешка. Покушај поново.',
+  'error.server': 'Дошло је до грешке на серверу. Покушај поново.',
+  'error.unknown': 'Неочекивана грешка.',
+  'error.traceCode': 'Код за пријаву:',
 };
 
 export default srCyrl;

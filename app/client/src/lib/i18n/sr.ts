@@ -680,6 +680,12 @@ const sr: Record<I18nKey, string> = {
   'room.stats.statusActive': 'U radu',
   'room.stats.statusFinished': 'Predao',
   'room.stats.statusIdle': 'Spreman',
+
+  // Generic API/network error messages (used by the central api client)
+  'error.network': 'Mrežna greška. Pokušaj ponovo.',
+  'error.server': 'Došlo je do greške na serveru. Pokušaj ponovo.',
+  'error.unknown': 'Neočekivana greška.',
+  'error.traceCode': 'Kod za prijavu:',
 };
 
 export default sr;

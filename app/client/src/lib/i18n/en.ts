@@ -676,6 +676,12 @@ const en = {
   'room.stats.statusActive': 'Working',
   'room.stats.statusFinished': 'Submitted',
   'room.stats.statusIdle': 'Ready',
+
+  // Generic API/network error messages (used by the central api client)
+  'error.network': 'Network error. Please try again.',
+  'error.server': 'Something went wrong on our side. Please try again.',
+  'error.unknown': 'Unexpected error.',
+  'error.traceCode': 'Reference code:',
 } as const;
 
 export type I18nKey = keyof typeof en;
