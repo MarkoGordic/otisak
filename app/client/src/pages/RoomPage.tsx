@@ -856,7 +856,7 @@ export default function ExamRoomPage() {
             {showFinishModal && (
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
                 onClick={() => !finishing && setShowFinishModal(false)}
               >
                 <motion.div
@@ -904,7 +904,7 @@ export default function ExamRoomPage() {
             {msgTarget && (
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                className="fixed inset-0 z-[90] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4"
                 onClick={() => !sendingMsg && setMsgTarget(null)}
               >
                 <motion.div
