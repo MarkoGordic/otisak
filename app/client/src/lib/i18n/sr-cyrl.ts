@@ -141,6 +141,7 @@ const srCyrl: Record<I18nKey, string> = {
   'manage.newExam': 'Нови испит',
   'manage.importJson': 'Увези JSON',
   'manage.exportJson': 'Извези JSON',
+  'manage.printTest': 'Штампај тест',
   'manage.importFailed': 'Увоз JSON-а није успео.',
   'manage.edit': 'Уреди',
   'manage.minShort': 'мин',

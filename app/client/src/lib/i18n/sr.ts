@@ -142,6 +142,7 @@ const sr: Record<I18nKey, string> = {
   'manage.newExam': 'Novi ispit',
   'manage.importJson': 'Uvezi JSON',
   'manage.exportJson': 'Izvezi JSON',
+  'manage.printTest': 'Štampaj test',
   'manage.importFailed': 'Uvoz JSON-a nije uspeo.',
   'manage.edit': 'Uredi',
   'manage.minShort': 'min',

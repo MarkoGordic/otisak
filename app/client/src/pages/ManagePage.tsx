@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import {
   Loader2, Plus, Settings, Play, Pause, Archive,
   FileText, Clock, CalendarIcon, Radio,
-  Download, Upload, Pencil, Package, BarChart3,
+  Download, Upload, Pencil, Package, BarChart3, Printer,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -417,6 +417,15 @@ export default function ManagePage() {
                           title={t('manage.exportJson')}
                         >
                           <Download size={14} />
+                        </a>
+                        <a
+                          href={`/api/otisak/exams/${exam.id}/print/pdf?lang=${locale}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                          title={t('manage.printTest')}
+                        >
+                          <Printer size={14} />
                         </a>
                         {exam.status === 'completed' && (
                           <a

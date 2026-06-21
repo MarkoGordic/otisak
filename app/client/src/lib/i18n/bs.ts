@@ -139,6 +139,7 @@ const bs: Record<I18nKey, string> = {
   'manage.newExam': 'Нови испит',
   'manage.importJson': 'Увези JSON',
   'manage.exportJson': 'Извези JSON',
+  'manage.printTest': 'Штампај тест',
   'manage.importFailed': 'Увоз JSON-а није успио.',
   'manage.edit': 'Уреди',
   'manage.minShort': 'мин',

@@ -138,6 +138,7 @@ const en = {
   'manage.newExam': 'New Exam',
   'manage.importJson': 'Import JSON',
   'manage.exportJson': 'Export JSON',
+  'manage.printTest': 'Print blank test',
   'manage.importFailed': 'JSON import failed.',
   'manage.exportResults': 'Download results (CSV, PDF table and PDF reports as a ZIP)',
   'manage.exportResults.label': 'Results',

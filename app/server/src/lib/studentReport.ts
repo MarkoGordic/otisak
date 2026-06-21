@@ -444,7 +444,26 @@ export function buildResultsTableHTML(args: {
 const PUPPETEER_NAVIGATION_TIMEOUT_MS = 15_000;
 const PUPPETEER_PDF_TIMEOUT_MS = 30_000;
 
-export async function renderHtmlToPdf(html: string, browserPromise: Awaitable<import('puppeteer').Browser>, landscape = false): Promise<Buffer> {
+export type RenderPdfOptions = {
+  landscape?: boolean;
+  printBackground?: boolean;
+  // The dark reports rely on the CSS @page size; the printable exam uses
+  // explicit per-page margins instead (so every page is margined, not just the
+  // first/last), which needs preferCSSPageSize off.
+  preferCSSPageSize?: boolean;
+  margin?: { top?: string | number; bottom?: string | number; left?: string | number; right?: string | number };
+  displayHeaderFooter?: boolean;
+  headerTemplate?: string;
+  footerTemplate?: string;
+};
+
+export async function renderHtmlToPdf(
+  html: string,
+  browserPromise: Awaitable<import('puppeteer').Browser>,
+  // Back-compat: existing callers pass a bare `landscape` boolean.
+  opts: RenderPdfOptions | boolean = {},
+): Promise<Buffer> {
+  const o: RenderPdfOptions = typeof opts === 'boolean' ? { landscape: opts } : opts;
   const browser = await browserPromise;
   const page = await browser.newPage();
   // domcontentloaded is significantly more reliable than networkidle0 - fonts
@@ -459,10 +478,13 @@ export async function renderHtmlToPdf(html: string, browserPromise: Awaitable<im
     await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: PUPPETEER_NAVIGATION_TIMEOUT_MS });
     const pdf = await page.pdf({
       format: 'A4',
-      landscape,
-      printBackground: true,
-      preferCSSPageSize: true,
-      margin: { top: 0, bottom: 0, left: 0, right: 0 },
+      landscape: o.landscape ?? false,
+      printBackground: o.printBackground ?? true,
+      preferCSSPageSize: o.preferCSSPageSize ?? true,
+      margin: o.margin ?? { top: 0, bottom: 0, left: 0, right: 0 },
+      displayHeaderFooter: o.displayHeaderFooter ?? false,
+      headerTemplate: o.headerTemplate,
+      footerTemplate: o.footerTemplate,
       timeout: PUPPETEER_PDF_TIMEOUT_MS,
     });
     return Buffer.from(pdf);

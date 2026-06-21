@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
   Loader2, ArrowLeft, Plus, Trash2, Code, Image as ImageIcon, FileText, MessageSquare,
   Settings, Download, Save, ChevronDown, ChevronUp, Upload as UploadIcon, Pencil, X, Check,
-  AlertTriangle,
+  AlertTriangle, Printer,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -63,7 +63,7 @@ const TYPE_LABELS: Record<string, { labelKey: string; icon: React.ReactNode }> =
 export default function ExamEditPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const toast = useToast();
 
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -486,6 +486,14 @@ export default function ExamEditPage() {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <a
+                  href={`/api/otisak/exams/${exam.id}/print/pdf?lang=${locale}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                >
+                  <Printer size={14} />{t('manage.printTest')}
+                </a>
                 <a
                   href={`/api/otisak/exams/${exam.id}/export-json`}
                   className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"

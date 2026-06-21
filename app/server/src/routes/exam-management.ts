@@ -19,6 +19,7 @@ import {
 import { getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
 import { findUserById } from '../db/users';
 import { buildStudentReportHTML, buildResultsTableHTML, renderHtmlToPdf } from '../lib/studentReport';
+import { buildPrintableExamHTML } from '../lib/examPrint';
 import archiver from 'archiver';
 import { requireAuth, requireRole } from '../middleware';
 import { getExamId, assertCanManageExam } from './exam-shared';
@@ -152,6 +153,44 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
     }
   } catch (error) {
     console.error('PDF report error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /exams/:examId/print/pdf - admin/assistant, a printable BLANK exam (the
+// questions on paper, no answer key) for offline / paper administration. White,
+// ink-friendly, with fill-in fields for the student's name and index. Served
+// inline so the admin's browser opens it straight into the print dialog.
+router.get('/print/pdf', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const locale = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const built = await buildPrintableExamHTML(examId, locale);
+    if (!built.ok) return res.status(built.status).json({ error: built.error });
+
+    const puppeteer = await import('puppeteer');
+    const browser = await puppeteer.default.launch({
+      headless: true,
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],
+    });
+    try {
+      const pdf = await renderHtmlToPdf(built.html, browser, {
+        printBackground: true,
+        preferCSSPageSize: false,
+        margin: { top: '14mm', bottom: '16mm', left: '13mm', right: '13mm' },
+        displayHeaderFooter: true,
+        headerTemplate: '<div></div>',
+        footerTemplate: built.footerHtml,
+      });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `inline; filename="${built.filenameBase}.pdf"`);
+      return res.end(pdf);
+    } finally {
+      await browser.close();
+    }
+  } catch (error) {
+    console.error('Printable exam error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
