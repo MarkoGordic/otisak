@@ -12,7 +12,7 @@ import {
   decideExamRequest,
 } from '../db/exam-requests';
 import { query } from '../db/client';
-import { broadcastExamEvent } from '../ws/events';
+import { broadcastExamEvent, broadcastToExamUser } from '../ws/events';
 import { getCachedLiveStats, markExamMonitored, refreshLiveStatsNow } from '../ws/liveStatsAggregator';
 import { finishExamForEveryone } from '../lib/finishExam';
 import { clearSessionForUser } from '../session-tracker';
@@ -123,6 +123,33 @@ router.post('/lockdown', requireAuth, requireRole(['admin', 'assistant']), async
     }
   } catch (error) {
     console.error('Lockdown error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /exams/:examId/message - admin/assistant, push a free-text message to a
+// single student (body.userId set) or to everyone in the exam (userId omitted).
+// Delivered over websocket as { type: 'assistant.message', message }.
+const MAX_MESSAGE_LEN = 1000;
+router.post('/message', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
+    const { message, userId } = req.body ?? {};
+
+    const text = typeof message === 'string' ? message.trim() : '';
+    if (!text) return res.status(400).json({ error: 'Message is required' });
+    if (text.length > MAX_MESSAGE_LEN) return res.status(400).json({ error: 'Message is too long' });
+
+    const event = { type: 'assistant.message', message: text } as const;
+    if (typeof userId === 'string' && userId) {
+      broadcastToExamUser(examId, userId, event);
+      return res.json({ sent: true, target: 'student' });
+    }
+    broadcastExamEvent(examId, event);
+    return res.json({ sent: true, target: 'all' });
+  } catch (error) {
+    console.error('Room message error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

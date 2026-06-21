@@ -6,6 +6,7 @@ export type ExamWsEvent =
   | { type: 'subscribe_denied'; exam_id: string }
   | { type: 'exam.started'; exam_started_at: string; duration_minutes: number }
   | { type: 'lockdown.changed'; is_active: boolean; message: string | null }
+  | { type: 'assistant.message'; message: string }
   | { type: 'timer.adjusted'; extra_seconds: number; effective_duration_seconds: number; delta_seconds: number }
   | { type: 'request.created'; request_id: string; request_type: string; user_id: string }
   | { type: 'request.decided'; request_id: string; request_type: string; user_id: string; status: 'approved' | 'denied' }

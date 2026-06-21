@@ -73,6 +73,17 @@ export function broadcastExamEvent(examId: string, event: { type: string; [k: st
   }
 }
 
+// Push to every socket of a single user within one exam (a student may have more
+// than one tab open). Used for assistant->one-student direct messages.
+export function broadcastToExamUser(examId: string, userId: string, event: { type: string; [k: string]: unknown }) {
+  const subscribers = examSubscriptions.get(examId);
+  if (!subscribers) return;
+  const message = JSON.stringify(event);
+  for (const ws of subscribers) {
+    if (ws.readyState === WebSocket.OPEN && wsUserMap.get(ws)?.userId === userId) ws.send(message);
+  }
+}
+
 export function setupWebSocket(server: http.Server): WebSocketServer {
   // No origin allow-list: this app is deployed on local networks where the
   // server's IP is whatever the host machine has, and a strict allow-list

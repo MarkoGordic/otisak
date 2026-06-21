@@ -1,8 +1,10 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, XCircle, Info, AlertTriangle, X as XIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, Info, AlertTriangle, Megaphone, X as XIcon } from 'lucide-react';
 
-export type ToastKind = 'success' | 'info' | 'warning' | 'error';
+// 'message' is a prominent, sticky variant used for assistant-to-student
+// broadcasts; the others are the everyday app feedback toasts.
+export type ToastKind = 'success' | 'info' | 'warning' | 'error' | 'message';
 
 export type Toast = {
   id: number;
@@ -82,10 +84,12 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 }
 
 function ToastViewport({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: number) => void }) {
+  // Top-centre: the most visible spot, and where students expect an assistant
+  // message to land. Newest toast sits on top; the rest cascade below it.
   return (
-    <div className="pointer-events-none fixed inset-0 z-[1000] flex flex-col items-end justify-end gap-2 p-4 sm:p-6">
-      <AnimatePresence>
-        {toasts.map((t) => (
+    <div className="pointer-events-none fixed inset-x-0 top-0 z-[1000] flex flex-col items-center gap-2.5 px-4 pt-4 sm:pt-5">
+      <AnimatePresence initial={false}>
+        {[...toasts].reverse().map((t) => (
           <ToastItem key={t.id} toast={t} onClose={() => dismiss(t.id)} />
         ))}
       </AnimatePresence>
@@ -98,42 +102,54 @@ const KIND_STYLES: Record<ToastKind, { iconBg: string; iconColor: string; ring: 
   info:    { iconBg: 'var(--accent-light)',  iconColor: 'var(--accent)',  ring: 'var(--accent)',  icon: <Info size={18} /> },
   warning: { iconBg: 'var(--warning-light)', iconColor: 'var(--warning)', ring: 'var(--warning)', icon: <AlertTriangle size={18} /> },
   error:   { iconBg: 'var(--danger-light)',  iconColor: 'var(--danger)',  ring: 'var(--danger)',  icon: <XCircle size={18} /> },
+  message: { iconBg: 'var(--accent-light)',  iconColor: 'var(--accent)',  ring: 'var(--accent)',  icon: <Megaphone size={18} /> },
 };
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
   const s = KIND_STYLES[toast.kind];
+  const isMessage = toast.kind === 'message';
   return (
     <motion.div
       layout
-      initial={{ opacity: 0, y: 16, scale: 0.96 }}
+      initial={{ opacity: 0, y: -20, scale: 0.96 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: 8, scale: 0.96, transition: { duration: 0.15 } }}
-      transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-      className="pointer-events-auto w-full max-w-sm rounded-xl border bg-[var(--bg-elevated)] shadow-lg overflow-hidden"
-      style={{ borderColor: 'var(--border-default)' }}
-      role="status"
+      exit={{ opacity: 0, y: -12, scale: 0.96, transition: { duration: 0.15 } }}
+      transition={{ type: 'spring', stiffness: 420, damping: 32 }}
+      className={`pointer-events-auto relative w-full overflow-hidden rounded-2xl border bg-[var(--bg-elevated)]/95 backdrop-blur-sm ${isMessage ? 'max-w-md' : 'max-w-sm'}`}
+      style={{ borderColor: 'var(--border-default)', boxShadow: '0 12px 36px rgba(0,0,0,0.18)' }}
+      role={isMessage ? 'alert' : 'status'}
     >
-      <div className="flex items-start gap-3 p-3 pr-2">
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: s.iconBg, color: s.iconColor }}>
+      {/* Left accent rail */}
+      <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: s.ring }} />
+      <div className="flex items-start gap-3 p-3.5 pl-4">
+        <div className="mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.iconBg, color: s.iconColor }}>
           {s.icon}
         </div>
-        <div className="flex-1 min-w-0">
-          {toast.title && <div className="text-sm font-medium text-[var(--text-primary)] truncate">{toast.title}</div>}
-          <div className={`text-sm ${toast.title ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'} leading-snug`}>
+        <div className="flex-1 min-w-0 pt-px">
+          {toast.title && <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">{toast.title}</div>}
+          <div className={`text-[13px] leading-snug break-words whitespace-pre-wrap ${toast.title ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>
             {toast.message}
           </div>
         </div>
         <button
           type="button"
           onClick={onClose}
-          className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 rounded-md flex-shrink-0"
+          className="-mr-1 -mt-0.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] p-1.5 rounded-lg flex-shrink-0 transition-colors"
           aria-label="Dismiss"
         >
-          <XIcon size={14} />
+          <XIcon size={15} />
         </button>
       </div>
-      {/* Accent strip */}
-      <div className="h-[2px] w-full" style={{ background: s.ring, opacity: 0.7 }} />
+      {/* Auto-dismiss countdown bar */}
+      {toast.duration && toast.duration > 0 ? (
+        <motion.div
+          className="absolute bottom-0 left-0 h-[3px] w-full origin-left"
+          style={{ background: s.ring, opacity: 0.55 }}
+          initial={{ scaleX: 1 }}
+          animate={{ scaleX: 0 }}
+          transition={{ duration: toast.duration / 1000, ease: 'linear' }}
+        />
+      ) : null}
     </motion.div>
   );
 }

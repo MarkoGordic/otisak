@@ -5,7 +5,7 @@ import {
   Loader2, Users, Play, Pause, Copy, Check, Link2, UserCheck, ArrowLeft,
   Fingerprint, Radio, ShieldOff, ShieldAlert, FileText,
   Plus, Minus, X, UserPlus, UserX, Timer as TimerIcon, AlertTriangle, Wifi, WifiOff,
-  Trophy, User, BarChart3,
+  Trophy, User, BarChart3, MessageSquare, Send,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -78,6 +78,10 @@ export default function ExamRoomPage() {
   const [started, setStarted] = useState(false);
   const [locked, setLocked] = useState(false);
   const [locking, setLocking] = useState(false);
+  // Message composer: target null userId = broadcast to all; set = one student.
+  const [msgTarget, setMsgTarget] = useState<{ userId: string | null; name: string } | null>(null);
+  const [msgText, setMsgText] = useState('');
+  const [sendingMsg, setSendingMsg] = useState(false);
   const [showFinishModal, setShowFinishModal] = useState(false);
   const [finishRedirect, setFinishRedirect] = useState(false);
   const [finishing, setFinishing] = useState(false);
@@ -265,6 +269,33 @@ export default function ExamRoomPage() {
       loadRoom();
     } catch {
       toast.error(t('room.kickFailed'));
+    }
+  };
+
+  const sendMessage = async () => {
+    if (!msgTarget) return;
+    const text = msgText.trim();
+    if (!text) return;
+    setSendingMsg(true);
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ message: text, userId: msgTarget.userId ?? undefined }),
+      });
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({}));
+        toast.error(d.error || t('room.message.failed'));
+        return;
+      }
+      toast.success(t('room.message.sent'));
+      setMsgTarget(null);
+      setMsgText('');
+    } catch {
+      toast.error(t('room.message.failed'));
+    } finally {
+      setSendingMsg(false);
     }
   };
 
@@ -557,17 +588,27 @@ export default function ExamRoomPage() {
               )}
             </div>
 
-            {!started && (
+            <div className="flex items-center gap-2">
               <Button
-                variant="primary"
-                size="lg"
-                leftIcon={<Play size={18} className="fill-current" />}
-                loading={starting}
-                onClick={handleStartExam}
+                variant="secondary"
+                size="md"
+                leftIcon={<MessageSquare size={16} />}
+                onClick={() => { setMsgText(''); setMsgTarget({ userId: null, name: '' }); }}
               >
-                {t('room.startExam')}
+                {t('room.message.allButton')}
               </Button>
-            )}
+              {!started && (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  leftIcon={<Play size={18} className="fill-current" />}
+                  loading={starting}
+                  onClick={handleStartExam}
+                >
+                  {t('room.startExam')}
+                </Button>
+              )}
+            </div>
           </div>
 
           {/* Live exam timer - only meaningful while the exam is running. Same algorithm as student timer. */}
@@ -752,6 +793,17 @@ export default function ExamRoomPage() {
                             <FileText size={14} />
                           </button>
                         )}
+                        {/* Direct message to this student (only while they are on
+                            screen and can receive it, i.e. not yet submitted). */}
+                        {!submitted && (
+                          <button
+                            onClick={() => { setMsgText(''); setMsgTarget({ userId: p.user_id, name: p.name || p.email }); }}
+                            className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-accent hover:bg-accent-light transition-colors"
+                            title={t('room.message.studentTooltip')}
+                          >
+                            <MessageSquare size={14} />
+                          </button>
+                        )}
                         {/* Kick is available while a student is on-screen: from the
                             moment they join through the running exam, but not after
                             they've already submitted (no point) or before they joined
@@ -804,7 +856,7 @@ export default function ExamRoomPage() {
             {showFinishModal && (
               <motion.div
                 initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4"
+                className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
                 onClick={() => !finishing && setShowFinishModal(false)}
               >
                 <motion.div
@@ -841,6 +893,53 @@ export default function ExamRoomPage() {
                     <Button variant="danger" loading={finishing} onClick={handleFinishAll}>
                       {t('room.finishAll.confirm')}
                     </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Message composer modal (to all students or one) */}
+          <AnimatePresence>
+            {msgTarget && (
+              <motion.div
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+                onClick={() => !sendingMsg && setMsgTarget(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-2xl shadow-2xl max-w-md w-full p-6"
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
+                      <MessageSquare size={18} className="text-accent" />
+                    </div>
+                    <h3 className="text-lg font-display font-semibold text-[var(--text-primary)] min-w-0 truncate">
+                      {msgTarget.userId ? t('room.message.titleOne', { name: msgTarget.name }) : t('room.message.titleAll')}
+                    </h3>
+                  </div>
+                  <textarea
+                    value={msgText}
+                    onChange={(e) => setMsgText(e.target.value)}
+                    onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') sendMessage(); }}
+                    maxLength={1000}
+                    rows={4}
+                    autoFocus
+                    placeholder={t('room.message.placeholder')}
+                    className="w-full rounded-xl border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm p-3 resize-none focus:outline-none focus:border-accent"
+                  />
+                  <div className="flex items-center justify-between gap-3 mt-4">
+                    <span className="text-xs text-[var(--text-muted)]">{msgText.length}/1000</span>
+                    <div className="flex items-center gap-3">
+                      <Button variant="secondary" onClick={() => setMsgTarget(null)} disabled={sendingMsg}>
+                        {t('common.cancel')}
+                      </Button>
+                      <Button variant="primary" leftIcon={<Send size={16} />} loading={sendingMsg} disabled={!msgText.trim()} onClick={sendMessage}>
+                        {t('room.message.send')}
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               </motion.div>

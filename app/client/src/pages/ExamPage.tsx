@@ -443,6 +443,11 @@ export default function ExamPage() {
     if (evt.type === 'lockdown.changed') {
       setLockdown(!!evt.is_active);
       if (evt.is_active && evt.message) setLockdownMessage(evt.message);
+    } else if (evt.type === 'assistant.message') {
+      // Direct message from an assistant (to this student or broadcast to all).
+      // Sticky so it stays until the student reads and dismisses it.
+      const text = (evt as unknown as { message?: string }).message;
+      if (text) toast.push({ kind: 'message', title: t('exam.toast.assistantMessage'), message: text, duration: 0 });
     } else if (evt.type === 'timer.adjusted') {
       setExam((prev) => (prev && prev.extra_seconds !== evt.extra_seconds ? { ...prev, extra_seconds: evt.extra_seconds } : prev));
       const minutes = Math.round(Number(evt.delta_seconds || 0) / 60);
