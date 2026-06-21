@@ -23,6 +23,8 @@ export interface OtisakExam {
   status: 'draft' | 'scheduled' | 'active' | 'completed' | 'archived';
   created_by: string | null;
   allow_review: boolean;
+  allow_notes: boolean;
+  allow_calculator: boolean;
   shuffle_questions: boolean;
   shuffle_answers: boolean;
   pass_threshold: number;
@@ -142,6 +144,8 @@ export interface CreateOtisakExamInput {
   duration_minutes: number;
   scheduled_at?: string;
   allow_review?: boolean;
+  allow_notes?: boolean;
+  allow_calculator?: boolean;
   shuffle_questions?: boolean;
   shuffle_answers?: boolean;
   pass_threshold?: number;

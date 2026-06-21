@@ -1,7 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Loader2, Power, AlertTriangle, StickyNote, X, PauseCircle } from 'lucide-react';
+import { Loader2, Power, AlertTriangle, StickyNote, X, PauseCircle, Calculator } from 'lucide-react';
 import {
   OtisakHeader,
   OtisakFooter,
@@ -11,6 +11,7 @@ import {
   CodeBlock,
   QuestionNav,
 } from '../components/otisak';
+import { ExamCalculator } from '../components/otisak/ExamCalculator';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
 import { useExamSocket } from '../lib/useExamSocket';
@@ -65,7 +66,7 @@ export default function ExamPage() {
   const [textAnswers, setTextAnswers] = useState<Record<string, string>>({});
   const [matchingSelectedLeft, setMatchingSelectedLeft] = useState<string | null>(null);
   const [scratchNotes, setScratchNotes] = useState('');
-  const [showNotes, setShowNotes] = useState(false);
+  const [activeTool, setActiveTool] = useState<'notes' | 'calc' | null>(null);
   const [lockdown, setLockdown] = useState(false);
   const [lockdownMessage, setLockdownMessage] = useState('');
   const [pausedSeconds, setPausedSeconds] = useState(0);
@@ -80,6 +81,16 @@ export default function ExamPage() {
   // calls in long-running async chains (submit retry, navigation races).
   const mountedRef = useRef(true);
   useEffect(() => () => { mountedRef.current = false; }, []);
+  // Persist scratch notes locally so an accidental refresh / reconnect doesn't
+  // wipe what the student jotted down. Keyed per exam.
+  useEffect(() => {
+    if (!examId) return;
+    try { const saved = localStorage.getItem(`otisak-notes-${examId}`); if (saved) setScratchNotes(saved); } catch { /* storage blocked */ }
+  }, [examId]);
+  useEffect(() => {
+    if (!examId) return;
+    try { localStorage.setItem(`otisak-notes-${examId}`, scratchNotes); } catch { /* storage blocked */ }
+  }, [examId, scratchNotes]);
   // Mirror user.id into a ref so the WebSocket onEvent closure (whose deps
   // are intentionally narrow) always reads the latest id rather than a stale
   // null captured during the initial render. Without this, a `student.kicked`
@@ -1114,44 +1125,82 @@ export default function ExamPage() {
         )}
       </main>
 
-      {/* Scratch Notes Toggle */}
-      <button type="button" onClick={() => setShowNotes(!showNotes)}
-        className={`fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 h-11 px-4 rounded-full flex items-center gap-2 transition-all shadow-lg ${
-          showNotes
-            ? (isDark ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'bg-yellow-100 border border-yellow-300 text-yellow-700 shadow-md')
-            : scratchNotes
-              ? (isDark ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-500/60 hover:text-yellow-400 hover:bg-yellow-500/20' : 'bg-yellow-50 border border-yellow-200 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100')
-              : (isDark ? 'bg-white/5 border border-white/10 text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/20' : 'bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 shadow-sm')
-        }`} title={t('exam.scratchNotes')}>
-        <StickyNote className="w-4.5 h-4.5" />
-        <span className="text-xs font-semibold uppercase tracking-wider">{t('exam.notesLabel')}</span>
-        {scratchNotes && !showNotes && <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-500 border ${isDark ? 'border-[#0a0a14]' : 'border-[#F8FAFC]'}`} />}
-      </button>
+      {/* Exam tools dock: notes + calculator, each gated by the exam settings */}
+      {(exam?.allow_notes !== false || exam?.allow_calculator) && (
+        <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end gap-2.5">
+          {exam?.allow_calculator && (
+            <button type="button" onClick={() => setActiveTool(activeTool === 'calc' ? null : 'calc')}
+              className={`h-11 px-4 rounded-full flex items-center gap-2 transition-all shadow-lg ${
+                activeTool === 'calc'
+                  ? (isDark ? 'bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 shadow-[0_0_20px_rgba(99,102,241,0.25)]' : 'bg-indigo-100 border border-indigo-300 text-indigo-700 shadow-md')
+                  : (isDark ? 'bg-white/5 border border-white/10 text-gray-500 hover:text-indigo-300 hover:bg-indigo-500/10 hover:border-indigo-500/20' : 'bg-white border border-slate-200 text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 shadow-sm')
+              }`} title={t('exam.calculator')}>
+              <Calculator className="w-4.5 h-4.5" />
+              <span className="text-xs font-semibold uppercase tracking-wider">{t('exam.calculator')}</span>
+            </button>
+          )}
+          {exam?.allow_notes !== false && (
+            <button type="button" onClick={() => setActiveTool(activeTool === 'notes' ? null : 'notes')}
+              className={`relative h-11 px-4 rounded-full flex items-center gap-2 transition-all shadow-lg ${
+                activeTool === 'notes'
+                  ? (isDark ? 'bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 shadow-[0_0_20px_rgba(234,179,8,0.2)]' : 'bg-yellow-100 border border-yellow-300 text-yellow-700 shadow-md')
+                  : scratchNotes
+                    ? (isDark ? 'bg-yellow-500/10 border border-yellow-500/20 text-yellow-500/60 hover:text-yellow-400 hover:bg-yellow-500/20' : 'bg-yellow-50 border border-yellow-200 text-yellow-600 hover:text-yellow-700 hover:bg-yellow-100')
+                    : (isDark ? 'bg-white/5 border border-white/10 text-gray-500 hover:text-yellow-400 hover:bg-yellow-500/10 hover:border-yellow-500/20' : 'bg-white border border-slate-200 text-slate-500 hover:text-yellow-600 hover:bg-yellow-50 hover:border-yellow-200 shadow-sm')
+              }`} title={t('exam.scratchNotes')}>
+              <StickyNote className="w-4.5 h-4.5" />
+              <span className="text-xs font-semibold uppercase tracking-wider">{t('exam.notesLabel')}</span>
+              {scratchNotes && activeTool !== 'notes' && <span className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-yellow-500 border ${isDark ? 'border-[#0a0a14]' : 'border-[#F8FAFC]'}`} />}
+            </button>
+          )}
+        </div>
+      )}
 
-      {/* Scratch Notes Panel */}
+      {/* Tool panel (notes or calculator) */}
       <AnimatePresence>
-        {showNotes && (
+        {activeTool && (
           <>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-black/30 backdrop-blur-[2px] sm:hidden" onClick={() => setShowNotes(false)} />
-            <motion.div initial={{ opacity: 0, x: 300 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 300 }} transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className={`fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[340px] border-l backdrop-blur-xl shadow-[-20px_0_60px_rgba(0,0,0,0.5)] flex flex-col ${isDark ? 'bg-[#0d0d1a]/95 border-yellow-500/10' : 'bg-white/95 border-yellow-200'}`}>
-              <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-yellow-500/10' : 'border-yellow-200'}`}>
-                <div className="flex items-center gap-2">
-                  <StickyNote className={`w-4 h-4 ${isDark ? 'text-yellow-500/60' : 'text-yellow-600'}`} />
-                  <span className={`text-sm font-medium uppercase tracking-wider ${isDark ? 'text-yellow-200/80' : 'text-yellow-700'}`}>{t('exam.scratchNotes')}</span>
-                </div>
-                <button type="button" onClick={() => setShowNotes(false)} className={`p-1.5 rounded-md transition-colors ${isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}>
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-              <div className="flex-1 p-3">
-                <textarea value={scratchNotes} onChange={(e) => setScratchNotes(e.target.value)}
-                  className={`w-full h-full rounded-lg px-4 py-3 text-xs font-mono leading-relaxed focus:outline-none resize-none border ${isDark ? 'bg-yellow-500/[0.02] border-yellow-500/10 text-yellow-100/70 focus:border-yellow-500/25 placeholder-yellow-500/20' : 'bg-yellow-50/30 border-yellow-200 text-yellow-900 focus:border-yellow-400 placeholder:text-yellow-600/40'}`}
-                  placeholder={t('exam.scratchPlaceholder')} autoFocus />
-              </div>
-              <div className={`px-4 py-2.5 border-t ${isDark ? 'border-yellow-500/10' : 'border-yellow-200'}`}>
-                <p className={`text-[9px] text-center ${isDark ? 'text-yellow-500/30' : 'text-yellow-700/60'}`}>{t('exam.scratchFooter')}</p>
-              </div>
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[2px] sm:hidden" onClick={() => setActiveTool(null)} />
+            <motion.div initial={{ opacity: 0, x: 320 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 320 }} transition={{ type: 'spring', damping: 26, stiffness: 300 }}
+              className={`fixed right-0 top-0 bottom-0 z-50 w-full sm:w-[360px] border-l backdrop-blur-xl shadow-[-20px_0_60px_rgba(0,0,0,0.5)] flex flex-col ${
+                isDark ? 'bg-[#0d0d1a]/95' : 'bg-white/95'
+              } ${activeTool === 'notes' ? (isDark ? 'border-yellow-500/10' : 'border-yellow-200') : (isDark ? 'border-indigo-500/15' : 'border-indigo-200')}`}>
+              {activeTool === 'notes' ? (
+                <>
+                  <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-yellow-500/10' : 'border-yellow-200'}`}>
+                    <div className="flex items-center gap-2">
+                      <StickyNote className={`w-4 h-4 ${isDark ? 'text-yellow-500/60' : 'text-yellow-600'}`} />
+                      <span className={`text-sm font-medium uppercase tracking-wider ${isDark ? 'text-yellow-200/80' : 'text-yellow-700'}`}>{t('exam.scratchNotes')}</span>
+                    </div>
+                    <button type="button" onClick={() => setActiveTool(null)} className={`p-1.5 rounded-md transition-colors ${isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}>
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex-1 p-3">
+                    <textarea value={scratchNotes} onChange={(e) => setScratchNotes(e.target.value)}
+                      className={`w-full h-full rounded-lg px-4 py-3 text-xs font-mono leading-relaxed focus:outline-none resize-none border ${isDark ? 'bg-yellow-500/[0.02] border-yellow-500/10 text-yellow-100/70 focus:border-yellow-500/25 placeholder-yellow-500/20' : 'bg-yellow-50/30 border-yellow-200 text-yellow-900 focus:border-yellow-400 placeholder:text-yellow-600/40'}`}
+                      placeholder={t('exam.scratchPlaceholder')} autoFocus />
+                  </div>
+                  <div className={`px-4 py-2.5 border-t ${isDark ? 'border-yellow-500/10' : 'border-yellow-200'}`}>
+                    <p className={`text-[9px] text-center ${isDark ? 'text-yellow-500/30' : 'text-yellow-700/60'}`}>{t('exam.scratchFooter')}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className={`flex items-center justify-between px-4 py-3 border-b ${isDark ? 'border-indigo-500/15' : 'border-indigo-200'}`}>
+                    <div className="flex items-center gap-2">
+                      <Calculator className={`w-4 h-4 ${isDark ? 'text-indigo-400' : 'text-indigo-600'}`} />
+                      <span className={`text-sm font-medium uppercase tracking-wider ${isDark ? 'text-indigo-200/80' : 'text-indigo-700'}`}>{t('exam.calculator')}</span>
+                    </div>
+                    <button type="button" onClick={() => setActiveTool(null)} className={`p-1.5 rounded-md transition-colors ${isDark ? 'text-gray-500 hover:text-white hover:bg-white/10' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}>
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="flex-1 p-4 overflow-y-auto">
+                    <ExamCalculator isDark={isDark} />
+                  </div>
+                </>
+              )}
             </motion.div>
           </>
         )}

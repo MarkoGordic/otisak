@@ -149,6 +149,18 @@ const steps: readonly Step[] = [
         ON app_error_log (request_id)
     `);
   }],
+  ['012_exam_notes_calculator', async () => {
+    // Per-exam tool toggles. Notes default TRUE so existing exams keep the
+    // always-available scratchpad; the calculator is opt-in (FALSE).
+    await query(`
+      ALTER TABLE otisak_exams
+      ADD COLUMN IF NOT EXISTS allow_notes BOOLEAN NOT NULL DEFAULT TRUE
+    `);
+    await query(`
+      ALTER TABLE otisak_exams
+      ADD COLUMN IF NOT EXISTS allow_calculator BOOLEAN NOT NULL DEFAULT FALSE
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {

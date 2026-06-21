@@ -21,6 +21,8 @@ type Exam = {
   has_pass_threshold: boolean;
   exam_mode: 'real' | 'practice';
   allow_review: boolean;
+  allow_notes: boolean;
+  allow_calculator: boolean;
   shuffle_questions: boolean;
   shuffle_answers: boolean;
   partial_scoring: boolean;
@@ -172,6 +174,8 @@ export default function ExamEditPage() {
           // server rejects an empty subject_id from non-admins anyway.
           subject_id: exam.subject_id ?? null,
           allow_review: exam.allow_review,
+          allow_notes: exam.allow_notes,
+          allow_calculator: exam.allow_calculator,
           shuffle_questions: exam.shuffle_questions,
           shuffle_answers: exam.shuffle_answers,
           partial_scoring: exam.partial_scoring,
@@ -210,6 +214,8 @@ export default function ExamEditPage() {
           subject_id: newSubjectId,
           subject_name: matched ? matched.name : null,
           allow_review: !!saved.allow_review,
+          allow_notes: saved.allow_notes !== false,
+          allow_calculator: !!saved.allow_calculator,
           shuffle_questions: !!saved.shuffle_questions,
           shuffle_answers: !!saved.shuffle_answers,
           partial_scoring: !!saved.partial_scoring,
@@ -565,6 +571,8 @@ export default function ExamEditPage() {
                   </Field>
                   <div className="grid grid-cols-2 gap-2 col-span-1 sm:col-span-2">
                     <Toggle label={t('examEdit.allowReview')} value={exam.allow_review} onChange={(v) => setExam({ ...exam, allow_review: v })} />
+                    <Toggle label={t('examEdit.allowNotes')} value={exam.allow_notes} onChange={(v) => setExam({ ...exam, allow_notes: v })} />
+                    <Toggle label={t('examEdit.allowCalculator')} value={exam.allow_calculator} onChange={(v) => setExam({ ...exam, allow_calculator: v })} />
                     <Toggle label={t('examEdit.shuffleQuestions')} value={exam.shuffle_questions} onChange={(v) => setExam({ ...exam, shuffle_questions: v })} />
                     <Toggle label={t('examEdit.shuffleAnswers')} value={exam.shuffle_answers} onChange={(v) => setExam({ ...exam, shuffle_answers: v })} />
                     <Toggle label={t('examEdit.partialScoring')} value={exam.partial_scoring} onChange={(v) => setExam({ ...exam, partial_scoring: v })} />

@@ -66,6 +66,8 @@ CREATE TABLE otisak_exams (
   status TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'scheduled', 'active', 'completed', 'archived')),
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   allow_review BOOLEAN NOT NULL DEFAULT FALSE,
+  allow_notes BOOLEAN NOT NULL DEFAULT TRUE,
+  allow_calculator BOOLEAN NOT NULL DEFAULT FALSE,
   shuffle_questions BOOLEAN NOT NULL DEFAULT FALSE,
   shuffle_answers BOOLEAN NOT NULL DEFAULT FALSE,
   pass_threshold NUMERIC NOT NULL DEFAULT 50,
