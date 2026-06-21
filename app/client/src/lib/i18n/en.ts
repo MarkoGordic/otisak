@@ -603,7 +603,7 @@ const en = {
 
   // Lockdown / pause
   'lockdown.title': 'PAUSED',
-  'lockdown.body': 'The assistant has temporarily paused work. Please wait for further instruction.',
+  'lockdown.body': 'The assistant has paused the exam. Please follow the assistant instructions.',
   'lockdown.timerPaused': 'Timer paused',
   'lockdown.dontCloseWindow': 'Do not close this window. Work will resume automatically.',
   'lockdown.adminMessage': 'Work is temporarily paused.',

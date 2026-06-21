@@ -606,7 +606,7 @@ const srCyrl: Record<I18nKey, string> = {
 
   // Lockdown / pause
   'lockdown.title': 'ПАУЗА',
-  'lockdown.body': 'Асистент је привремено зауставио рад. Сачекајте даље упутство.',
+  'lockdown.body': 'Асистент је привремено паузирао рад. Пратите инструкције асистента.',
   'lockdown.timerPaused': 'Тајмер је паузиран',
   'lockdown.dontCloseWindow': 'Не затварајте овај прозор. Рад ће бити аутоматски настављен.',
   'lockdown.adminMessage': 'Рад је привремено заустављен.',

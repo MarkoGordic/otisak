@@ -607,7 +607,7 @@ const sr: Record<I18nKey, string> = {
 
   // Lockdown / pause
   'lockdown.title': 'PAUZA',
-  'lockdown.body': 'Asistent je privremeno zaustavio rad. Sačekajte dalje uputstvo.',
+  'lockdown.body': 'Asistent je privremeno pauzirao rad. Pratite instrukcije asistenta.',
   'lockdown.timerPaused': 'Tajmer je pauziran',
   'lockdown.dontCloseWindow': 'Ne zatvarajte ovaj prozor. Rad će biti automatski nastavljen.',
   'lockdown.adminMessage': 'Rad je privremeno zaustavljen.',

@@ -887,10 +887,9 @@ export default function ExamRoomPage() {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       credentials: 'include',
-                      body: JSON.stringify({
-                        lock: next,
-                        message: t('lockdown.adminMessage'),
-                      }),
+                      // No message: each student's pause screen shows the
+                      // localized lockdown.body in their own language.
+                      body: JSON.stringify({ lock: next }),
                     });
                     if (!res.ok) {
                       const d = await res.json().catch(() => ({}));

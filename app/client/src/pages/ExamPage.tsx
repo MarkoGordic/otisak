@@ -1217,70 +1217,88 @@ export default function ExamPage() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-[#0b0f17] flex flex-col items-center justify-center"
+            transition={{ duration: 0.35 }}
+            className="fixed inset-0 z-[100] bg-[#080b12] flex items-center justify-center overflow-hidden"
           >
-            {/* Calm slate-blue ambient glow */}
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-              <div className="absolute top-[-15%] right-[-15%] w-[55vw] h-[55vw] bg-sky-500/[0.07] rounded-full blur-[160px]" />
-              <div className="absolute bottom-[-15%] left-[-15%] w-[55vw] h-[55vw] bg-slate-500/[0.05] rounded-full blur-[160px]" />
+            {/* Calm centered ambient glow + edge-faded grid */}
+            <div className="absolute inset-0 pointer-events-none">
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80vw] h-[80vw] max-w-[860px] max-h-[860px] bg-sky-500/[0.05] rounded-full blur-[170px]" />
               <div
-                className="absolute inset-0 opacity-[0.025]"
+                className="absolute inset-0 opacity-[0.03]"
                 style={{
                   backgroundImage:
                     'linear-gradient(rgba(148,163,184,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.5) 1px, transparent 1px)',
-                  backgroundSize: '60px 60px',
+                  backgroundSize: '64px 64px',
+                  maskImage: 'radial-gradient(ellipse at center, black 25%, transparent 72%)',
+                  WebkitMaskImage: 'radial-gradient(ellipse at center, black 25%, transparent 72%)',
                 }}
               />
             </div>
 
-            <div className="z-10 flex flex-col items-center text-center px-6 max-w-lg">
+            <div className="relative z-10 flex flex-col items-center text-center px-6 max-w-md">
+              {/* Icon with breathing pulse rings */}
+              <div className="relative mb-9 flex items-center justify-center">
+                {[0, 1].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="absolute rounded-full border border-sky-400/20"
+                    initial={{ width: 92, height: 92, opacity: 0.35 }}
+                    animate={{ width: 208, height: 208, opacity: 0 }}
+                    transition={{ duration: 3, repeat: Infinity, ease: 'easeOut', delay: i * 1.5 }}
+                  />
+                ))}
+                <motion.div
+                  initial={{ scale: 0.85, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ duration: 0.5 }}
+                  className="relative w-[92px] h-[92px] rounded-full bg-gradient-to-b from-sky-500/[0.16] to-sky-500/[0.04] border border-sky-400/25 flex items-center justify-center shadow-[0_0_55px_rgba(56,189,248,0.16)]"
+                >
+                  <PauseCircle className="w-11 h-11 text-sky-200/90" strokeWidth={1.25} />
+                </motion.div>
+              </div>
+
+              {/* Kicker */}
               <motion.div
-                initial={{ scale: 0.85, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                transition={{ duration: 0.5 }}
-                className="w-24 h-24 rounded-2xl bg-sky-500/[0.08] border border-sky-400/25 flex items-center justify-center mb-8 shadow-[0_0_40px_rgba(56,189,248,0.10)]"
+                initial={{ y: 10, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                transition={{ delay: 0.15 }}
+                className="text-[11px] uppercase tracking-[0.45em] text-sky-300/70 mb-5"
               >
-                <PauseCircle className="w-12 h-12 text-sky-300/85" strokeWidth={1.25} />
+                {t('lockdown.title')}
               </motion.div>
 
+              {/* Message (localized to the student) */}
               <motion.h1
                 initial={{ y: 12, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.15 }}
-                className="text-3xl sm:text-4xl font-light text-slate-100/90 tracking-[0.3em] uppercase mb-3"
-              >
-                {t('lockdown.title')}
-              </motion.h1>
-
-              <motion.p
-                initial={{ y: 12, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="text-slate-300/70 text-sm sm:text-base leading-relaxed mb-8 max-w-md"
+                transition={{ delay: 0.28 }}
+                className="text-xl sm:text-2xl font-light text-slate-100/95 leading-relaxed mb-9 text-balance"
               >
                 {lockdownMessage || t('lockdown.body')}
-              </motion.p>
+              </motion.h1>
 
+              {/* Timer paused pill */}
               <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.45 }}
-                className="flex items-center gap-3 px-5 py-2.5 bg-sky-500/[0.06] border border-sky-400/20 rounded-full"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.42 }}
+                className="flex items-center gap-2.5 px-5 py-2 bg-sky-500/[0.07] border border-sky-400/20 rounded-full"
               >
                 <span className="relative flex h-2 w-2">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-sky-300/60 animate-ping" />
                   <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-300" />
                 </span>
-                <span className="text-sky-200/85 text-[11px] uppercase tracking-[0.25em] font-medium">
+                <span className="text-sky-200/90 text-[11px] uppercase tracking-[0.22em] font-medium">
                   {t('lockdown.timerPaused')}
                 </span>
               </motion.div>
 
+              {/* Don't close note */}
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.6 }}
-                className="mt-14 text-slate-500/60 text-[10px] uppercase tracking-[0.2em]"
+                className="mt-16 text-slate-500/70 text-[10px] uppercase tracking-[0.22em]"
               >
                 {t('lockdown.dontCloseWindow')}
               </motion.div>
