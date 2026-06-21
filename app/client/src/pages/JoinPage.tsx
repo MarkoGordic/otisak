@@ -455,12 +455,6 @@ export default function JoinExamPage() {
             <p className={`text-xs mt-1 ${bodyText}`}>{examInfo.duration_minutes} {t('join.minutes')} {examInfo.subject_name ? `| ${examInfo.subject_name}` : ''}</p>
           </motion.div>
         )}
-
-        {/* Warning */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 1.2 }} className={`text-xs max-w-lg leading-relaxed border-t pt-6 ${isDark ? 'text-gray-500/60 border-gray-800/50' : 'text-slate-500 border-slate-200'}`}>
-          <p className="mb-2">{t('exam.cheatingWarning')}</p>
-          <p>{t('exam.disciplinaryWarning')}</p>
-        </motion.div>
       </div>
 
       <div className="absolute bottom-0 w-full"><OtisakFooter /></div>
