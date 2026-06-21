@@ -74,6 +74,8 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         chromium \
         ca-certificates \
         fonts-liberation \
+        fonts-dejavu-core \
+        fonts-noto-core \
         libnss3 \
         libgbm1 \
         libxss1

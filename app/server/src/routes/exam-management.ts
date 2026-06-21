@@ -132,7 +132,8 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
   try {
     const examId = getExamId(req);
     const userId = req.params.userId;
-    const built = await buildStudentReportHTML(examId, userId);
+    const locale = typeof req.query.lang === 'string' ? req.query.lang : undefined;
+    const built = await buildStudentReportHTML(examId, userId, locale);
     if (!built.ok) return res.status(built.status).json({ error: built.error });
 
     const puppeteer = await import('puppeteer');
@@ -162,6 +163,7 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
 router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    const locale = typeof req.query.lang === 'string' ? req.query.lang : undefined;
     const exam = await getOtisakExamById(examId);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
 
@@ -263,6 +265,7 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
         subjectName: exam.subject_name,
         passThreshold: Number(exam.pass_threshold),
         hasPassThreshold,
+        locale,
         rows: tableRows,
       });
       const tablePdf = await renderHtmlToPdf(tableHtml, browser, true);
@@ -272,7 +275,7 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
       // on small servers and the time is already dominated by IO.
       for (const row of submitted) {
         try {
-          const built = await buildStudentReportHTML(examId, row.user_id);
+          const built = await buildStudentReportHTML(examId, row.user_id, locale);
           if (!built.ok) continue;
           const pdf = await renderHtmlToPdf(built.data.html, browser);
           archive.append(pdf, { name: `izvestaji/${built.data.filenameBase}.pdf` });

@@ -66,7 +66,7 @@ const SUSPICIOUS_BADGE_THRESHOLD = 5;
 export default function ExamRoomPage() {
   const navigate = useNavigate();
   const { examId } = useParams();
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const toast = useToast();
 
   const [loading, setLoading] = useState(true);
@@ -364,7 +364,7 @@ export default function ExamRoomPage() {
                   </div>
                 </div>
                 <a
-                  href={`/api/otisak/exams/${examId}/export-results`}
+                  href={`/api/otisak/exams/${examId}/export-results?lang=${locale}`}
                   className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-accent text-white text-sm font-medium hover:bg-accent-hover transition-colors"
                 >
                   <FileText size={16} />

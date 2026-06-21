@@ -32,7 +32,7 @@ type Subject = { id: string; name: string; code: string | null };
 
 export default function ManagePage() {
   const navigate = useNavigate();
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const toast = useToast();
 
   // Per-tab status sub-filter options. The Aktivni tab can narrow further;
@@ -420,7 +420,7 @@ export default function ManagePage() {
                         </a>
                         {exam.status === 'completed' && (
                           <a
-                            href={`/api/otisak/exams/${exam.id}/export-results`}
+                            href={`/api/otisak/exams/${exam.id}/export-results?lang=${locale}`}
                             className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-accent bg-accent-light text-accent text-sm font-medium hover:bg-accent hover:text-white transition-colors"
                             title={t('manage.exportResults')}
                           >

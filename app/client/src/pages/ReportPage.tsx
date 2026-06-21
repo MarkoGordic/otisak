@@ -6,6 +6,7 @@ import {
   Clock, Target, Keyboard, MousePointer, Eye, EyeOff, Copy, Monitor,
 } from 'lucide-react';
 import { ToggleCluster } from '../components/ToggleCluster';
+import { useLang } from '../components/LangProvider';
 
 type ReportData = {
   exam: { id: string; title: string; subject_name: string | null; duration_minutes: number; pass_threshold: number };
@@ -46,6 +47,7 @@ const SUSPICIOUS = new Set(['copy_attempt', 'cut_attempt', 'paste_attempt', 'pag
 
 export default function StudentReportPage() {
   const navigate = useNavigate();
+  const { locale } = useLang();
   const { examId, userId } = useParams();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<ReportData | null>(null);
@@ -91,7 +93,7 @@ export default function StudentReportPage() {
           </div>
           <div className="flex items-center gap-3">
             <ToggleCluster variant="solid" position="static" />
-            <a href={`/api/otisak/exams/${examId}/report/${userId}/pdf`}
+            <a href={`/api/otisak/exams/${examId}/report/${userId}/pdf?lang=${locale}`}
               className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-sm font-medium transition-colors">
               <FileDown size={16} />PDF Izvestaj
             </a>
