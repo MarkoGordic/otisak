@@ -13,9 +13,9 @@ const LANGUAGES: LangOption[] = [
   { code: 'en', label: 'English', short: 'EN', flag: 'us' },
   { code: 'sr-Latn', label: 'Serbian (Latin)', short: 'SR', flag: 'rs' },
   { code: 'sr-Cyrl', label: 'Serbian (Cyrillic)', short: 'СР', flag: 'rs' },
-  // Serbian Cyrillic ijekavica (Bosnia and Herzegovina / Republika Srpska).
-  // Same label as above by request; the Bosnia flag is the differentiator.
-  { code: 'bs', label: 'Serbian (Cyrillic)', short: 'СР', flag: 'ba' },
+  // Serbian Cyrillic ijekavica (Republika Srpska). Same label as above by
+  // request; the Republika Srpska flag is the differentiator.
+  { code: 'bs', label: 'Serbian (Cyrillic)', short: 'СР', flag: 'srpska' },
 ];
 
 type Variant = 'glass' | 'solid' | 'sidebar';
