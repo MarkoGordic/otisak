@@ -37,6 +37,11 @@ const en = {
   'login.elpis.error.disabled': 'ELPIS ID sign-in is currently disabled.',
   'login.elpis.error.generic': 'ELPIS ID sign-in failed.',
 
+  // Not found
+  'notfound.title': 'Page not found',
+  'notfound.desc': 'The page you are looking for does not exist or has moved.',
+  'notfound.home': 'Back to home',
+
   // Sidebar
   'nav.dashboard': 'Dashboard',
   'nav.manage': 'Manage Exams',

@@ -180,31 +180,31 @@ router.get('/login', async (req: Request, res: Response, next: NextFunction) => 
 router.get('/callback', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const cfg = getElpisConfig();
-    if (!cfg) return res.redirect(302, '/login?elpis_error=disabled');
+    if (!cfg) return res.redirect(302, '/admin?elpis_error=disabled');
 
     const sealed = unseal<OAuthState>(req.cookies?.[OAUTH_COOKIE] || '');
     clearOAuthCookie(res);
 
     if (!sealed || sealed.mode !== 'login' || sealed.exp < Date.now()) {
-      return res.redirect(302, '/login?elpis_error=state');
+      return res.redirect(302, '/admin?elpis_error=state');
     }
-    if (req.query.error) return res.redirect(302, '/login?elpis_error=denied');
+    if (req.query.error) return res.redirect(302, '/admin?elpis_error=denied');
     if (typeof req.query.state !== 'string' || !timingSafeEqual(req.query.state, sealed.state)) {
-      return res.redirect(302, '/login?elpis_error=state');
+      return res.redirect(302, '/admin?elpis_error=state');
     }
-    if (typeof req.query.code !== 'string') return res.redirect(302, '/login?elpis_error=code');
+    if (typeof req.query.code !== 'string') return res.redirect(302, '/admin?elpis_error=code');
 
     let info: UserInfo;
     try {
       info = await exchangeAndFetchUser(cfg, req.query.code, sealed.redirectUri, sealed.verifier);
     } catch (e) {
       req.log?.warn({ err: (e as Error).message }, 'elpis: token/userinfo exchange failed');
-      return res.redirect(302, '/login?elpis_error=exchange');
+      return res.redirect(302, '/admin?elpis_error=exchange');
     }
 
     // Link-only: refuse a sub that isn't already attached to an otisak account.
     const user = await findUserByElpisId(info.sub);
-    if (!user) return res.redirect(302, '/login?elpis_error=not_linked');
+    if (!user) return res.redirect(302, '/admin?elpis_error=not_linked');
 
     await updateLastLogin(user.id);
     const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';

@@ -7,6 +7,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 // exam-taking flow (entry, join, exam, results).
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
+import NotFoundPage from './pages/NotFoundPage';
 import JoinPage from './pages/JoinPage';
 import ExamPage from './pages/ExamPage';
 import ResultsPage from './pages/ResultsPage';
@@ -64,6 +65,8 @@ export default function App() {
           <Route path="/docs" element={<DocsPage />} />
           <Route path="/docs/:lang" element={<DocsPage />} />
           <Route path="/docs/:lang/*" element={<DocsPage />} />
+          {/* Catch-all: never render a blank screen for an unknown path. */}
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>

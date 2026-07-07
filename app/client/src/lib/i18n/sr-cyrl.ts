@@ -40,6 +40,11 @@ const srCyrl: Record<I18nKey, string> = {
   'login.elpis.error.disabled': 'Пријава путем ELPIS ID је тренутно онемогућена.',
   'login.elpis.error.generic': 'Пријава путем ELPIS ID није успела.',
 
+  // Not found
+  'notfound.title': 'Страница није пронађена',
+  'notfound.desc': 'Страница коју тражите не постоји или је премештена.',
+  'notfound.home': 'Назад на почетну',
+
   // Sidebar
   'nav.dashboard': 'Почетна',
   'nav.manage': 'Управљање испитима',

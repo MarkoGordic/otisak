@@ -41,6 +41,11 @@ const sr: Record<I18nKey, string> = {
   'login.elpis.error.disabled': 'Prijava putem ELPIS ID je trenutno onemogućena.',
   'login.elpis.error.generic': 'Prijava putem ELPIS ID nije uspela.',
 
+  // Not found
+  'notfound.title': 'Stranica nije pronađena',
+  'notfound.desc': 'Stranica koju tražite ne postoji ili je premeštena.',
+  'notfound.home': 'Nazad na početnu',
+
   // Sidebar
   'nav.dashboard': 'Početna',
   'nav.manage': 'Upravljanje ispitima',
