@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react';
 import { AppCopyright } from '../components/AppCopyright';
@@ -15,6 +15,27 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  // ELPIS ID login is optional: the button only renders when the server reports
+  // the feature enabled. Absent config → this stays false and the UI is unchanged.
+  const [elpisEnabled, setElpisEnabled] = useState(false);
+
+  useEffect(() => {
+    // Surface a friendly message when a callback bounced back with an error
+    // (most commonly the link-only "your ELPIS ID isn't linked" case).
+    const params = new URLSearchParams(window.location.search);
+    const elpisErr = params.get('elpis_error');
+    if (elpisErr) {
+      const known = ['not_linked', 'denied', 'state', 'code', 'exchange', 'disabled'];
+      setError(t(known.includes(elpisErr) ? `login.elpis.error.${elpisErr}` : 'login.elpis.error.generic'));
+    }
+
+    let alive = true;
+    fetch('/api/auth/elpis/status', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.enabled) setElpisEnabled(true); })
+      .catch(() => { /* feature stays hidden on any error */ });
+    return () => { alive = false; };
+  }, [t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -179,6 +200,29 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {elpisEnabled && (
+            <>
+              <div className="flex items-center gap-3 my-5">
+                <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+                <span className={`text-[11px] uppercase tracking-widest ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                  {t('login.elpis.or')}
+                </span>
+                <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+              </div>
+              <a
+                href="/api/auth/elpis/login"
+                className={`w-full h-12 rounded-xl font-medium text-sm transition-all flex items-center justify-center gap-2.5 border ${
+                  isDark
+                    ? 'bg-white/5 border-white/10 text-white hover:bg-white/10 hover:border-white/20'
+                    : 'bg-white border-slate-200 text-slate-900 hover:border-slate-300 hover:shadow-sm'
+                }`}
+              >
+                <Fingerprint size={18} className={isDark ? 'text-blue-400' : 'text-blue-600'} strokeWidth={1.75} />
+                {t('login.elpis.continue')}
+              </a>
+            </>
+          )}
 
           <p className={`mt-5 text-[11px] leading-relaxed text-center ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
             {t('login.disclaimer')}

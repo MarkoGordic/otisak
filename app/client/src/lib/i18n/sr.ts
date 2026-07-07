@@ -29,6 +29,18 @@ const sr: Record<I18nKey, string> = {
   'login.disclaimer':
     'Prijavom na korisnički nalog garantujete ispravnost unetih podataka. Svaka zloupotreba je kažnjiva.',
 
+  // ELPIS ID (opciona SSO prijava)
+  'login.elpis.or': 'ili',
+  'login.elpis.continue': 'Nastavi sa ELPIS ID',
+  'login.elpis.error.not_linked':
+    'Ovaj ELPIS ID nije povezan sa OTISAK nalogom. Zatražite od administratora da ga poveže.',
+  'login.elpis.error.denied': 'Prijava putem ELPIS ID je otkazana.',
+  'login.elpis.error.state': 'Prijava putem ELPIS ID je istekla ili je nevažeća. Pokušajte ponovo.',
+  'login.elpis.error.code': 'Prijava putem ELPIS ID nije uspela. Pokušajte ponovo.',
+  'login.elpis.error.exchange': 'Nije moguće završiti prijavu putem ELPIS ID. Pokušajte ponovo.',
+  'login.elpis.error.disabled': 'Prijava putem ELPIS ID je trenutno onemogućena.',
+  'login.elpis.error.generic': 'Prijava putem ELPIS ID nije uspela.',
+
   // Sidebar
   'nav.dashboard': 'Početna',
   'nav.manage': 'Upravljanje ispitima',
@@ -660,6 +672,13 @@ const sr: Record<I18nKey, string> = {
   'account.passwordTooShort': 'Nova lozinka mora imati najmanje 6 znakova.',
   'account.passwordMismatch': 'Polja za novu lozinku se ne poklapaju.',
   'account.passwordSame': 'Nova lozinka mora biti drugačija od trenutne.',
+  'account.elpis.title': 'ELPIS ID',
+  'account.elpis.linked': 'Vaš nalog je povezan sa ELPIS ID.',
+  'account.elpis.notLinked': 'Povežite nalog da biste se prijavljivali putem ELPIS ID.',
+  'account.elpis.link': 'Poveži ELPIS ID',
+  'account.elpis.unlink': 'Ukloni vezu',
+  'account.elpis.unlinked': 'Veza sa ELPIS ID je uklonjena.',
+  'account.elpis.unlinkFailed': 'Uklanjanje veze sa ELPIS ID nije uspelo.',
 
   // Common
   'common.cancel': 'Otkaži',

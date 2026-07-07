@@ -6,6 +6,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 
 import authRoutes from './routes/auth';
+import authElpisRoutes from './routes/authElpis';
+import integrationRoutes from './routes/integration';
 import adminRoutes from './routes/admin';
 import subjectRoutes from './routes/subjects';
 import examCollectionRoutes from './routes/exam-collection';
@@ -23,6 +25,7 @@ import { runMigrations } from './db/migrations';
 import { closePool } from './db/client';
 import { pruneOldErrorLogs } from './db/error-log';
 import { assertSessionSecretIsSafe } from './session';
+import { isElpisConfigured } from './elpisId';
 import { requestContext } from './middleware/requestContext';
 import { accessLog } from './middleware/accessLog';
 import { errorHandler } from './middleware/errorHandler';
@@ -114,6 +117,11 @@ app.use(express.json({ limit: '1mb' }));
 
 // API Routes (all under /api)
 app.use('/api/auth', authRoutes);
+// Optional "Continue with ELPIS ID" OAuth routes. Inert (404) unless the
+// ELPIS_ID_* env is configured. Mounted after /api/auth: authRoutes only
+// handles its own exact paths and calls next() otherwise, so /api/auth/elpis/*
+// falls through to this router.
+app.use('/api/auth/elpis', authElpisRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/otisak/subjects', subjectRoutes);
 app.use('/api/otisak/exams', examCollectionRoutes);
@@ -124,6 +132,14 @@ app.use('/api/otisak/questions', questionsRoutes);
 app.use('/api/otisak/history', historyRoutes);
 // Client-side error ingestion (unauthenticated, rate limited).
 app.use('/api/_log', clientLogRoutes);
+
+// Optional cross-app federation endpoints (Person 360 read + ELPIS-main write).
+// Live OUTSIDE /api, so this MUST be mounted before express.static / the SPA
+// fallback or the catch-all would serve index.html for these paths. Only mounted
+// when the ELPIS ID feature is configured; every route is service-token guarded.
+if (isElpisConfigured()) {
+  app.use('/integration', integrationRoutes);
+}
 
 // Health check
 app.get('/api/health', (_req, res) => {

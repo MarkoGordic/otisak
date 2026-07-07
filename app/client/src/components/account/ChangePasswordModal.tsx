@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { Fingerprint } from 'lucide-react';
 import { useLang } from '../LangProvider';
 import { useToast } from '../Toast';
 import { Button } from '../ui/Button';
@@ -12,6 +13,44 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Optional ELPIS ID self-linking. `elpisConfigured` gates the whole section;
+  // when the feature is off this fetch fails/returns false and nothing renders.
+  const [elpisConfigured, setElpisConfigured] = useState(false);
+  const [elpisLinked, setElpisLinked] = useState(false);
+  const [unlinking, setUnlinking] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch('/api/auth/elpis/link-status', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!alive || !d) return;
+        setElpisConfigured(!!d.configured);
+        setElpisLinked(!!d.linked);
+      })
+      .catch(() => { /* feature stays hidden */ });
+    return () => { alive = false; };
+  }, []);
+
+  const startLink = () => {
+    const back = encodeURIComponent(window.location.pathname + window.location.search);
+    window.location.href = `/api/auth/elpis/link?returnTo=${back}`;
+  };
+
+  const handleUnlink = async () => {
+    setUnlinking(true);
+    try {
+      const res = await fetch('/api/auth/elpis/unlink', { method: 'POST', credentials: 'include' });
+      if (!res.ok) { toast.error(t('account.elpis.unlinkFailed')); return; }
+      setElpisLinked(false);
+      toast.success(t('account.elpis.unlinked'));
+    } catch {
+      toast.error(t('account.elpis.unlinkFailed'));
+    } finally {
+      setUnlinking(false);
+    }
+  };
 
   const handleSave = async () => {
     if (next.length < 6) {
@@ -78,6 +117,30 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
             className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
           />
         </div>
+
+        {elpisConfigured && (
+          <div className="mt-5 pt-5 border-t border-[var(--border-default)]">
+            <div className="flex items-center gap-2 mb-2">
+              <Fingerprint size={16} className="text-accent" />
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('account.elpis.title')}</h3>
+            </div>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-[var(--text-secondary)]">
+                {elpisLinked ? t('account.elpis.linked') : t('account.elpis.notLinked')}
+              </p>
+              {elpisLinked ? (
+                <Button variant="secondary" size="sm" loading={unlinking} onClick={handleUnlink}>
+                  {t('account.elpis.unlink')}
+                </Button>
+              ) : (
+                <Button variant="secondary" size="sm" onClick={startLink}>
+                  {t('account.elpis.link')}
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="flex items-center justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
             {t('common.cancel')}

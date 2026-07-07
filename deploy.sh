@@ -60,6 +60,16 @@ Flags:
                     If 'pwd' is omitted the script prompts (hidden) and
                     asks for confirmation. Cannot combine with deploy
                     flags (--clean, --port, etc.).
+  --elpis-id        Enable optional "Continue with ELPIS ID" SSO. Writes
+                    ELPIS_ID_ENABLED=true to .env. Supply the client
+                    details with the flags below (or edit .env directly).
+  --no-elpis-id     Disable ELPIS ID SSO (writes ELPIS_ID_ENABLED=false).
+  --elpis-issuer URL         ELPIS ID issuer, e.g. https://auth.gordic.rs
+  --elpis-client-id ID       OAuth client_id for this OTISAK instance.
+  --elpis-client-secret SEC  OAuth client_secret (kept in .env, mode 600).
+  --elpis-redirect-uri URI   Override the OAuth callback (default derived
+                             from the request origin). Any --elpis* flag
+                             implies --elpis-id.
 
 Examples:
   ./deploy.sh                    Standard deploy (keeps DB, pulls latest).
@@ -74,6 +84,10 @@ Examples:
                                  update it in-place (no redeploy).
   ./deploy.sh --set-admin-password 'My$ecret!23'
                                  Same, but pass the password inline.
+  ./deploy.sh --elpis-id --elpis-issuer https://auth.gordic.rs \
+              --elpis-client-id elpis_otisak_ab12cd \
+              --elpis-client-secret eid_xxxxxxxxxxxxxxxx
+                                 Deploy with ELPIS ID SSO enabled.
 
 After a successful deploy the script prints the bootstrapped admin
 credentials (email + password) if a fresh admin was created, or a
@@ -88,6 +102,25 @@ FIREWALL=true
 PORT_OVERRIDE=""
 SET_ADMIN_PWD_MODE=false
 NEW_ADMIN_PWD=""
+
+# Optional ELPIS ID SSO. Off by default: without any --elpis* flag the deploy
+# never touches these keys and OTISAK stays a standalone local-auth app.
+ELPIS_ENABLE=false
+ELPIS_TOUCHED=false
+ELPIS_ISSUER=""
+ELPIS_CLIENT_ID=""
+ELPIS_CLIENT_SECRET=""
+ELPIS_REDIRECT_URI=""
+
+# Upsert KEY=VALUE into .env (rewrites an existing line, else appends).
+upsert_env() {
+  local key="$1" value="$2"
+  touch .env
+  if grep -q "^${key}=" .env 2>/dev/null; then
+    sed -i.bak "/^${key}=/d" .env && rm -f .env.bak
+  fi
+  echo "${key}=${value}" >> .env
+}
 
 # Manual parser so we can support both "--port 8080" and "--port=8080"
 # without dragging in getopt (BSD/GNU getopt are incompatible).
@@ -132,6 +165,30 @@ while [ $# -gt 0 ]; do
       NEW_ADMIN_PWD="${1#--set-admin-password=}"
       shift
       ;;
+    --elpis-id|--elpis)
+      ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift ;;
+    --no-elpis-id|--no-elpis)
+      ELPIS_ENABLE=false; ELPIS_TOUCHED=true; shift ;;
+    --elpis-issuer)
+      [ -z "${2:-}" ] && { echo "Error: $1 requires a value." >&2; exit 1; }
+      ELPIS_ISSUER="$2"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift 2 ;;
+    --elpis-issuer=*)
+      ELPIS_ISSUER="${1#--elpis-issuer=}"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift ;;
+    --elpis-client-id)
+      [ -z "${2:-}" ] && { echo "Error: $1 requires a value." >&2; exit 1; }
+      ELPIS_CLIENT_ID="$2"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift 2 ;;
+    --elpis-client-id=*)
+      ELPIS_CLIENT_ID="${1#--elpis-client-id=}"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift ;;
+    --elpis-client-secret)
+      [ -z "${2:-}" ] && { echo "Error: $1 requires a value." >&2; exit 1; }
+      ELPIS_CLIENT_SECRET="$2"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift 2 ;;
+    --elpis-client-secret=*)
+      ELPIS_CLIENT_SECRET="${1#--elpis-client-secret=}"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift ;;
+    --elpis-redirect-uri)
+      [ -z "${2:-}" ] && { echo "Error: $1 requires a value." >&2; exit 1; }
+      ELPIS_REDIRECT_URI="$2"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift 2 ;;
+    --elpis-redirect-uri=*)
+      ELPIS_REDIRECT_URI="${1#--elpis-redirect-uri=}"; ELPIS_ENABLE=true; ELPIS_TOUCHED=true; shift ;;
     *)
       echo "Unknown flag: $1" >&2
       echo "Run './deploy.sh --help' for usage." >&2
@@ -328,6 +385,26 @@ if grep -q '^HOST_PORT=' .env 2>/dev/null; then
   sed -i.bak '/^HOST_PORT=/d' .env && rm -f .env.bak
 fi
 echo "HOST_PORT=${HOST_PORT}" >> .env
+
+# Persist ELPIS ID settings to .env only when an --elpis* flag was passed. We
+# never touch these keys otherwise, so a deploy without the flags leaves any
+# existing (or absent) ELPIS config exactly as-is.
+if [ "$ELPIS_TOUCHED" = true ]; then
+  upsert_env ELPIS_ID_ENABLED "$ELPIS_ENABLE"
+  [ -n "$ELPIS_ISSUER" ]        && upsert_env ELPIS_ID_ISSUER "$ELPIS_ISSUER"
+  [ -n "$ELPIS_CLIENT_ID" ]     && upsert_env ELPIS_ID_CLIENT_ID "$ELPIS_CLIENT_ID"
+  [ -n "$ELPIS_CLIENT_SECRET" ] && upsert_env ELPIS_ID_CLIENT_SECRET "$ELPIS_CLIENT_SECRET"
+  [ -n "$ELPIS_REDIRECT_URI" ]  && upsert_env ELPIS_ID_REDIRECT_URI "$ELPIS_REDIRECT_URI"
+  if [ "$ELPIS_ENABLE" = true ]; then
+    echo "ELPIS ID login: enabled (settings written to .env)."
+    if ! grep -q '^ELPIS_ID_CLIENT_ID=..*' .env 2>/dev/null || ! grep -q '^ELPIS_ID_ISSUER=..*' .env 2>/dev/null; then
+      echo "  NOTE: ELPIS_ID_ISSUER / ELPIS_ID_CLIENT_ID / ELPIS_ID_CLIENT_SECRET must all be"
+      echo "        present in .env for the feature to activate (see .env.example)."
+    fi
+  else
+    echo "ELPIS ID login: disabled (ELPIS_ID_ENABLED=false written to .env)."
+  fi
+fi
 
 
 # 1) Stop containers. Volume / image removal is gated on --clean.

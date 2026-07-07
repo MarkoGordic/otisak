@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Settings, Shield, BookOpen } from 'lucide-react';
+import { Loader2, Settings, Shield, BookOpen, Fingerprint } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
@@ -17,6 +17,9 @@ export default function AdminSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
+  // Whether the ELPIS_ID_* env is configured on the server. The soft toggle only
+  // has an effect when this is true; otherwise the control is shown disabled.
+  const [elpisConfigured, setElpisConfigured] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -33,6 +36,8 @@ export default function AdminSettingsPage() {
     try {
       const res = await fetch('/api/admin/settings', { credentials: 'include' });
       if (res.ok) { const d = await res.json(); setSettings(d.settings || {}); }
+      const st = await fetch('/api/auth/elpis/status', { credentials: 'include' });
+      if (st.ok) { const s = await st.json(); setElpisConfigured(!!s.configured); }
     } catch {} finally { setLoading(false); }
   }, []);
 
@@ -113,6 +118,39 @@ export default function AdminSettingsPage() {
                   {settings.practice_mode_enabled === 'true'
                     ? 'Studenti mogu da pristupe ispitima za vezbu sa pocetne strane.'
                     : 'Tab za vezbu je sakriven od studenata. Samo pravi ispiti su dostupni.'}
+                </p>
+              </div>
+
+              {/* ELPIS ID Login Toggle */}
+              <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-accent-light flex items-center justify-center">
+                      <Fingerprint className="w-5 h-5 text-accent" />
+                    </div>
+                    <div>
+                      <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">ELPIS ID prijava</h3>
+                      <p className="text-sm text-[var(--text-secondary)]">Prikaži dugme „Nastavi sa ELPIS ID“ na stranici za prijavu</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => elpisConfigured && toggleSetting('elpis_id_login_enabled')}
+                    disabled={saving || !elpisConfigured}
+                    className={`relative w-14 h-7 rounded-full transition-colors ${
+                      elpisConfigured && settings.elpis_id_login_enabled !== 'false' ? 'bg-success' : 'bg-[var(--text-muted)]'
+                    } ${!elpisConfigured ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  >
+                    <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                      elpisConfigured && settings.elpis_id_login_enabled !== 'false' ? 'translate-x-7' : 'translate-x-0.5'
+                    }`} />
+                  </button>
+                </div>
+                <p className="text-xs text-[var(--text-muted)] mt-3 ml-14">
+                  {!elpisConfigured
+                    ? 'ELPIS ID nije konfigurisan na serveru. Podesite ELPIS_ID_* promenljive okruženja da biste omogućili ovu opciju.'
+                    : settings.elpis_id_login_enabled !== 'false'
+                      ? 'Dugme za prijavu putem ELPIS ID je vidljivo. Prijava uspeva samo za naloge koji su povezani sa ELPIS ID.'
+                      : 'Dugme za prijavu putem ELPIS ID je sakriveno.'}
                 </p>
               </div>
 

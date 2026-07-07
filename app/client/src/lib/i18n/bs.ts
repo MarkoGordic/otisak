@@ -26,6 +26,18 @@ const bs: Record<I18nKey, string> = {
   'login.disclaimer':
     'Пријавом на кориснички налог гарантујете исправност унијетих података. Свака злоупотреба је кажњива.',
 
+  // ELPIS ID (опциона SSO пријава)
+  'login.elpis.or': 'или',
+  'login.elpis.continue': 'Настави са ELPIS ID',
+  'login.elpis.error.not_linked':
+    'Овај ELPIS ID није повезан са OTISAK налогом. Затражите од администратора да га повеже.',
+  'login.elpis.error.denied': 'Пријава путем ELPIS ID је отказана.',
+  'login.elpis.error.state': 'Пријава путем ELPIS ID је истекла или је неважећа. Покушајте поново.',
+  'login.elpis.error.code': 'Пријава путем ELPIS ID није успјела. Покушајте поново.',
+  'login.elpis.error.exchange': 'Није могуће завршити пријаву путем ELPIS ID. Покушајте поново.',
+  'login.elpis.error.disabled': 'Пријава путем ELPIS ID је тренутно онемогућена.',
+  'login.elpis.error.generic': 'Пријава путем ELPIS ID није успјела.',
+
   // Sidebar
   'nav.dashboard': 'Почетна',
   'nav.manage': 'Управљање испитима',
@@ -657,6 +669,13 @@ const bs: Record<I18nKey, string> = {
   'account.passwordTooShort': 'Нова лозинка мора имати најмање 6 знакова.',
   'account.passwordMismatch': 'Поља за нову лозинку се не поклапају.',
   'account.passwordSame': 'Нова лозинка мора бити другачија од тренутне.',
+  'account.elpis.title': 'ELPIS ID',
+  'account.elpis.linked': 'Ваш налог је повезан са ELPIS ID.',
+  'account.elpis.notLinked': 'Повежите налог да бисте се пријављивали путем ELPIS ID.',
+  'account.elpis.link': 'Повежи ELPIS ID',
+  'account.elpis.unlink': 'Уклони везу',
+  'account.elpis.unlinked': 'Веза са ELPIS ID је уклоњена.',
+  'account.elpis.unlinkFailed': 'Уклањање везе са ELPIS ID није успјело.',
 
   // Common
   'common.cancel': 'Откажи',

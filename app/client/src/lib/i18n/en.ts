@@ -25,6 +25,18 @@ const en = {
   'login.disclaimer':
     'By signing in, you confirm that the information you provide is accurate. Any misuse is punishable.',
 
+  // ELPIS ID (optional SSO)
+  'login.elpis.or': 'or',
+  'login.elpis.continue': 'Continue with ELPIS ID',
+  'login.elpis.error.not_linked':
+    'This ELPIS ID is not linked to an OTISAK account. Ask an administrator to link it.',
+  'login.elpis.error.denied': 'ELPIS ID sign-in was cancelled.',
+  'login.elpis.error.state': 'ELPIS ID sign-in expired or was invalid. Please try again.',
+  'login.elpis.error.code': 'ELPIS ID sign-in failed. Please try again.',
+  'login.elpis.error.exchange': 'Could not complete ELPIS ID sign-in. Please try again.',
+  'login.elpis.error.disabled': 'ELPIS ID sign-in is currently disabled.',
+  'login.elpis.error.generic': 'ELPIS ID sign-in failed.',
+
   // Sidebar
   'nav.dashboard': 'Dashboard',
   'nav.manage': 'Manage Exams',
@@ -656,6 +668,13 @@ const en = {
   'account.passwordTooShort': 'New password must be at least 6 characters.',
   'account.passwordMismatch': 'The two new password fields do not match.',
   'account.passwordSame': 'New password must be different from the current one.',
+  'account.elpis.title': 'ELPIS ID',
+  'account.elpis.linked': 'Your account is linked to ELPIS ID.',
+  'account.elpis.notLinked': 'Link your account to sign in with ELPIS ID.',
+  'account.elpis.link': 'Link ELPIS ID',
+  'account.elpis.unlink': 'Unlink',
+  'account.elpis.unlinked': 'ELPIS ID unlinked.',
+  'account.elpis.unlinkFailed': 'Could not unlink ELPIS ID.',
 
   // Common
   'common.cancel': 'Cancel',

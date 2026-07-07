@@ -34,6 +34,44 @@ export async function findUserByIndexNumber(indexNumber: string): Promise<User |
   return result.rows[0] || null;
 }
 
+// --- ELPIS ID (OAuth/OIDC) account links -----------------------------------
+// All optional: only exercised when the ELPIS ID feature is configured. `sub`
+// is the OIDC subject identifier (users.elpis_id). Login is link-only, so these
+// are the lookup + admin/self linking primitives.
+
+export async function findUserByElpisId(sub: string): Promise<User | null> {
+  if (!sub) return null;
+  const result = await query<User>(
+    'SELECT * FROM users WHERE elpis_id = $1 AND is_active = TRUE LIMIT 1',
+    [sub]
+  );
+  return result.rows[0] || null;
+}
+
+// Which user (if any) currently owns this ELPIS ID link, regardless of active
+// state — used to reject linking a `sub` that is already taken by someone else.
+export async function findUserIdByElpisId(sub: string): Promise<string | null> {
+  if (!sub) return null;
+  const result = await query<{ id: string }>(
+    'SELECT id FROM users WHERE elpis_id = $1 LIMIT 1',
+    [sub]
+  );
+  return result.rows[0]?.id ?? null;
+}
+
+export type LinkElpisResult = 'linked' | 'already_linked_other';
+
+export async function linkElpisId(userId: string, sub: string): Promise<LinkElpisResult> {
+  const owner = await findUserIdByElpisId(sub);
+  if (owner && owner !== userId) return 'already_linked_other';
+  await query('UPDATE users SET elpis_id = $1, updated_at = NOW() WHERE id = $2', [sub, userId]);
+  return 'linked';
+}
+
+export async function unlinkElpisId(userId: string): Promise<void> {
+  await query('UPDATE users SET elpis_id = NULL, updated_at = NOW() WHERE id = $1', [userId]);
+}
+
 export async function updateLastLogin(userId: string): Promise<void> {
   await query('UPDATE users SET last_login_at = NOW() WHERE id = $1', [userId]);
 }
@@ -49,11 +87,21 @@ export async function createUser(data: {
   name?: string;
   role?: string;
   index_number?: string;
+  // Optional pre-linked ELPIS ID (OIDC `sub`) — set when an account is
+  // provisioned from the ELPIS main platform's federation endpoint.
+  elpis_id?: string;
 }): Promise<User> {
   const result = await query<User>(
-    `INSERT INTO users (email, password_hash, name, role, index_number)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [data.email, data.password_hash, data.name || null, data.role || 'student', data.index_number || null]
+    `INSERT INTO users (email, password_hash, name, role, index_number, elpis_id)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [
+      data.email,
+      data.password_hash,
+      data.name || null,
+      data.role || 'student',
+      data.index_number || null,
+      data.elpis_id || null,
+    ]
   );
   return result.rows[0];
 }

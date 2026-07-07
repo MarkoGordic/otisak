@@ -35,6 +35,16 @@ services:
       PORT: 3001
       NODE_ENV: production
       CLIENT_DIST_PATH: /app/client/dist
+      # Optional ELPIS ID SSO. All empty-default, so an .env without these keys
+      # boots identically to before (the feature stays dormant). See .env.example.
+      ELPIS_ID_ENABLED: ${ELPIS_ID_ENABLED:-}
+      ELPIS_ID_ISSUER: ${ELPIS_ID_ISSUER:-}
+      ELPIS_ID_CLIENT_ID: ${ELPIS_ID_CLIENT_ID:-}
+      ELPIS_ID_CLIENT_SECRET: ${ELPIS_ID_CLIENT_SECRET:-}
+      ELPIS_ID_REDIRECT_URI: ${ELPIS_ID_REDIRECT_URI:-}
+      ELPIS_ID_SCOPES: ${ELPIS_ID_SCOPES:-}
+      ELPIS_ID_JWKS_URL: ${ELPIS_ID_JWKS_URL:-}
+      ELPIS_ID_INTEGRATION_ALLOWED_CLIENTS: ${ELPIS_ID_INTEGRATION_ALLOWED_CLIENTS:-}
     depends_on:
       db:
         condition: service_healthy

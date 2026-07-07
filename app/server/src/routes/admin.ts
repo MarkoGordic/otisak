@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { getAllUsers, updateUser, updateUserPasswordHash } from '../db/users';
+import { getAllUsers, updateUser, updateUserPasswordHash, findUserById, linkElpisId, unlinkElpisId } from '../db/users';
 import { getAllSettings, setSetting } from '../db/settings';
 import { requireAuth, requireRole } from '../middleware';
 import { query } from '../db/client';
@@ -96,6 +96,37 @@ router.patch('/users/password', async (req: Request, res: Response) => {
     return res.json({ success: true });
   } catch (error) {
     console.error('Update user password error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// PATCH /admin/users/:id/elpis - link or clear a user's ELPIS ID (OIDC `sub`).
+// Body: { elpisId: string | null }. Passing null / '' clears the link. Enables
+// admins to enrol someone for "Continue with ELPIS ID" without that user having
+// to self-link first. The richer directory picker lives on the ELPIS main
+// platform; this is the local, universal control.
+router.patch('/users/:id/elpis', async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { elpisId } = req.body || {};
+
+    const user = await findUserById(id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (elpisId === null || elpisId === undefined || elpisId === '') {
+      await unlinkElpisId(id);
+      return res.json({ success: true, elpis_id: null });
+    }
+    if (typeof elpisId !== 'string') {
+      return res.status(400).json({ error: 'elpisId must be a string or null' });
+    }
+    const result = await linkElpisId(id, elpisId.trim());
+    if (result === 'already_linked_other') {
+      return res.status(409).json({ error: 'That ELPIS ID is already linked to another user' });
+    }
+    return res.json({ success: true, elpis_id: elpisId.trim() });
+  } catch (error) {
+    console.error('Link user ELPIS ID error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
@@ -252,6 +283,9 @@ router.get('/settings', async (_req: Request, res: Response) => {
 // a UI control somewhere that knows how to read it back.
 const ALLOWED_SETTING_KEYS = new Set([
   'practice_mode_enabled',
+  // Soft toggle for the ELPIS ID login button. Only has an effect when the
+  // ELPIS_ID_* env is configured (see elpisLoginEnabled()).
+  'elpis_id_login_enabled',
 ]);
 
 // PATCH /admin/settings

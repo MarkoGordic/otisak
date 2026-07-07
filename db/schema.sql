@@ -19,6 +19,9 @@ CREATE TABLE users (
   index_number TEXT,
   role user_role NOT NULL DEFAULT 'student',
   is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  -- Optional ELPIS ID (OAuth/OIDC) account link (the OIDC `sub`). NULL for
+  -- local-only accounts. Kept in sync with migration 013_users_elpis_id.
+  elpis_id TEXT UNIQUE,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_login_at TIMESTAMPTZ
@@ -368,7 +371,10 @@ CREATE TABLE app_settings (
 );
 
 INSERT INTO app_settings (key, value) VALUES
-  ('practice_mode_enabled', 'false');
+  ('practice_mode_enabled', 'false'),
+  -- Soft toggle for the ELPIS ID login button (kept in sync with migration
+  -- 014_settings_elpis_login). Only takes effect when the ELPIS_ID_* env is set.
+  ('elpis_id_login_enabled', 'true');
 
 -- ========================================
 -- EXAM LOCKDOWNS

@@ -161,6 +161,28 @@ const steps: readonly Step[] = [
       ADD COLUMN IF NOT EXISTS allow_calculator BOOLEAN NOT NULL DEFAULT FALSE
     `);
   }],
+  ['013_users_elpis_id', async () => {
+    // Optional ELPIS ID (OAuth/OIDC) account link. Nullable, so every existing
+    // row is untouched; UNIQUE so one ELPIS ID account (the OIDC `sub`) maps to
+    // at most one otisak user. NULLs don't collide under a UNIQUE constraint, so
+    // local-only accounts coexist fine. Login is link-only: a `sub` with no row
+    // here is refused, never auto-provisioned.
+    await query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS elpis_id TEXT UNIQUE
+    `);
+  }],
+  ['014_settings_elpis_login', async () => {
+    // Soft admin toggle for the ELPIS ID login button. Seeded 'true' so that
+    // once an operator configures the ELPIS_ID_* env the button is live; an
+    // admin can flip it off in Settings without a redeploy. Only ever consulted
+    // when the env is actually configured (see elpisLoginEnabled()).
+    await query(`
+      INSERT INTO app_settings (key, value)
+      VALUES ('elpis_id_login_enabled', 'true')
+      ON CONFLICT (key) DO NOTHING
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {
