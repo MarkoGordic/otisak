@@ -4,7 +4,7 @@ import { base64Url, timingSafeEqual } from '../crypto';
 import { seal, unseal, createSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth } from '../middleware';
 import { getElpisConfig, elpisLoginEnabled, isElpisConfigured, ElpisConfig } from '../elpisId';
-import { findUserByElpisId, linkElpisId, unlinkElpisId, updateLastLogin } from '../db/users';
+import { findUserByElpisId, linkElpisId, unlinkElpisId, updateLastLogin, syncProfileFromElpis } from '../db/users';
 
 // ---------------------------------------------------------------------------
 // "Continue with ELPIS ID" — OAuth 2.0 Authorization Code + PKCE against the
@@ -40,6 +40,7 @@ type UserInfo = {
   email?: string;
   name?: string;
   preferred_username?: string;
+  picture?: string;
 };
 
 // Only allow redirecting back to a local, absolute path — never an absolute URL
@@ -203,8 +204,17 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
     }
 
     // Link-only: refuse a sub that isn't already attached to an otisak account.
-    const user = await findUserByElpisId(info.sub);
-    if (!user) return res.redirect(302, '/admin?elpis_error=not_linked');
+    const linked = await findUserByElpisId(info.sub);
+    if (!linked) return res.redirect(302, '/admin?elpis_error=not_linked');
+
+    // Pull-side profile re-sync: refresh name/email/avatar from ELPIS ID on
+    // every login so the local copy can't drift between webhook deliveries.
+    // The session cookie below is minted from the refreshed row.
+    const user = (await syncProfileFromElpis(info.sub, {
+      name: info.name,
+      email: info.email,
+      avatarUrl: info.picture,
+    })) || linked;
 
     await updateLastLogin(user.id);
     const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
