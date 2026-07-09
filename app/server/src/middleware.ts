@@ -13,6 +13,10 @@ declare global {
       // rely on them being present.
       id: string;
       log: Logger;
+      // Raw request bytes, captured by the express.json verify hook in index.ts.
+      // Needed by the /integration/events webhook receiver, whose HMAC signature
+      // covers the exact bytes on the wire (re-serialising req.body would break it).
+      rawBody?: Buffer;
     }
   }
 }
@@ -32,6 +36,13 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     const user = await findUserById(session.user.id);
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
+    }
+
+    // Remote revocation (ELPIS ID "log out everywhere" / user disabled / app
+    // access blocked): the cookie signature is still valid, but any session
+    // minted before the per-user cutoff is refused.
+    if (user.sessions_revoked_at && session.createdAt < new Date(user.sessions_revoked_at).getTime()) {
+      return res.status(401).json({ error: 'Session revoked' });
     }
 
     req.user = user;

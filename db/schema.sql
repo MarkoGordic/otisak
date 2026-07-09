@@ -22,6 +22,9 @@ CREATE TABLE users (
   -- Optional ELPIS ID (OAuth/OIDC) account link (the OIDC `sub`). NULL for
   -- local-only accounts. Kept in sync with migration 013_users_elpis_id.
   elpis_id TEXT UNIQUE,
+  -- Per-user session cutoff: signed cookies minted before this instant are
+  -- refused. Kept in sync with migration 015_users_sessions_revoked_at.
+  sessions_revoked_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_login_at TIMESTAMPTZ

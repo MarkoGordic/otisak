@@ -1,5 +1,6 @@
 import { query } from './client';
 import type { User } from './types';
+import { logger } from '../lib/logger';
 
 export async function findUserByEmail(email: string): Promise<User | null> {
   const result = await query<User>(
@@ -70,6 +71,63 @@ export async function linkElpisId(userId: string, sub: string): Promise<LinkElpi
 
 export async function unlinkElpisId(userId: string): Promise<void> {
   await query('UPDATE users SET elpis_id = NULL, updated_at = NOW() WHERE id = $1', [userId]);
+}
+
+// Revoke every existing session of the user linked to this ELPIS ID (`sub`).
+// Sessions are stateless signed cookies, so "revocation" = stamping a per-user
+// cutoff; requireAuth refuses cookies created before it. Returns false when no
+// otisak account is linked to the sub (webhook no-op).
+export async function revokeElpisSessions(sub: string): Promise<boolean> {
+  if (!sub) return false;
+  const result = await query(
+    'UPDATE users SET sessions_revoked_at = NOW() WHERE elpis_id = $1',
+    [sub],
+  );
+  return (result.rowCount ?? 0) > 0;
+}
+
+// Refresh the local copy of an ELPIS ID user's profile (push webhook + pull on
+// every ELPIS ID login). COALESCE keeps existing values when the IdP sends an
+// empty field; is_active is deliberately untouched so local-password logins
+// coexist with ELPIS ID state. If the new email collides with another otisak
+// account (23505), the email is skipped and name/avatar still apply.
+export async function syncProfileFromElpis(
+  sub: string,
+  profile: { name?: string | null; email?: string | null; avatarUrl?: string | null },
+): Promise<User | null> {
+  if (!sub) return null;
+  const name = profile.name?.trim() || null;
+  const email = profile.email?.trim().toLowerCase() || null;
+  const avatarUrl = profile.avatarUrl?.trim() || null;
+  try {
+    const result = await query<User>(
+      `UPDATE users
+          SET name = COALESCE($2, name),
+              email = COALESCE($3, email),
+              avatar_url = COALESCE($4, avatar_url),
+              updated_at = NOW()
+        WHERE elpis_id = $1
+        RETURNING *`,
+      [sub, name, email, avatarUrl],
+    );
+    return result.rows[0] || null;
+  } catch (e) {
+    if ((e as { code?: string }).code !== '23505') throw e;
+    logger.warn(
+      { sub },
+      'elpis profile sync: email already used by another account; applying name/avatar only',
+    );
+    const result = await query<User>(
+      `UPDATE users
+          SET name = COALESCE($2, name),
+              avatar_url = COALESCE($3, avatar_url),
+              updated_at = NOW()
+        WHERE elpis_id = $1
+        RETURNING *`,
+      [sub, name, avatarUrl],
+    );
+    return result.rows[0] || null;
+  }
 }
 
 export async function updateLastLogin(userId: string): Promise<void> {

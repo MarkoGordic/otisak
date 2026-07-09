@@ -183,6 +183,16 @@ const steps: readonly Step[] = [
       ON CONFLICT (key) DO NOTHING
     `);
   }],
+  ['015_users_sessions_revoked_at', async () => {
+    // Per-user session cutoff. Sessions are stateless signed cookies, so the
+    // only way to revoke them remotely (ELPIS ID "log out everywhere", user
+    // disabled, app access blocked) is a timestamp: requireAuth refuses any
+    // cookie whose createdAt predates this value. NULL = nothing ever revoked.
+    await query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS sessions_revoked_at TIMESTAMPTZ
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {
