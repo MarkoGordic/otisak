@@ -1,10 +1,10 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
-import { base64Url } from '../crypto';
+import { createHmac, randomBytes } from 'crypto';
+import { base64Url, timingSafeEqual } from '../crypto';
 import { query } from '../db/client';
 import { getElpisConfig } from '../elpisId';
-import { createUser } from '../db/users';
+import { createUser, revokeElpisSessions, syncProfileFromElpis } from '../db/users';
 import type { UserRole } from '../db/types';
 import { verifyServiceToken } from '../lib/elpisServiceToken';
 
@@ -53,6 +53,97 @@ function requireServiceToken(opts: { requireAllowedClient?: boolean } = {}) {
 }
 
 type LinkRow = { id: string; email: string; role: string; is_active: boolean };
+
+// --- Push webhooks from ELPIS ID ----------------------------------------------
+// POST /integration/events — HMAC-signed events (NOT service-token guarded; the
+// signature over the raw request bytes IS the authentication). Dormant (404)
+// unless ELPIS_ID_WEBHOOK_SECRET is set. Handlers are idempotent, do their small
+// DB write inline, and always 2xx on unknown users/events so the sender's retry
+// queue drains. is_active is never flipped from here: local-password logins
+// coexist with ELPIS ID state by design — revocation is a session cutoff only.
+
+const WEBHOOK_MAX_SKEW_S = 300; // reject deliveries older/newer than 5 min
+
+type WebhookEvent = {
+  id?: string;
+  type?: string;
+  createdAt?: string;
+  data?: {
+    sub?: string;
+    email?: string;
+    name?: string;
+    username?: string;
+    picture?: string;
+    status?: string;
+    clientId?: string;
+  };
+};
+
+router.post('/events', async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const cfg = getElpisConfig();
+    if (!cfg || !cfg.webhookSecret) return res.status(404).json({ error: 'Not found' });
+
+    // Freshness: the timestamp is part of the signed input, so replaying an old
+    // (captured) delivery outside the window is rejected before any HMAC work.
+    const ts = String(req.headers['x-elpis-timestamp'] || '');
+    const now = Math.floor(Date.now() / 1000);
+    if (!/^\d+$/.test(ts) || Math.abs(now - Number(ts)) > WEBHOOK_MAX_SKEW_S) {
+      return res.status(401).json({ error: 'stale' });
+    }
+
+    // Signature: v1=<hex HMAC-SHA256(secret, timestamp + "." + rawBody)> over
+    // the EXACT wire bytes (req.rawBody from the express.json verify hook).
+    const sigHeader = String(req.headers['x-elpis-signature'] || '');
+    const raw = req.rawBody;
+    if (!raw || !sigHeader.startsWith('v1=')) {
+      return res.status(401).json({ error: 'bad signature' });
+    }
+    const expected = createHmac('sha256', cfg.webhookSecret)
+      .update(`${ts}.`)
+      .update(raw)
+      .digest('hex');
+    if (!timingSafeEqual(sigHeader.slice('v1='.length), expected)) {
+      return res.status(401).json({ error: 'bad signature' });
+    }
+
+    const event = (req.body || {}) as WebhookEvent;
+    const data = event.data || {};
+    const sub = typeof data.sub === 'string' ? data.sub : '';
+
+    switch (event.type) {
+      case 'profile.updated': {
+        const user = await syncProfileFromElpis(sub, {
+          name: data.name,
+          email: data.email,
+          avatarUrl: data.picture,
+        });
+        return res.json(user ? { ok: true } : { ok: true, ignored: true });
+      }
+      case 'user.disabled':
+      case 'user.logout_all': {
+        const revoked = await revokeElpisSessions(sub);
+        return res.json(revoked ? { ok: true } : { ok: true, ignored: true });
+      }
+      case 'app_access.blocked': {
+        // Only OUR app being blocked kills sessions here; blocks aimed at other
+        // clients are acknowledged and ignored.
+        if (data.clientId !== cfg.clientId) return res.json({ ok: true, ignored: true });
+        const revoked = await revokeElpisSessions(sub);
+        return res.json(revoked ? { ok: true } : { ok: true, ignored: true });
+      }
+      case 'webhook.ping':
+        return res.json({ ok: true });
+      default:
+        // user.enabled / app_access.granted / user.deleted / grant.revoked /
+        // future events: no local action in otisak — acknowledge so the sender
+        // does not retry.
+        return res.json({ ok: true, ignored: true });
+    }
+  } catch (error) {
+    return next(error);
+  }
+});
 
 // POST /integration/users
 // Create-or-link an otisak account for an ELPIS ID (`sub`). Idempotent on

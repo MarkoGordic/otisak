@@ -113,7 +113,12 @@ app.use(cors({
 // 1 MB is plenty for every legitimate request: the biggest payload is the CSV
 // import (one row per student, ~80 bytes; even 1000 students fits in <100 KB).
 // A smaller cap reduces blast radius from a malicious or runaway client.
-app.use(express.json({ limit: '1mb' }));
+// The verify hook keeps the raw bytes on req.rawBody for the ELPIS ID webhook
+// receiver, whose HMAC signature is computed over the exact wire payload.
+app.use(express.json({
+  limit: '1mb',
+  verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; },
+}));
 
 // API Routes (all under /api)
 app.use('/api/auth', authRoutes);

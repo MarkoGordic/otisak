@@ -46,6 +46,9 @@ export type ElpisConfig = {
    *  WRITE endpoints (create/link/unlink). Empty → any valid scope=client token
    *  is accepted (parity with the read-only summary endpoint). */
   allowedClients: string[];
+  /** HMAC secret for the push-webhook receiver (POST /integration/events).
+   *  Empty → the receiver stays 404 (dormant-unless-configured). */
+  webhookSecret: string;
 };
 
 /**
@@ -78,6 +81,7 @@ export function getElpisConfig(): ElpisConfig | null {
     tokenUrl: `${issuer}/oauth/token`,
     userinfoUrl: `${issuer}/oauth/userinfo`,
     allowedClients,
+    webhookSecret: envStr('ELPIS_ID_WEBHOOK_SECRET'),
   };
 }
 

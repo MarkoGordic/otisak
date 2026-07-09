@@ -45,6 +45,7 @@ services:
       ELPIS_ID_SCOPES: ${ELPIS_ID_SCOPES:-}
       ELPIS_ID_JWKS_URL: ${ELPIS_ID_JWKS_URL:-}
       ELPIS_ID_INTEGRATION_ALLOWED_CLIENTS: ${ELPIS_ID_INTEGRATION_ALLOWED_CLIENTS:-}
+      ELPIS_ID_WEBHOOK_SECRET: ${ELPIS_ID_WEBHOOK_SECRET:-}
     depends_on:
       db:
         condition: service_healthy
