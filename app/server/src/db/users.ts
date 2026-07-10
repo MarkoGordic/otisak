@@ -2,9 +2,12 @@ import { query } from './client';
 import type { User } from './types';
 import { logger } from '../lib/logger';
 
+// Case-insensitive on purpose: ELPIS ID profile sync stores emails lowercased,
+// so an account created with a mixed-case email must still match the exact
+// string its owner has always typed at login.
 export async function findUserByEmail(email: string): Promise<User | null> {
   const result = await query<User>(
-    'SELECT * FROM users WHERE email = $1 AND is_active = TRUE LIMIT 1',
+    'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_active = TRUE LIMIT 1',
     [email]
   );
   return result.rows[0] || null;
@@ -75,15 +78,21 @@ export async function unlinkElpisId(userId: string): Promise<void> {
 
 // Revoke every existing session of the user linked to this ELPIS ID (`sub`).
 // Sessions are stateless signed cookies, so "revocation" = stamping a per-user
-// cutoff; requireAuth refuses cookies created before it. Returns false when no
-// otisak account is linked to the sub (webhook no-op).
-export async function revokeElpisSessions(sub: string): Promise<boolean> {
-  if (!sub) return false;
-  const result = await query(
-    'UPDATE users SET sessions_revoked_at = NOW() WHERE elpis_id = $1',
-    [sub],
+// cutoff; requireAuth refuses cookies created before it. The cutoff is the
+// SIGNED event time and is applied monotonically (GREATEST), so a retried or
+// replayed delivery can never move it forward and kill sessions minted after
+// the original event. Returns the affected user ids ([] when no otisak account
+// is linked to the sub) so callers can also drop live WebSocket connections.
+export async function revokeElpisSessions(sub: string, cutoff: Date): Promise<string[]> {
+  if (!sub) return [];
+  const result = await query<{ id: string }>(
+    `UPDATE users
+        SET sessions_revoked_at = GREATEST(COALESCE(sessions_revoked_at, 'epoch'::timestamptz), $2::timestamptz)
+      WHERE elpis_id = $1
+      RETURNING id`,
+    [sub, cutoff],
   );
-  return (result.rowCount ?? 0) > 0;
+  return result.rows.map((row) => row.id);
 }
 
 // Refresh the local copy of an ELPIS ID user's profile (push webhook + pull on
@@ -91,24 +100,34 @@ export async function revokeElpisSessions(sub: string): Promise<boolean> {
 // empty field; is_active is deliberately untouched so local-password logins
 // coexist with ELPIS ID state. If the new email collides with another otisak
 // account (23505), the email is skipped and name/avatar still apply.
+//
+// `eventAt` (webhook path only) is the event's creation time: the update is
+// skipped unless it is strictly newer than the row's updated_at, and on apply
+// updated_at is stamped with the event time. Webhook delivery is at-least-once
+// with no ordering guarantee, so this stops a retried stale event from
+// overwriting a newer profile. Pull-syncs at login pass no eventAt and apply
+// unconditionally.
 export async function syncProfileFromElpis(
   sub: string,
   profile: { name?: string | null; email?: string | null; avatarUrl?: string | null },
+  eventAt?: Date,
 ): Promise<User | null> {
   if (!sub) return null;
   const name = profile.name?.trim() || null;
   const email = profile.email?.trim().toLowerCase() || null;
   const avatarUrl = profile.avatarUrl?.trim() || null;
+  const at = eventAt ?? null;
   try {
     const result = await query<User>(
       `UPDATE users
           SET name = COALESCE($2, name),
               email = COALESCE($3, email),
               avatar_url = COALESCE($4, avatar_url),
-              updated_at = NOW()
+              updated_at = COALESCE($5::timestamptz, NOW())
         WHERE elpis_id = $1
+          AND ($5::timestamptz IS NULL OR updated_at < $5::timestamptz)
         RETURNING *`,
-      [sub, name, email, avatarUrl],
+      [sub, name, email, avatarUrl, at],
     );
     return result.rows[0] || null;
   } catch (e) {
@@ -121,10 +140,11 @@ export async function syncProfileFromElpis(
       `UPDATE users
           SET name = COALESCE($2, name),
               avatar_url = COALESCE($3, avatar_url),
-              updated_at = NOW()
+              updated_at = COALESCE($4::timestamptz, NOW())
         WHERE elpis_id = $1
+          AND ($4::timestamptz IS NULL OR updated_at < $4::timestamptz)
         RETURNING *`,
-      [sub, name, avatarUrl],
+      [sub, name, avatarUrl, at],
     );
     return result.rows[0] || null;
   }

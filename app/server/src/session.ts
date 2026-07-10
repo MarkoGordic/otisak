@@ -95,3 +95,11 @@ export function parseSessionCookie(cookieValue: string | undefined): SessionReco
   if (session && session.expiresAt < Date.now()) return null;
   return session;
 }
+
+// Remote revocation (ELPIS ID "log out everywhere" / user disabled / app access
+// blocked): a cookie minted before the user's per-user cutoff is dead even
+// though its signature is still valid. Shared by requireAuth, /auth/session and
+// the WebSocket upgrade so every authenticated surface applies the same rule.
+export function isSessionRevoked(session: SessionRecord, revokedAt: Date | null): boolean {
+  return !!revokedAt && session.createdAt < new Date(revokedAt).getTime();
+}

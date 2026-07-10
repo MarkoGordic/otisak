@@ -1,6 +1,6 @@
 import http from 'http';
 import { WebSocketServer, WebSocket } from 'ws';
-import { parseSessionCookie } from '../session';
+import { isSessionRevoked, parseSessionCookie } from '../session';
 import { findUserById } from '../db/users';
 import { logEvents } from '../db/activity-log';
 import { query } from '../db/client';
@@ -15,6 +15,20 @@ const examSubscriptions = new Map<string, Set<WebSocket>>();
 
 // Map of ws -> user info
 const wsUserMap = new WeakMap<WebSocket, { userId: string; role: string }>();
+
+// The live server instance, kept so session revocation can reach open sockets.
+let activeWss: WebSocketServer | null = null;
+
+// Drop every open socket belonging to a user whose sessions were just revoked
+// (ELPIS ID webhook). New connection attempts with the old cookie are refused
+// by the revocation check in the connection handler; this covers sockets that
+// were already open when the cutoff was stamped.
+export function terminateUserSockets(userId: string): void {
+  if (!activeWss) return;
+  for (const client of activeWss.clients) {
+    if (wsUserMap.get(client)?.userId === userId) client.terminate();
+  }
+}
 
 // Heartbeat: track liveness of each socket. Sockets that don't respond to a ping within
 // the next interval are terminated. This catches silent connection drops caused by
@@ -95,6 +109,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
   // small JSON (events batches, subscribe messages). Without a cap, a hostile
   // client could send a multi-MB frame and we'd buffer it before parsing.
   const wss = new WebSocketServer({ server, path: '/ws', maxPayload: 256 * 1024 });
+  activeWss = wss;
 
   // Server-driven heartbeat. Each tick: terminate sockets that didn't pong since the
   // previous tick; then ping the rest. Browsers auto-respond to pings, so this works
@@ -131,6 +146,13 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
       const user = await findUserById(session.user.id);
       if (!user) {
         ws.close(4001, 'User not found');
+        return;
+      }
+
+      // Same remote-revocation cutoff as requireAuth: a still-signed cookie
+      // minted before sessions_revoked_at must not open a socket either.
+      if (isSessionRevoked(session, user.sessions_revoked_at)) {
+        ws.close(4001, 'Session revoked');
         return;
       }
 

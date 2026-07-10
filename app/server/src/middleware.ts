@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import type { Logger } from 'pino';
-import { parseSessionCookie, SESSION_COOKIE } from './session';
+import { isSessionRevoked, parseSessionCookie, SESSION_COOKIE } from './session';
 import { findUserById } from './db/users';
 import type { User } from './db/types';
 import { markSessionActive } from './session-tracker';
@@ -41,7 +41,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     // Remote revocation (ELPIS ID "log out everywhere" / user disabled / app
     // access blocked): the cookie signature is still valid, but any session
     // minted before the per-user cutoff is refused.
-    if (user.sessions_revoked_at && session.createdAt < new Date(user.sessions_revoked_at).getTime()) {
+    if (isSessionRevoked(session, user.sessions_revoked_at)) {
       return res.status(401).json({ error: 'Session revoked' });
     }
 

@@ -7,6 +7,7 @@ import { getElpisConfig } from '../elpisId';
 import { createUser, revokeElpisSessions, syncProfileFromElpis } from '../db/users';
 import type { UserRole } from '../db/types';
 import { verifyServiceToken } from '../lib/elpisServiceToken';
+import { terminateUserSockets } from '../ws/events';
 
 // ---------------------------------------------------------------------------
 // Cross-app "Person 360" federation endpoints — the write side lets the ELPIS
@@ -111,33 +112,59 @@ router.post('/events', async (req: Request, res: Response, next: NextFunction) =
     const data = event.data || {};
     const sub = typeof data.sub === 'string' ? data.sub : '';
 
+    // Ordering/idempotency anchor. Delivery is at-least-once and unordered, so
+    // every state change below is keyed on WHEN THE EVENT HAPPENED, not when
+    // the delivery arrived: the event's own createdAt is part of the signed
+    // body and stays fixed across sender retries (the delivery timestamp does
+    // not - each retry is re-signed with a fresh one, which is only the
+    // fallback when createdAt is missing).
+    const createdAtMs = Date.parse(event.createdAt || '');
+    const eventAt = new Date(Number.isNaN(createdAtMs) ? Number(ts) * 1000 : createdAtMs);
+
+    // Session revocation = stamp the cutoff (monotonic, so retries/replays are
+    // no-ops), then drop any WebSockets the revoked users still hold open.
+    const revokeSessionsAndSockets = async (): Promise<boolean> => {
+      const userIds = await revokeElpisSessions(sub, eventAt);
+      for (const userId of userIds) terminateUserSockets(userId);
+      return userIds.length > 0;
+    };
+
     switch (event.type) {
       case 'profile.updated': {
         const user = await syncProfileFromElpis(sub, {
           name: data.name,
           email: data.email,
           avatarUrl: data.picture,
-        });
+        }, eventAt);
         return res.json(user ? { ok: true } : { ok: true, ignored: true });
       }
       case 'user.disabled':
       case 'user.logout_all': {
-        const revoked = await revokeElpisSessions(sub);
+        const revoked = await revokeSessionsAndSockets();
         return res.json(revoked ? { ok: true } : { ok: true, ignored: true });
       }
       case 'app_access.blocked': {
         // Only OUR app being blocked kills sessions here; blocks aimed at other
         // clients are acknowledged and ignored.
         if (data.clientId !== cfg.clientId) return res.json({ ok: true, ignored: true });
-        const revoked = await revokeElpisSessions(sub);
+        const revoked = await revokeSessionsAndSockets();
+        return res.json(revoked ? { ok: true } : { ok: true, ignored: true });
+      }
+      case 'user.deleted': {
+        // Deletion at the IdP is at least as strong a signal as a disable:
+        // revoke all sessions, then detach the now-dangling link. The local
+        // account itself is kept (is_active is never flipped from here).
+        const revoked = await revokeSessionsAndSockets();
+        if (revoked) {
+          await query('UPDATE users SET elpis_id = NULL, updated_at = NOW() WHERE elpis_id = $1', [sub]);
+        }
         return res.json(revoked ? { ok: true } : { ok: true, ignored: true });
       }
       case 'webhook.ping':
         return res.json({ ok: true });
       default:
-        // user.enabled / app_access.granted / user.deleted / grant.revoked /
-        // future events: no local action in otisak — acknowledge so the sender
-        // does not retry.
+        // user.enabled / app_access.granted / grant.revoked / future events:
+        // no local action in otisak — acknowledge so the sender does not retry.
         return res.json({ ok: true, ignored: true });
     }
   } catch (error) {

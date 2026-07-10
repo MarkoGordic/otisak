@@ -2,7 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
 import { findUserByEmail, findUserById, updateLastLogin, createUser, updateUserPasswordHash } from '../db/users';
-import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
+import { createSessionCookie, isSessionRevoked, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth, requireRole } from '../middleware';
 
 const router = Router();
@@ -96,6 +96,15 @@ router.get('/session', async (req: Request, res: Response, next: NextFunction) =
 
     const session = parseSessionCookie(cookieValue);
     if (!session) {
+      return res.json({ authenticated: false });
+    }
+
+    // Mirror requireAuth: a deactivated user or a cookie minted before the
+    // remote revocation cutoff (ELPIS ID logout-all / disable / block) must
+    // not be reported as authenticated, or the SPA boots a logged-in shell
+    // whose first real API call immediately 401s.
+    const user = await findUserById(session.user.id);
+    if (!user || isSessionRevoked(session, user.sessions_revoked_at)) {
       return res.json({ authenticated: false });
     }
 
