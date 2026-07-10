@@ -284,7 +284,8 @@ export async function updateOtisakExam(
 
 export async function getSelfServicePracticeExams(
   userId: string,
-  subjectId?: string
+  subjectId?: string,
+  staffScope?: { allSubjects?: boolean; subjectIds?: string[] }
 ): Promise<OtisakExamWithSubject[]> {
   let sql = `
     SELECT e.*, s.name as subject_name, s.code as subject_code,
@@ -295,12 +296,25 @@ export async function getSelfServicePracticeExams(
       AND e.self_service = TRUE
       AND e.parent_exam_id IS NULL
       AND e.status IN ('active', 'scheduled')
+  `;
+  const params: unknown[] = [];
+
+  // Visibility: students (and assistants with no assignments) see public
+  // templates plus ones they're enrolled in. Assistants additionally see
+  // templates for their assigned subjects. Admins see every template.
+  if (!staffScope?.allSubjects) {
+    params.push(userId);
+    let visibility = `
       AND (
         (e.is_public = TRUE)
-        OR EXISTS (SELECT 1 FROM otisak_enrollments en WHERE en.exam_id = e.id AND en.user_id = $1)
-      )
-  `;
-  const params: unknown[] = [userId];
+        OR EXISTS (SELECT 1 FROM otisak_enrollments en WHERE en.exam_id = e.id AND en.user_id = $${params.length})
+    `;
+    if (staffScope?.subjectIds?.length) {
+      params.push(staffScope.subjectIds);
+      visibility += ` OR e.subject_id = ANY($${params.length}::uuid[])`;
+    }
+    sql += visibility + ')';
+  }
 
   if (subjectId) {
     params.push(subjectId);

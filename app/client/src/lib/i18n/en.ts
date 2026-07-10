@@ -57,6 +57,8 @@ const en = {
   'nav.manage.short': 'Manage',
   'nav.assessmentSystem': 'Assessment System',
   'nav.docs': 'Documentation',
+  'nav.myPractice': 'My Practice',
+  'nav.myPractice.short': 'Practice',
 
   // Docs page
   'docs.title': 'Documentation',

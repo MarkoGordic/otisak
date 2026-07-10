@@ -28,6 +28,8 @@ Two paths:
 
    Saves as `draft`.
 
+   Staff can take practice exams themselves: **My Practice** in the sidebar opens the student-style dashboard. Admins see every self-service practice exam; assistants see public ones plus those on their assigned subjects. Real exams remain student-only.
+
 2. **JSON import.** `/manage`, **Uvezi JSON**. See [JSON import](#json-import).
 
 ## Settings panel

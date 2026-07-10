@@ -303,8 +303,15 @@ export default function ExamPage() {
               setTextAnswers(restoredText);
             }
 
-            // If exam hasn't been started by admin yet, show lobby
-            if (examData.exam.status === 'active' && !examData.exam.exam_started_at) {
+            // If exam hasn't been started by admin yet, show lobby. Practice
+            // exams have no admin-run room (exam_started_at stays NULL on the
+            // per-user child) - the attempt itself is the start, so go
+            // straight to the exam; the timer falls back to attempt.started_at.
+            if (
+              examData.exam.status === 'active' &&
+              !examData.exam.exam_started_at &&
+              examData.exam.exam_mode !== 'practice'
+            ) {
               setPhase('lobby');
             } else {
               setPhase('exam');

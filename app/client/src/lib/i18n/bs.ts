@@ -58,6 +58,8 @@ const bs: Record<I18nKey, string> = {
   'nav.manage.short': 'Управљање',
   'nav.assessmentSystem': 'Систем за тестирање',
   'nav.docs': 'Документација',
+  'nav.myPractice': 'Вјежбање',
+  'nav.myPractice.short': 'Вјежба',
 
   // Docs page
   'docs.title': 'Документација',

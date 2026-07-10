@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { getSelfServicePracticeExams, createPracticeInstance } from '../db/otisak';
+import { getAssignedSubjectIds } from '../db/auth-helpers';
 import { getSetting } from '../db/settings';
 import { requireAuth } from '../middleware';
 
@@ -13,7 +14,17 @@ router.get('/', async (req: Request, res: Response) => {
     const user = req.user!;
     const { subject_id } = req.query;
 
-    const exams = await getSelfServicePracticeExams(user.id, subject_id as string | undefined);
+    // Staff practice like students, but with wider template visibility:
+    // admins see every self-service template, assistants additionally see
+    // the ones on their assigned subjects.
+    let staffScope: { allSubjects?: boolean; subjectIds?: string[] } | undefined;
+    if (user.role === 'admin') {
+      staffScope = { allSubjects: true };
+    } else if (user.role === 'assistant') {
+      staffScope = { subjectIds: await getAssignedSubjectIds(user.id) };
+    }
+
+    const exams = await getSelfServicePracticeExams(user.id, subject_id as string | undefined, staffScope);
 
     // When practice mode is globally disabled we still expose public
     // practice exams (the built-in demo, anything an admin chose to leave

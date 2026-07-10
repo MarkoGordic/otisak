@@ -102,11 +102,6 @@ export default function DashboardPage() {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         const data = await res.json();
         if (!data.authenticated) { navigate('/admin', { replace: true }); return; }
-        // Staff don't take exams - bounce them to the admin home.
-        if (data.user?.role === 'admin' || data.user?.role === 'assistant') {
-          navigate('/admin/home', { replace: true });
-          return;
-        }
         if (mounted) {
           setUser({
             name: data.user?.name,
@@ -114,6 +109,10 @@ export default function DashboardPage() {
             index_number: data.user?.index_number,
             role: data.user?.role,
           });
+          // Staff have no enrolled exams - open straight on the practice tab.
+          if (data.user?.role === 'admin' || data.user?.role === 'assistant') {
+            setActiveTab('practice');
+          }
         }
       } catch { navigate('/admin', { replace: true }); }
     })();
@@ -122,17 +121,21 @@ export default function DashboardPage() {
 
   const loadData = useCallback(async () => {
     try {
+      // Staff skip the enrolled-exams feed: for admin/assistant that endpoint
+      // returns the management list, not personal enrollments, and their
+      // Upcoming tab is hidden anyway.
+      const staff = user?.role === 'admin' || user?.role === 'assistant';
       const [examsRes, historyRes, practiceRes] = await Promise.all([
-        fetch('/api/otisak/exams', { credentials: 'include' }),
+        staff ? Promise.resolve(null) : fetch('/api/otisak/exams', { credentials: 'include' }),
         fetch('/api/otisak/history', { credentials: 'include' }),
         fetch('/api/otisak/practice', { credentials: 'include' }),
       ]);
-      if (examsRes.ok) { const d = await examsRes.json(); setExams(d.exams || []); }
+      if (examsRes?.ok) { const d = await examsRes.json(); setExams(d.exams || []); }
       if (historyRes.ok) { const d = await historyRes.json(); setAttempts(d.attempts || []); }
       if (practiceRes.ok) { const d = await practiceRes.json(); setPracticeExams(d.exams || []); }
     } catch (e) { console.error('Failed to load data:', e); }
     finally { setIsLoading(false); }
-  }, []);
+  }, [user]);
 
   useEffect(() => { if (user) loadData(); }, [user, loadData]);
 
@@ -262,7 +265,10 @@ export default function DashboardPage() {
             <div className="mb-8">
               <Tabs
                 tabs={[
-                  { id: 'upcoming', label: <span className="flex items-center gap-2">{t('dashboard.tab.exams')} {exams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'upcoming' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{exams.length}</span>}</span> },
+                  // Staff have no personal enrollments - hide the Upcoming tab.
+                  ...(isStaff ? [] : [
+                    { id: 'upcoming', label: <span className="flex items-center gap-2">{t('dashboard.tab.exams')} {exams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'upcoming' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{exams.length}</span>}</span> },
+                  ]),
                   { id: 'practice', label: <span className="flex items-center gap-2">{t('dashboard.tab.practice')} {practiceExams.length > 0 && <span className={`flex items-center justify-center h-5 px-1.5 rounded-full text-[11px] font-mono ${activeTab === 'practice' ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>{practiceExams.length}</span>}</span> },
                   { id: 'history', label: t('dashboard.tab.history') },
                 ]}

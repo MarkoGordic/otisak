@@ -14,6 +14,8 @@ Klikom na dugme "Novi ispit" u gornjem desnom uglu otvara se forma za kreiranje 
 
 Klikom na dugme "Napravi" ispit će biti kreiran i prikazan u listi ispita.
 
+Osoblje može i samostalno da radi ispite u režimu "Vežba": stavka "Vežbanje" u bočnoj traci otvara studentski prikaz sa dostupnim vežbama. Administratori vide sve vežbe, a asistenti javne vežbe i vežbe sa svojih predmeta. Prave ispite i dalje rade samo studenti.
+
 ![Kreiranje ispita](../assets/image-2.png)
 
 ### Kreiranje ispita uvozom JSON datoteke

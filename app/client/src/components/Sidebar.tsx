@@ -10,6 +10,7 @@ import {
   BookOpen,
   BookMarked,
   BookText,
+  GraduationCap,
   Sun,
   Moon,
   Key,
@@ -43,6 +44,8 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
       { id: 'manage', label: t('nav.manage'), icon: Settings, href: '/manage' },
       { id: 'subjects', label: t('nav.subjects'), icon: BookMarked, href: '/subjects' },
       { id: 'questions', label: t('nav.questionBank'), icon: BookOpen, href: '/questions' },
+      // Staff can take practice exams themselves via the student dashboard.
+      { id: 'my-practice', label: t('nav.myPractice'), icon: GraduationCap, href: '/dashboard' },
     ] : []),
     ...(isAdmin ? [
       { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
@@ -155,6 +158,7 @@ export function MobileNav({ userRole }: SidebarProps) {
       : { id: 'dashboard', label: t('nav.home'), icon: LayoutDashboard, href: '/dashboard' },
     ...(isStaff ? [
       { id: 'manage', label: t('nav.manage.short'), icon: Settings, href: '/manage' },
+      { id: 'my-practice', label: t('nav.myPractice.short'), icon: GraduationCap, href: '/dashboard' },
     ] : []),
   ];
 

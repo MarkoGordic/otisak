@@ -25,7 +25,7 @@ import { broadcastExamEvent } from '../ws/events';
 import { refreshLiveStatsNow } from '../ws/liveStatsAggregator';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { markSessionActive, isLockedByOtherSession } from '../session-tracker';
-import { requireAuth, requireRole } from '../middleware';
+import { requireAuth } from '../middleware';
 import { getExamId, getCachedExam } from './exam-shared';
 
 const router = Router({ mergeParams: true });
@@ -49,8 +49,10 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       }
     }
 
-    // If student already has a submitted attempt, signal client to redirect to results
-    if (!attempt && user.role === 'student') {
+    // If the caller already has a submitted attempt, signal client to redirect
+    // to results. Applies to students on any exam, and to staff on practice
+    // exams (their private child) - staff previewing other exams fall through.
+    if (!attempt && (user.role === 'student' || exam.exam_mode === 'practice')) {
       const userAttempts = await getUserAttempts(user.id);
       const submitted = userAttempts.find((a) => a.exam_id === examId && a.submitted);
       if (submitted) {
@@ -80,14 +82,19 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 
     let questions = await getOtisakQuestions(examId);
 
-    // Apply the per-attempt seeded shuffle so the student sees the same
+    // True when the caller is actually TAKING this exam (owns an attempt)
+    // rather than previewing it. Staff only ever hold attempts on practice
+    // exams (their private child), where they should get the authentic
+    // student experience; staff without an attempt keep the admin preview
+    // (canonical order, full data) for editing flows.
+    const takingAsStudent = !!attempt && (user.role === 'student' || exam.exam_mode === 'practice');
+
+    // Apply the per-attempt seeded shuffle so the taker sees the same
     // question / answer ordering that `getAttemptResults` (and therefore the
     // results screen + per-student PDF) will compute later. Without this the
     // student saw canonical position order while results came out shuffled.
-    // Only runs when the student has an attempt - admins/assistants viewing
-    // the same endpoint should keep canonical order for editing flows.
-    if (attempt && user.role === 'student') {
-      const seed = Number(attempt.shuffle_seed) | 0;
+    if (takingAsStudent) {
+      const seed = Number(attempt!.shuffle_seed) | 0;
       if (exam.shuffle_questions) {
         questions = shuffleArray(questions, seed);
       }
@@ -99,9 +106,9 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       }
     }
 
-    // For students, strip correct answers (applied after shuffling so the
-    // shuffle key isn't influenced by the redacted field).
-    if (user.role === 'student') {
+    // For anyone taking the exam, strip correct answers (applied after
+    // shuffling so the shuffle key isn't influenced by the redacted field).
+    if (user.role === 'student' || takingAsStudent) {
       questions = questions.map((q) => ({
         ...q,
         answers: q.answers.map((a) => ({ ...a, is_correct: undefined as unknown as boolean })),
@@ -126,14 +133,26 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /exams/:examId/attempt - save/submit answers.
-// Student-only: admins/assistants writing into otisak_attempts as their own
-// user_id would corrupt live stats and audit trails (they'd show up as
-// participants). Force-finish flows go through /finish-all instead.
-router.post('/attempt', requireAuth, requireRole(['student']), async (req: Request, res: Response) => {
+router.post('/attempt', requireAuth, async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     const user = req.user!;
     const { answers, submit, time_spent_seconds } = req.body;
+
+    // Staff (admin/assistant) may only write attempts on PRACTICE exams -
+    // those run on a private per-user child exam, so their attempts can't
+    // pollute anything. Writing into otisak_attempts on a real exam as their
+    // own user_id would corrupt live stats and audit trails (they'd show up
+    // as participants). Force-finish flows go through /finish-all instead.
+    if (user.role !== 'student') {
+      const exam = await getOtisakExamById(examId);
+      if (!exam) {
+        return res.status(404).json({ error: 'Exam not found' });
+      }
+      if (exam.exam_mode !== 'practice') {
+        return res.status(403).json({ error: 'Staff can only attempt practice exams' });
+      }
+    }
 
     let attempt = await getActiveAttempt(examId, user.id);
 

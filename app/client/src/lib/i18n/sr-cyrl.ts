@@ -60,6 +60,8 @@ const srCyrl: Record<I18nKey, string> = {
   'nav.manage.short': 'Управљање',
   'nav.assessmentSystem': 'Систем за тестирање',
   'nav.docs': 'Документација',
+  'nav.myPractice': 'Вежбање',
+  'nav.myPractice.short': 'Вежба',
 
   // Docs page
   'docs.title': 'Документација',
