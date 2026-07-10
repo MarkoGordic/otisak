@@ -2,6 +2,7 @@
 // ========================================
 
 import { query, transaction } from './client';
+import type { PoolClient } from 'pg';
 import { getOtisakExamById } from './otisak-exams';
 import { getOtisakQuestions } from './otisak-questions';
 import {
@@ -241,6 +242,26 @@ export async function submitAttemptAnswers(
 //     whether they were produced by a normal submit or a rescore.
 //   - Whole exam runs in one transaction so a partial failure rolls back.
 //
+// Counts answered-but-wrong questions for the negative-points penalty.
+// Shared by finishAttempt and rescoreExam so their totals can never drift.
+// "Answered" means a selected answer, or a text answer that has actually been
+// scored: auto-scored text types (ordering/matching/fill_blank carry
+// ai_grading_status NULL) and AI-graded open_text count; open_text still
+// pending/grading/errored does not - an ungraded answer isn't wrong yet.
+async function countWrongAnsweredQuestions(client: PoolClient, attemptId: string): Promise<number> {
+  const result = await client.query<{ wrong_count: number }>(
+    `SELECT COUNT(*)::int AS wrong_count
+     FROM otisak_attempt_answers aa
+     WHERE aa.attempt_id = $1 AND aa.points_awarded = 0
+       AND (aa.selected_answer_id IS NOT NULL
+            OR array_length(aa.selected_answer_ids, 1) > 0
+            OR (aa.text_answer IS NOT NULL
+                AND (aa.ai_grading_status IS NULL OR aa.ai_grading_status = 'graded')))`,
+    [attemptId]
+  );
+  return result.rows[0]?.wrong_count ?? 0;
+}
+
 // Returns the number of attempts whose totals were updated.
 export async function rescoreExam(examId: string): Promise<number> {
   return transaction(async (client) => {
@@ -350,16 +371,7 @@ export async function rescoreExam(examId: string): Promise<number> {
       if (exam.negative_points_enabled && Number(exam.negative_points_value) > 0) {
         const penaltyValue = Number(exam.negative_points_value);
         const threshold = Number(exam.negative_points_threshold) || 1;
-        const wrongRes = await client.query<{ wrong_count: number }>(
-          `SELECT COUNT(*)::int AS wrong_count
-           FROM otisak_attempt_answers aa
-           WHERE aa.attempt_id = $1 AND aa.points_awarded = 0
-             AND (aa.selected_answer_id IS NOT NULL
-                  OR array_length(aa.selected_answer_ids, 1) > 0
-                  OR aa.text_answer IS NOT NULL)`,
-          [attemptId]
-        );
-        const wrongCount = wrongRes.rows[0]?.wrong_count ?? 0;
+        const wrongCount = await countWrongAnsweredQuestions(client, attemptId);
         const penalizable = Math.max(0, wrongCount - (threshold - 1));
         if (penalizable > 0) total = Math.max(0, total - penalizable * penaltyValue);
       }
@@ -440,14 +452,7 @@ export async function finishAttempt(
     if (negCheck.rows[0]?.negative_points_enabled && negCheck.rows[0]?.negative_points_value > 0) {
       const penaltyValue = Number(negCheck.rows[0].negative_points_value);
       const threshold = negCheck.rows[0].negative_points_threshold || 1;
-      const wrongResult = await client.query<{ wrong_count: number }>(
-        `SELECT COUNT(*)::int as wrong_count
-         FROM otisak_attempt_answers aa
-         WHERE aa.attempt_id = $1 AND aa.points_awarded = 0
-           AND (aa.selected_answer_id IS NOT NULL OR array_length(aa.selected_answer_ids, 1) > 0)`,
-        [attemptId]
-      );
-      const wrongCount = wrongResult.rows[0]?.wrong_count ?? 0;
+      const wrongCount = await countWrongAnsweredQuestions(client, attemptId);
       const penalizableCount = Math.max(0, wrongCount - (threshold - 1));
       if (penalizableCount > 0) {
         total = Math.max(0, total - penalizableCount * penaltyValue);
@@ -525,13 +530,20 @@ export async function getAttemptResults(attemptId: string): Promise<OtisakExamRe
 
   let questions = await getOtisakQuestions(exam.id);
 
+  // Reproduce the taker's ordering - but only where the exam actually
+  // shuffles. Every attempt carries a seed, so gating on the seed alone
+  // would reorder results for non-shuffled exams too.
   const seed = attempt.shuffle_seed;
   if (seed) {
-    questions = shuffleArray(questions, seed);
-    questions = questions.map((q, idx) => ({
-      ...q,
-      answers: shuffleArray(q.answers, seed + idx + 1),
-    }));
+    if (exam.shuffle_questions) {
+      questions = shuffleArray(questions, seed);
+    }
+    if (exam.shuffle_answers) {
+      questions = questions.map((q, idx) => ({
+        ...q,
+        answers: shuffleArray(q.answers, seed + idx + 1),
+      }));
+    }
   }
 
   const attemptAnswersResult = await query<OtisakAttemptAnswer>(

@@ -91,26 +91,32 @@ export async function enrollByCourseAndYear(
     if (toNumber - fromNumber + 1 > MAX_ENROLLMENT_RANGE) {
       throw new Error(`Range exceeds maximum of ${MAX_ENROLLMENT_RANGE} students`);
     }
+    // Canonical stored index format is "ra1-2025" (see normalizeIndexNumber
+    // in db/users.ts); match it the same whitespace/case-tolerant way
+    // findUserByIndexNumber does.
+    const code = courseCode.toLowerCase();
     const patterns: string[] = [];
     for (let i = fromNumber; i <= toNumber; i++) {
-      patterns.push(`${courseCode.toUpperCase()} ${i}/${year}`);
+      patterns.push(`${code}${i}-${year}`);
     }
     if (patterns.length === 0) return 0;
     const result = await query(
       `INSERT INTO otisak_enrollments (exam_id, user_id)
        SELECT $1, u.id FROM users u
-       WHERE u.index_number IS NOT NULL AND u.index_number = ANY($2::text[])
+       WHERE u.index_number IS NOT NULL
+         AND LOWER(REPLACE(u.index_number, ' ', '')) = ANY($2::text[])
        ON CONFLICT (exam_id, user_id) DO NOTHING`,
       [examId, patterns]
     );
     return result.rowCount ?? 0;
   }
 
-  const pattern = `${courseCode.toUpperCase()} %/${year}`;
+  const pattern = `${courseCode.toLowerCase()}%-${year}`;
   const result = await query(
     `INSERT INTO otisak_enrollments (exam_id, user_id)
      SELECT $1, u.id FROM users u
-     WHERE u.index_number IS NOT NULL AND u.index_number LIKE $2
+     WHERE u.index_number IS NOT NULL
+       AND LOWER(REPLACE(u.index_number, ' ', '')) LIKE $2
      ON CONFLICT (exam_id, user_id) DO NOTHING`,
     [examId, pattern]
   );

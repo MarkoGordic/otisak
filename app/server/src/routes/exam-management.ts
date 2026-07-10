@@ -30,6 +30,7 @@ const router = Router({ mergeParams: true });
 router.get('/report', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const summary = await getExamAttemptsSummary(examId);
     return res.json(summary);
   } catch (error) {
@@ -42,6 +43,7 @@ router.get('/report', requireAuth, requireRole(['admin', 'assistant']), async (r
 router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const userId = req.params.userId;
 
     const exam = await getOtisakExamById(examId);
@@ -132,6 +134,7 @@ router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant']), 
 router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const userId = req.params.userId;
     const locale = typeof req.query.lang === 'string' ? req.query.lang : undefined;
     const built = await buildStudentReportHTML(examId, userId, locale);
@@ -164,6 +167,7 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
 router.get('/print/pdf', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const locale = typeof req.query.lang === 'string' ? req.query.lang : undefined;
     const built = await buildPrintableExamHTML(examId, locale);
     if (!built.ok) return res.status(built.status).json({ error: built.error });
@@ -202,6 +206,7 @@ router.get('/print/pdf', requireAuth, requireRole(['admin', 'assistant']), async
 router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const locale = typeof req.query.lang === 'string' ? req.query.lang : undefined;
     const exam = await getOtisakExamById(examId);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
@@ -384,6 +389,7 @@ router.post('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (
 router.get('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const enrollments = await getExamEnrollments(examId);
     return res.json({ enrollments });
   } catch (error) {
@@ -398,6 +404,7 @@ router.get('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (r
 router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const exam = await getOtisakExamById(examId);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
     const questions = await getOtisakQuestions(examId);
@@ -455,6 +462,7 @@ router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), asy
 router.get('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
     const questions = await getOtisakQuestions(examId);
     return res.json({ questions });
   } catch (error) {

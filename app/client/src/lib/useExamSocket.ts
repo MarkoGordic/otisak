@@ -105,10 +105,14 @@ export function useExamSocket(
         }
       };
 
-      ws.onclose = () => {
+      ws.onclose = (e) => {
         if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
         if (stopped) return;
         setConnected(false);
+        // 4001 = server rejected the session (unauthenticated or remotely
+        // revoked). Deliberate and permanent for this session - reconnecting
+        // would just loop rejected sockets forever.
+        if (e.code === 4001) return;
         attempt = Math.min(attempt + 1, 6);
         const delay = Math.min(15000, 500 * 2 ** attempt);
         reconnectTimer = setTimeout(open, delay);

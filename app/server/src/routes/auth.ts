@@ -108,9 +108,19 @@ router.get('/session', async (req: Request, res: Response, next: NextFunction) =
       return res.json({ authenticated: false });
     }
 
+    // Return the fresh DB row, not the cookie snapshot - the cookie lives up
+    // to 7 days and would otherwise show a stale name/role/index after admin
+    // edits or ELPIS profile-sync webhooks.
     return res.json({
       authenticated: true,
-      user: session.user,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatar_url: user.avatar_url,
+        index_number: user.index_number,
+      },
     });
   } catch (error) {
     return next(error);
