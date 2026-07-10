@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, Clock, Target } from 'lucide-react';
+import { Loader2, Clock, Target, ArrowLeft, Check, X } from 'lucide-react';
 import { OtisakHeader, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
@@ -131,6 +132,10 @@ export default function ResultsPage() {
     );
   }
 
+  // Practice results come back unstripped (full answers + correct flags) and
+  // are not a terminal screen - the taker reviews everything and goes back.
+  // Real-exam student payloads have no exam_mode field, so this stays false.
+  const isPractice = results?.exam?.exam_mode === 'practice';
   const totalPoints = Number(results?.attempt?.total_points ?? 0);
   const maxPoints = Number(results?.attempt?.max_points ?? 0);
   const percentage = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
@@ -184,18 +189,20 @@ export default function ResultsPage() {
           </div>
         ) : (
           <>
-            {/* Terminal "exam finished" banner - student cannot navigate away */}
+            {/* Banner. Real exams: terminal screen, the student stays put and
+                waits for the assistant. Practice: a review screen they leave
+                whenever they want. */}
             <motion.div
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6 }}
               className="text-center mb-8 sm:mb-10"
             >
-              <p className={`text-[11px] sm:text-xs uppercase tracking-[0.35em] mb-3 ${kickerText}`}>{t('results.finishedKicker')}</p>
+              <p className={`text-[11px] sm:text-xs uppercase tracking-[0.35em] mb-3 ${kickerText}`}>{t(isPractice ? 'results.practiceKicker' : 'results.finishedKicker')}</p>
               <h1 className={`text-2xl sm:text-3xl font-light tracking-wide leading-snug ${titleText}`}>
-                {t('results.finishedTitle')}
+                {t(isPractice ? 'results.practiceTitle' : 'results.finishedTitle')}
               </h1>
-              <p className={`text-sm mt-3 max-w-md mx-auto ${subSoft}`}>{t('results.finishedSubtitle')}</p>
+              <p className={`text-sm mt-3 max-w-md mx-auto ${subSoft}`}>{t(isPractice ? 'results.practiceSubtitle' : 'results.finishedSubtitle')}</p>
             </motion.div>
             {/* Score Card */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}
@@ -256,8 +263,26 @@ export default function ResultsPage() {
               </motion.div>
             )}
 
-            {/* Per-question recap - points only, no text or answers */}
-            {results.questions && results.questions.length > 0 && (
+            {/* Practice: full answer review - question, all options, what the
+                taker picked, what was correct, AI feedback. */}
+            {isPractice && results.questions && results.questions.length > 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.15 }}
+                className={`rounded-xl p-4 sm:p-5 w-full mb-6 backdrop-blur-sm border ${cardSurface}`}
+              >
+                <span className={`block text-[10px] sm:text-xs uppercase tracking-[0.2em] font-medium mb-3 ${subText}`}>{t('results.review')}</span>
+                <div className={`divide-y ${isDark ? 'divide-gray-800/60' : 'divide-slate-100'}`}>
+                  {results.questions.map((item, i) => (
+                    <ReviewQuestion key={item.question.id} item={item} index={i} isDark={isDark} t={t} />
+                  ))}
+                </div>
+              </motion.div>
+            )}
+
+            {/* Real exams: per-question recap - points only, no text or answers */}
+            {!isPractice && results.questions && results.questions.length > 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -295,21 +320,203 @@ export default function ResultsPage() {
               </motion.div>
             )}
 
-            {/* Intentionally no navigation button - once the exam is over,
-                the student stays on this terminal screen. */}
-            <motion.p
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className={`text-[10px] uppercase tracking-[0.3em] mt-4 mb-10 ${isDark ? 'text-white/35' : 'text-slate-400'}`}
-            >
-              {t('results.finishedFooter')}
-            </motion.p>
+            {isPractice ? (
+              /* Practice is not terminal - offer the way back. */
+              <motion.button
+                type="button"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                onClick={() => navigate('/dashboard')}
+                className={`inline-flex items-center gap-2 h-11 px-6 rounded-lg border text-sm font-medium mt-2 mb-10 transition-colors ${
+                  isDark
+                    ? 'border-blue-500/40 bg-blue-500/10 text-blue-300 hover:bg-blue-500/20'
+                    : 'border-blue-300 bg-blue-50 text-blue-700 hover:bg-blue-100'
+                }`}
+              >
+                <ArrowLeft className="w-4 h-4" />
+                {t('results.backToDashboard')}
+              </motion.button>
+            ) : (
+              /* Intentionally no navigation button - once a real exam is over,
+                  the student stays on this terminal screen. */
+              <motion.p
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className={`text-[10px] uppercase tracking-[0.3em] mt-4 mb-10 ${isDark ? 'text-white/35' : 'text-slate-400'}`}
+              >
+                {t('results.finishedFooter')}
+              </motion.p>
+            )}
           </>
         )}
       </main>
 
       <OtisakFooter />
+    </div>
+  );
+}
+
+function parseJson<T>(raw: string | null | undefined, fallback: T): T {
+  if (!raw) return fallback;
+  try { return JSON.parse(raw) as T; } catch { return fallback; }
+}
+
+type ReviewItem = OtisakExamResults['questions'][number];
+
+// One question in the practice answer review: the full question, every option,
+// what the taker picked, what was correct, and any AI feedback / explanation.
+// Only rendered for practice results, where the server returns unstripped data.
+function ReviewQuestion({ item, index, isDark, t }: {
+  item: ReviewItem;
+  index: number;
+  isDark: boolean;
+  t: ReturnType<typeof useLang>['t'];
+}) {
+  const q = item.question;
+  const awarded = Number(item.points_awarded ?? 0);
+  const max = Number(q.points ?? 0);
+  const pending = item.ai_grading_status === 'pending' || item.ai_grading_status === 'grading';
+
+  const titleText = isDark ? 'text-white' : 'text-slate-900';
+  const subText = isDark ? 'text-gray-400' : 'text-slate-500';
+  const pointsTone = pending
+    ? (isDark ? 'border-purple-500/25 bg-purple-500/[0.06] text-purple-300' : 'border-purple-200 bg-purple-50 text-purple-700')
+    : max > 0 && awarded === max
+      ? (isDark ? 'border-green-500/25 bg-green-500/[0.06] text-green-300' : 'border-green-200 bg-green-50 text-green-700')
+      : awarded > 0
+        ? (isDark ? 'border-amber-500/25 bg-amber-500/[0.06] text-amber-300' : 'border-amber-200 bg-amber-50 text-amber-700')
+        : (isDark ? 'border-red-500/25 bg-red-500/[0.06] text-red-300' : 'border-red-200 bg-red-50 text-red-700');
+  const goodRow = isDark ? 'border-green-500/30 bg-green-500/[0.06] text-green-300' : 'border-green-300 bg-green-50 text-green-700';
+  const badRow = isDark ? 'border-red-500/30 bg-red-500/[0.06] text-red-300' : 'border-red-300 bg-red-50 text-red-700';
+  const neutralRow = isDark ? 'border-gray-700/60 bg-white/[0.02] text-gray-300' : 'border-slate-200 bg-slate-50 text-slate-600';
+
+  const selectedIds = item.selected_answer_ids?.length
+    ? item.selected_answer_ids
+    : item.selected_answer_id ? [item.selected_answer_id] : [];
+  const notAnswered = <p className={`text-xs italic ${subText}`}>{t('results.noAnswer')}</p>;
+
+  let body: ReactNode;
+  if (q.type === 'ordering') {
+    const correctOrder = parseJson<{ items?: string[] }>(q.content, {}).items ?? [];
+    const studentOrder = parseJson<string[]>(item.text_answer, []);
+    body = studentOrder.length === 0 ? notAnswered : (
+      <div className="space-y-1.5">
+        {correctOrder.map((correctItem, i) => {
+          const studentItem = studentOrder[i];
+          const ok = studentItem === correctItem;
+          return (
+            <div key={i} className={`rounded-lg border px-3 py-2 text-sm ${ok ? goodRow : badRow}`}>
+              <span className="font-mono mr-2">{i + 1}.</span>{studentItem ?? '—'}
+              {!ok && <span className="block text-[11px] mt-0.5 opacity-70">{t('results.correctAnswerLabel')}: {correctItem}</span>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  } else if (q.type === 'matching') {
+    const { left = [], right = [] } = parseJson<{ left?: string[]; right?: string[] }>(q.content, {});
+    const matches = parseJson<Record<string, string>>(item.text_answer, {});
+    body = (
+      <div className="space-y-1.5">
+        {left.map((l, i) => {
+          const student = matches[l];
+          const ok = student === right[i];
+          return (
+            <div key={i} className={`rounded-lg border px-3 py-2 text-sm ${student === undefined ? neutralRow : ok ? goodRow : badRow}`}>
+              {l} <span className="opacity-60">&#8594;</span> {student ?? '—'}
+              {!ok && <span className="block text-[11px] mt-0.5 opacity-70">{t('results.correctAnswerLabel')}: {right[i]}</span>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  } else if (q.type === 'fill_blank') {
+    const blanks = parseJson<{ blanks?: Array<{ id: string; correct: string }> }>(q.content, {}).blanks ?? [];
+    const fills = parseJson<Record<string, string>>(item.text_answer, {});
+    const correctById = new Map(blanks.map((b) => [b.id, b.correct || '']));
+    const parts = q.text.split(/(___[A-Z0-9_]+___)/g);
+    body = (
+      <div className={`rounded-lg border px-4 py-3 text-sm leading-loose ${neutralRow}`}>
+        {parts.map((part, i) => {
+          const m = part.match(/^___([A-Z0-9_]+)___$/);
+          if (!m) return <span key={i}>{part}</span>;
+          const student = (fills[m[1]] || '').trim();
+          const correct = (correctById.get(m[1]) || '').trim();
+          const ok = student.toLowerCase() === correct.toLowerCase();
+          return (
+            <span key={i} className={`inline-flex items-baseline gap-1 mx-1 px-2 py-0.5 rounded border text-xs font-medium ${ok ? goodRow : badRow}`}>
+              {student || '—'}
+              {!ok && <span className="opacity-70">({correct})</span>}
+            </span>
+          );
+        })}
+      </div>
+    );
+  } else if (q.type === 'open_text') {
+    body = (
+      <div className="space-y-2">
+        <div className={`rounded-lg border px-4 py-3 text-sm whitespace-pre-wrap ${neutralRow}`}>
+          {item.text_answer?.trim() ? item.text_answer : <span className="italic opacity-70">{t('results.noAnswer')}</span>}
+        </div>
+        {item.ai_feedback && (
+          <div className={`rounded-lg border px-4 py-3 text-sm ${isDark ? 'border-purple-500/25 bg-purple-500/[0.06] text-purple-200' : 'border-purple-200 bg-purple-50 text-purple-800'}`}>
+            <span className="block text-[10px] uppercase tracking-wider mb-1 opacity-70">{t('results.aiFeedback')}</span>
+            {item.ai_feedback}
+          </div>
+        )}
+      </div>
+    );
+  } else {
+    // Choice questions: text / code / image.
+    body = (
+      <div className="space-y-1.5">
+        {item.answers.map((a) => {
+          const selected = selectedIds.includes(a.id);
+          const tone = a.is_correct ? goodRow : selected ? badRow : neutralRow;
+          return (
+            <div key={a.id} className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm ${tone}`}>
+              {a.is_correct
+                ? <Check className="w-3.5 h-3.5 flex-shrink-0" />
+                : selected
+                  ? <X className="w-3.5 h-3.5 flex-shrink-0" />
+                  : <span className="w-3.5 flex-shrink-0" />}
+              <span className="flex-1">{a.text}</span>
+              {selected && <span className="text-[10px] uppercase tracking-wider opacity-70 flex-shrink-0">{t('results.yourAnswer')}</span>}
+            </div>
+          );
+        })}
+        {selectedIds.length === 0 && notAnswered}
+      </div>
+    );
+  }
+
+  return (
+    <div className="py-4 first:pt-0 last:pb-0">
+      <div className="flex items-start justify-between gap-3 mb-2">
+        <p className={`text-sm font-medium leading-snug ${titleText}`}>
+          <span className={`font-mono mr-2 ${subText}`}>{index + 1}.</span>
+          {/* fill_blank renders its text inline with the blanks below */}
+          {q.type !== 'fill_blank' && q.text}
+        </p>
+        <span className={`flex-shrink-0 rounded-lg border px-2.5 py-1 text-xs font-mono tabular-nums ${pointsTone}`}>
+          {pending ? '…' : awarded}/{max}
+        </span>
+      </div>
+      {q.type === 'code' && q.content && (
+        <pre className={`rounded-lg border px-4 py-3 text-xs font-mono overflow-x-auto mb-2 ${isDark ? 'bg-black/40 border-gray-800 text-gray-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>{q.content}</pre>
+      )}
+      {q.type === 'image' && q.content && (
+        <img src={q.content} alt="" className={`max-w-full rounded-lg border mb-2 ${isDark ? 'border-gray-800' : 'border-slate-200'}`} />
+      )}
+      {body}
+      {q.explanation && (
+        <div className={`mt-2 rounded-lg border px-4 py-3 text-sm ${isDark ? 'border-blue-500/25 bg-blue-500/[0.06] text-blue-200' : 'border-blue-200 bg-blue-50 text-blue-800'}`}>
+          <span className="block text-[10px] uppercase tracking-wider mb-1 opacity-70">{t('results.explanation')}</span>
+          {q.explanation}
+        </div>
+      )}
     </div>
   );
 }

@@ -231,9 +231,12 @@ router.get('/results', requireAuth, async (req: Request, res: Response) => {
 
     const fullResults = await getAttemptResults(attempt.id);
 
-    // For students, strip everything that could leak correct answers or content.
-    // The recap UI only needs per-question id + points (max) + points_awarded + ai_grading_status.
-    if (user.role === 'student' && fullResults) {
+    // For students on real exams, strip everything that could leak correct
+    // answers or content - the recap UI only needs per-question id + points
+    // (max) + points_awarded + ai_grading_status. Practice exams return the
+    // full review for everyone: seeing the correct answers IS the point of
+    // practicing, and each practice run is a private child exam.
+    if (user.role === 'student' && fullResults && fullResults.exam.exam_mode !== 'practice') {
       const safe = {
         attempt: fullResults.attempt,
         exam: {
