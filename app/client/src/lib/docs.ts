@@ -33,13 +33,16 @@ export type DocsPage = {
 
 // Sidebar order. README is always first; everything else is in the order below
 // so admins/assistants read it the way the system is meant to be used (subjects
-// first, then users, then exams, then running tests).
-const FILE_ORDER = ['README', 'subjects', 'users', 'exams', 'running-tests'];
+// first, then users, then exams, then practice, then running tests). The JSON
+// reference goes last: it's looked up, not read through.
+const FILE_ORDER = ['README', 'subjects', 'users', 'exams', 'practice', 'running-tests', 'json-format'];
 
 // Fallback titles used when a doc has no first H1.
 const FALLBACK_TITLE: Record<string, { sr: string; en: string }> = {
   README: { sr: 'Početna', en: 'Overview' },
   exams: { sr: 'Upravljanje ispitima', en: 'Managing exams' },
+  practice: { sr: 'Vežbe', en: 'Practice exams' },
+  'json-format': { sr: 'JSON format ispita', en: 'Exam JSON format' },
   'running-tests': { sr: 'Pokretanje i vođenje testa', en: 'Running tests' },
   users: { sr: 'Upravljanje korisnicima', en: 'Managing users' },
   subjects: { sr: 'Upravljanje predmetima', en: 'Managing subjects' },

@@ -401,6 +401,10 @@ router.get('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (r
 // GET /exams/:examId/export-json - admin/assistant, dump exam config + questions
 // Used to back up an exam or move it between environments. The shape mirrors
 // the body accepted by /api/otisak/exams/import-json.
+//
+// exam_mode is deliberately NOT exported: real vs practice is decided by the
+// page you import on, so a file that carried it would be asserting something
+// the importer ignores. Same reason subject_id isn't here.
 router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
@@ -417,7 +421,6 @@ router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), asy
         duration_minutes: Number(exam.duration_minutes),
         pass_threshold: Number(exam.pass_threshold),
         has_pass_threshold: !!exam.has_pass_threshold,
-        exam_mode: exam.exam_mode,
         allow_review: exam.allow_review,
         shuffle_questions: exam.shuffle_questions,
         shuffle_answers: exam.shuffle_answers,
@@ -425,6 +428,7 @@ router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), asy
         negative_points_enabled: exam.negative_points_enabled,
         negative_points_value: Number(exam.negative_points_value),
         negative_points_threshold: Number(exam.negative_points_threshold),
+        // Informational only. Import ignores both; the caller picks the subject.
         subject_name: exam.subject_name,
         subject_code: exam.subject_code,
       },

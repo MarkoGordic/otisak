@@ -5,7 +5,6 @@
     "description": "Sedam pitanja o najpoznatijim crtanim likovima. Mešavina single-select i multi-select.",
     "duration_minutes": 10,
     "pass_threshold": 50,
-    "exam_mode": "real",
     "allow_review": true,
     "shuffle_questions": true,
     "shuffle_answers": true,

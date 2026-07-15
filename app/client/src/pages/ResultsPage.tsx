@@ -8,6 +8,7 @@ import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
 import { ToggleCluster } from '../components/ToggleCluster';
 import { useExamSocket } from '../lib/useExamSocket';
+import { parseCodeContent } from '../lib/codeQuestion';
 import type { OtisakExamResults } from '../lib/types';
 
 type UserInfo = {
@@ -505,7 +506,7 @@ function ReviewQuestion({ item, index, isDark, t }: {
         </span>
       </div>
       {q.type === 'code' && q.content && (
-        <pre className={`rounded-lg border px-4 py-3 text-xs font-mono overflow-x-auto mb-2 ${isDark ? 'bg-black/40 border-gray-800 text-gray-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>{q.content}</pre>
+        <pre className={`rounded-lg border px-4 py-3 text-xs font-mono overflow-x-auto mb-2 ${isDark ? 'bg-black/40 border-gray-800 text-gray-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>{parseCodeContent(q.content).snippet}</pre>
       )}
       {q.type === 'image' && q.content && (
         <img src={q.content} alt="" className={`max-w-full rounded-lg border mb-2 ${isDark ? 'border-gray-800' : 'border-slate-200'}`} />

@@ -417,7 +417,7 @@ export default function DashboardPage() {
                                   </div>
                                   <div className="flex flex-col min-w-0">
                                     <span className="text-sm font-medium text-[var(--text-primary)] truncate">{attempt.exam_title}</span>
-                                    <span className="text-[11px] text-[var(--text-muted)] mt-0.5">{attempt.is_practice ? 'Practice' : attempt.subject_name || '\u2014'}</span>
+                                    <span className="text-[11px] text-[var(--text-muted)] mt-0.5">{attempt.is_practice ? t('manage.practice') : attempt.subject_name || '-'}</span>
                                   </div>
                                 </div>
                                 <div className="w-32 hidden md:block text-[13px] text-[var(--text-muted)] truncate pr-4">{formatDate(attempt.started_at)}</div>

@@ -5,6 +5,7 @@ import { query } from './client';
 import { ConflictError } from '../lib/errors';
 import type {
   OtisakExam,
+  OtisakExamMode,
   OtisakExamWithSubject,
   CreateOtisakExamInput,
   OtisakExamAiSettings,
@@ -108,6 +109,11 @@ export async function createOtisakExam(
   // Tags get normalised once on the way in: lowercased, trimmed, deduped,
   // empties dropped. Saves us from re-doing it on every read.
   const tags = normalizeExamTags(data.tags);
+  // self_service / is_public follow the mode unless the caller states them.
+  // Deriving here (rather than in each caller) is what makes a practice exam
+  // created by JSON import actually reach the student practice list.
+  const mode = coerceExamMode(data.exam_mode);
+  const flags = deriveExamModeFlags(mode);
   const result = await query<OtisakExam>(
     `INSERT INTO otisak_exams (title, subject_id, description, duration_minutes, scheduled_at,
        allow_review, shuffle_questions, shuffle_answers, pass_threshold, has_pass_threshold, created_by,
@@ -127,12 +133,12 @@ export async function createOtisakExam(
       data.pass_threshold ?? 50,
       data.has_pass_threshold ?? true,
       createdBy,
-      data.exam_mode || 'real',
-      data.self_service ?? false,
+      mode,
+      data.self_service ?? flags.self_service,
       data.repeat_interval_minutes || null,
       data.auto_activate ?? false,
       data.uses_question_bank ?? false,
-      data.is_public ?? false,
+      data.is_public ?? flags.is_public,
       data.negative_points_enabled ?? false,
       data.negative_points_value ?? 0,
       data.negative_points_threshold ?? 1,
@@ -143,6 +149,22 @@ export async function createOtisakExam(
     ]
   );
   return result.rows[0];
+}
+
+// Only the two known modes exist; anything else (a typo, a stale client, a
+// hand-written JSON) becomes 'real'. Without this the value reaches the
+// exam_mode CHECK constraint and the insert fails with a 500.
+export function coerceExamMode(v: unknown): OtisakExamMode {
+  return v === 'practice' ? 'practice' : 'real';
+}
+
+// Practice exams are self-service + public; real exams are neither. Callers
+// that pass the flags explicitly win: createPracticeInstance needs
+// exam_mode='practice' with self_service=FALSE so the per-student child
+// instances stay out of the template lists.
+export function deriveExamModeFlags(mode: OtisakExamMode) {
+  const practice = mode === 'practice';
+  return { self_service: practice, is_public: practice };
 }
 
 // Lowercase + trim + dedupe + drop empties. Public so the API layer can call it
@@ -174,11 +196,6 @@ export const DEMO_EXAM_TITLE = 'Šaljivi test: crtani junaci';
 // DEMO_EXAM_LOCKED code; the existing route-level catch keeps working too.
 export class DemoExamLockedError extends ConflictError {
   constructor() { super('DEMO_EXAM_LOCKED', 'DEMO_EXAM_LOCKED'); }
-}
-
-export async function isDemoExamId(examId: string): Promise<boolean> {
-  const r = await query<{ title: string }>('SELECT title FROM otisak_exams WHERE id = $1 LIMIT 1', [examId]);
-  return r.rows[0]?.title === DEMO_EXAM_TITLE;
 }
 
 export async function updateOtisakExamStatus(
@@ -221,9 +238,22 @@ export async function updateOtisakExam(
   // finished or deleted. Moving it to a different subject would also break
   // the Demo subject scoping. Other fields stay editable so admins can tune
   // duration / pass-threshold / etc on the demo.
+  //
+  // Only a real CHANGE trips the lock. The settings form submits every field
+  // on every save, including the unchanged title and subject_id, so guarding
+  // on presence alone made the demo completely uneditable.
   if (data.title !== undefined || data.subject_id !== undefined) {
-    if (await isDemoExamId(examId)) {
-      throw new DemoExamLockedError();
+    const cur = await query<{ title: string; subject_id: string | null }>(
+      'SELECT title, subject_id FROM otisak_exams WHERE id = $1 LIMIT 1',
+      [examId],
+    );
+    const row = cur.rows[0];
+    if (row && row.title === DEMO_EXAM_TITLE) {
+      const renaming = data.title !== undefined && data.title !== row.title;
+      const moving = data.subject_id !== undefined && (data.subject_id ?? null) !== row.subject_id;
+      if (renaming || moving) {
+        throw new DemoExamLockedError();
+      }
     }
   }
 
@@ -251,16 +281,17 @@ export async function updateOtisakExam(
   if (data.partial_scoring !== undefined) { updates.push(`partial_scoring = $${idx++}`); values.push(data.partial_scoring); }
   if (data.tags !== undefined) { updates.push(`tags = $${idx++}`); values.push(normalizeExamTags(data.tags)); }
   if (data.exam_mode !== undefined) {
-    // Only allow the two known modes; don't trust the client to send anything else.
-    const mode = data.exam_mode === 'practice' ? 'practice' : 'real';
+    const mode = coerceExamMode(data.exam_mode);
+    const flags = deriveExamModeFlags(mode);
     updates.push(`exam_mode = $${idx++}`); values.push(mode);
-    // Keep the practice-side flags in sync - practice exams are self-service + public,
-    // real exams are not. Skips when the caller explicitly set those fields above.
+    // Keep the practice-side flags in sync. Skips when the caller explicitly
+    // set those fields above. Note no UI sends exam_mode any more (mode is
+    // fixed at creation by the page), so this branch is for API callers only.
     if (data.self_service === undefined) {
-      updates.push(`self_service = $${idx++}`); values.push(mode === 'practice');
+      updates.push(`self_service = $${idx++}`); values.push(flags.self_service);
     }
     if (data.is_public === undefined) {
-      updates.push(`is_public = $${idx++}`); values.push(mode === 'practice');
+      updates.push(`is_public = $${idx++}`); values.push(flags.is_public);
     }
   }
   if (data.subject_id !== undefined) { updates.push(`subject_id = $${idx++}`); values.push(data.subject_id); }

@@ -9,8 +9,10 @@ import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { useToast } from '../components/Toast';
 import { AppCopyright } from '../components/AppCopyright';
+import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { CodeBlock } from '../components/otisak';
+import { parseCodeContent } from '../lib/codeQuestion';
 
 type Exam = {
   id: string;
@@ -168,7 +170,10 @@ export default function ExamEditPage() {
           duration_minutes: Number(exam.duration_minutes) || 60,
           pass_threshold: Number(exam.pass_threshold) || 50,
           has_pass_threshold: exam.has_pass_threshold,
-          exam_mode: exam.exam_mode,
+          // exam_mode is deliberately NOT sent. Mode is fixed by the page the
+          // exam was created on, and sending it here would make the server
+          // re-derive self_service / is_public on every save, silently
+          // republishing a practice exam that had been made private.
           // Pass null through explicitly so an admin can detach the exam
           // from any subject. Assistants can't reach null here because the
           // server rejects an empty subject_id from non-admins anyway.
@@ -187,7 +192,7 @@ export default function ExamEditPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.error || t('examEdit.saveFailed'));
+        toast.error(d.error === 'DEMO_EXAM_LOCKED' ? t('manage.demoLocked') : (d.error || t('examEdit.saveFailed')));
         return;
       }
       // Sync local state to the server's truth so the form reflects what was
@@ -210,7 +215,6 @@ export default function ExamEditPage() {
           has_pass_threshold: typeof (saved as { has_pass_threshold?: unknown }).has_pass_threshold === 'boolean'
             ? !!(saved as { has_pass_threshold: boolean }).has_pass_threshold
             : prev.has_pass_threshold,
-          exam_mode: saved.exam_mode === 'practice' ? 'practice' : 'real',
           subject_id: newSubjectId,
           subject_name: matched ? matched.name : null,
           allow_review: !!saved.allow_review,
@@ -481,11 +485,17 @@ export default function ExamEditPage() {
             {/* Header */}
             <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
               <div className="flex items-center gap-3 min-w-0">
-                <button onClick={() => navigate('/manage')} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                <button onClick={() => navigate(exam.exam_mode === 'practice' ? '/practice' : '/manage')} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
                   <ArrowLeft size={20} />
                 </button>
                 <div className="min-w-0">
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)] truncate">{exam.title}</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-2xl font-display font-bold text-[var(--text-primary)] truncate">{exam.title}</h1>
+                    {/* Mode is fixed at creation, so it's a label, not a control.
+                        Real exams show nothing: real is the default and a badge
+                        saying "normal" is noise. */}
+                    {exam.exam_mode === 'practice' && <Badge variant="accent" size="sm">{t('examEdit.modePractice')}</Badge>}
+                  </div>
                   <p className="text-sm text-[var(--text-secondary)]">
                     {questions.length} {t('examEdit.questions')} · {totalPoints} {t('questions.pts')} · {exam.status}
                   </p>
@@ -550,12 +560,6 @@ export default function ExamEditPage() {
                         className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
-                  </Field>
-                  <Field label={t('examEdit.examMode')}>
-                    <select value={exam.exam_mode} onChange={(e) => setExam({ ...exam, exam_mode: e.target.value as Exam['exam_mode'] })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
-                      <option value="real">{t('examEdit.modeReal')}</option>
-                      <option value="practice">{t('examEdit.modePractice')}</option>
-                    </select>
                   </Field>
                   <Field label={t('examEdit.subject')}>
                     <select
@@ -753,11 +757,8 @@ export default function ExamEditPage() {
                               <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3">
                                 <p className="text-sm text-[var(--text-primary)] mb-2 whitespace-pre-wrap">{q.text}</p>
                                 {q.type === 'code' && q.content && (() => {
-                                  try {
-                                    const parsed = JSON.parse(q.content) as { snippet?: string; language?: string };
-                                    if (parsed.snippet) return <CodeBlock code={parsed.snippet} language={parsed.language || undefined} />;
-                                  } catch { /* fallthrough */ }
-                                  return <CodeBlock code={q.content} />;
+                                  const { snippet, language } = parseCodeContent(q.content);
+                                  return <CodeBlock code={snippet} language={language} />;
                                 })()}
                                 {q.type === 'image' && q.content && (
                                   <img src={q.content} alt="" className="max-h-60 max-w-full rounded mx-auto block bg-white p-1" />

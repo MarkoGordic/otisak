@@ -1,6 +1,8 @@
 # Managing exams
 
-Screen: `/manage`. Lists exams for the subjects you're assigned to (assistant) or every exam (admin).
+Screen: `/manage`. Lists **real exams** for the subjects you're assigned to (assistant) or every exam (admin).
+
+Practice exams are not here: they have their own screen at `/practice`. See [Practice exams](practice.md). An exam's mode is decided by the screen you create it on and cannot be changed afterwards.
 
 ## Lifecycle
 
@@ -22,13 +24,10 @@ Two paths:
 
 1. **By hand.** `/manage`, **Nov ispit**. Fields:
    - **Title** - visible to students.
-   - **Subject** - required. Dropdown shows your assigned subjects (admins see all).
+   - **Subject** - dropdown shows your assigned subjects (admins see all).
    - **Duration** - minutes, default 60.
-   - **Mode** - `real` or `practice`. Practice defaults `self_service = true` and `is_public = true`. Real defaults both off.
 
-   Saves as `draft`.
-
-   Staff can take practice exams themselves: **My Practice** in the sidebar opens the student-style dashboard. Admins see every self-service practice exam; assistants see public ones plus those on their assigned subjects. Real exams remain student-only.
+   Saves as `draft`, as a real exam. To create a practice exam, use `/practice` instead.
 
 2. **JSON import.** `/manage`, **Uvezi JSON**. See [JSON import](#json-import).
 
@@ -42,7 +41,6 @@ Two paths:
 | Description | Shown on the join screen. |
 | Duration (minutes) | Timer length. |
 | Pass threshold (%) | Labels pass or fail. Doesn't block submission. |
-| Mode | `real` or `practice`. Changes also flip `self_service` and `is_public` to match. |
 | Allow review | Students see correct answers on the results screen after the exam closes. |
 | Shuffle questions | Random order per attempt. Seeded so refresh doesn't reshuffle. |
 | Shuffle answers | Random option order within each question. Same seeding. |
@@ -69,9 +67,9 @@ Seven types. First three are common:
 | `open_text` | Free-form. AI-graded if you write grading instructions; otherwise manual. |
 | `ordering` | Student drags items into the right order. |
 | `matching` | Pair items from left with right. |
-| `fill_blank` | Question text with `{{1}}`, `{{2}}` placeholders. Student types each. |
+| `fill_blank` | Question text with `___A___` placeholders. Student types each. |
 
-The last three work but the editing UI is rougher. Test the attempt flow before assigning.
+**The last three cannot be created in the editor.** The type dropdown only offers `text`, `code`, `image` and `open_text`. To author an `ordering`, `matching` or `fill_blank` question, import it from JSON: see [Exam JSON format](json-format.md). They render and score correctly once imported, so test the attempt flow before assigning.
 
 ### `multi_answer` is authoritative
 
@@ -85,45 +83,15 @@ The `multi_answer` flag on a question controls radio vs checkbox. It's not deriv
 
 ## JSON import
 
-`/manage`, **Uvezi JSON**. Same shape as the export endpoint.
+`/manage`, **Uvezi JSON**:
 
-```json
-{
-  "version": 1,
-  "exam": {
-    "title": "string (required)",
-    "description": "string",
-    "duration_minutes": 60,
-    "pass_threshold": 50,
-    "exam_mode": "real|practice",
-    "allow_review": true,
-    "shuffle_questions": true,
-    "shuffle_answers": true,
-    "partial_scoring": false,
-    "negative_points_enabled": false,
-    "negative_points_value": 0,
-    "negative_points_threshold": 0,
-    "subject_name": "matched case-insensitively"
-  },
-  "questions": [
-    {
-      "type": "text",
-      "text": "Question text",
-      "points": 1,
-      "position": 0,
-      "multi_answer": false,
-      "answers": [
-        { "text": "A", "is_correct": true, "position": 0 },
-        { "text": "B", "is_correct": false, "position": 1 }
-      ]
-    }
-  ]
-}
-```
+1. Pick a `.json` file.
+2. Pick a **subject**. Required, and it wins over anything in the file. Assistants only see their assigned subjects; picking one that isn't yours returns `403`.
+3. Import. The exam is created as a `draft` **real exam**, because you are on `/manage`. To import a practice exam, do the same on `/practice`.
 
-If you're an assistant and the matched subject isn't yours, the server returns `403`.
+**Export JSON** on any row produces a file in the same shape, so you can move an exam between environments or keep a backup.
 
-`multi_answer` is preserved on round-trip if present. Older fixtures without it fall back to "more than one correct means multi-answer".
+For every field, every default and every question type, see [Exam JSON format](json-format.md).
 
 ## Lifecycle moves
 
@@ -178,7 +146,7 @@ Per-answer grading: ~3-5s. Progress is live.
 
 Two ways to provide an API key:
 
-- **Server key** - stored on the exam's AI settings. Server pays for grading. Set this up in `/admin/ai`.
+- **Server key** - stored on the exam's AI settings (`otisak_exam_ai_settings`). Server pays for grading. There is no admin screen for this yet: it is set through the API.
 - **Student keys** - set `allow_student_api_keys = true` on the exam. Each student attaches their own key from their profile. They pay for grading. Use for take-home or extracurricular exams.
 
 `max_student_credits` caps how much a single student can spend through their key on this exam.
@@ -195,8 +163,6 @@ The grader returns a score and a short feedback string. Both are stored on `otis
 
 ## Re-running an exam
 
-The `/manage` row shows **Pokreni ponovo** on `completed` exams.
+There is no way to re-run an exam. A `completed` exam is final: the DB refuses to move it back to `active`, and the `/manage` row offers no re-run action.
 
-Deletes all attempts and their answers for the exam, resets `exam_started_at` to null, and moves status back to `draft`.
-
-Destructive. No undo. Export the results ZIP first if you want history.
+To assess the same material again, create a new exam and import the same JSON file into it. See [Exam JSON format](json-format.md).

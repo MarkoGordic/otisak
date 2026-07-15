@@ -10,6 +10,7 @@ import {
   BookOpen,
   BookMarked,
   BookText,
+  Dumbbell,
   GraduationCap,
   Sun,
   Moon,
@@ -42,6 +43,10 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
       : { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, href: '/dashboard' },
     ...(isStaff ? [
       { id: 'manage', label: t('nav.manage'), icon: Settings, href: '/manage' },
+      // Administering practice templates. Distinct from 'my-practice' below,
+      // which is where staff go to TAKE a practice exam - hence the different
+      // icon, two items that look alike but go elsewhere is a trap.
+      { id: 'practice-admin', label: t('nav.practiceAdmin'), icon: Dumbbell, href: '/practice' },
       { id: 'subjects', label: t('nav.subjects'), icon: BookMarked, href: '/subjects' },
       { id: 'questions', label: t('nav.questionBank'), icon: BookOpen, href: '/questions' },
       // Staff can take practice exams themselves via the student dashboard.

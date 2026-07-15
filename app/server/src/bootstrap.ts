@@ -98,10 +98,11 @@ export async function ensureDemoExam(): Promise<void> {
       subjectId = inserted.rows[0].id;
     }
 
+    // self_service / is_public are derived from exam_mode by createOtisakExam.
+    // Leaving them implicit here means a fresh boot is a live check of that
+    // derivation: if it breaks, the demo stops showing up for students.
     const result = await importExamFromJson(demoExam as ExamImportInput, adminId, {
       exam_mode: 'practice',
-      self_service: true,
-      is_public: true,
       status: 'active',
       subject_id: subjectId,
     });

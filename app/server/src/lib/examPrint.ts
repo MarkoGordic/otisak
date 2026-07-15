@@ -58,8 +58,12 @@ function parseContent(content: string | null): { items?: string[]; left?: string
   }
 }
 
-const FILL_BLANK_RE = /(___[A-Za-z0-9_]+___)/g;
-const FILL_BLANK_ONE = /^___[A-Za-z0-9_]+___$/;
+// Uppercase ids only, matching the exam and results renderers. Accepting
+// lowercase here would print a writeable blank for a placeholder the exam UI
+// renders as literal text, so the PDF would promise an input the student
+// never gets - and the question then always scores 0.
+const FILL_BLANK_RE = /(___[A-Z0-9_]+___)/g;
+const FILL_BLANK_ONE = /^___[A-Z0-9_]+___$/;
 
 // A writeable underline that stretches to fill its row.
 const FILL = '<span style="flex:1;border-bottom:1px solid #111;height:15px;margin-left:8px;"></span>';

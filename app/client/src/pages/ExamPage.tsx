@@ -15,6 +15,7 @@ import { ExamCalculator } from '../components/otisak/ExamCalculator';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
 import { useExamSocket } from '../lib/useExamSocket';
+import { parseCodeContent } from '../lib/codeQuestion';
 import { useToast } from '../components/Toast';
 import { ToggleCluster } from '../components/ToggleCluster';
 import type {
@@ -962,9 +963,10 @@ export default function ExamPage() {
                   </div>
                 )}
 
-                {currentQuestion.type === 'code' && currentQuestion.content && (
-                  <CodeBlock code={currentQuestion.content} />
-                )}
+                {currentQuestion.type === 'code' && currentQuestion.content && (() => {
+                  const { snippet, language } = parseCodeContent(currentQuestion.content);
+                  return <CodeBlock code={snippet} language={language} />;
+                })()}
 
                 <div className="space-y-1.5 sm:space-y-2 mb-6 sm:mb-8">
                   {currentQuestion.type === 'open_text' ? (

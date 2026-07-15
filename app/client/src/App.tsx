@@ -17,6 +17,7 @@ import ResultsPage from './pages/ResultsPage';
 // rehype) into the DocsPage chunk instead of the entry bundle.
 const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ManagePage = lazy(() => import('./pages/ManagePage'));
+const PracticeManagePage = lazy(() => import('./pages/PracticeManagePage'));
 const ExamEditPage = lazy(() => import('./pages/ExamEditPage'));
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage'));
 const RoomPage = lazy(() => import('./pages/RoomPage'));
@@ -52,6 +53,8 @@ export default function App() {
           <Route path="/manage/:examId/edit" element={<ExamEditPage />} />
           <Route path="/manage/:examId/report/:userId" element={<ReportPage />} />
           <Route path="/manage/:examId/stats" element={<ExamStatsPage />} />
+          {/* Practice templates are administered separately from real exams. */}
+          <Route path="/practice" element={<PracticeManagePage />} />
           <Route path="/subjects" element={<SubjectsPage />} />
           <Route path="/questions" element={<QuestionsPage />} />
           <Route path="/admin/users" element={<AdminUsersPage />} />

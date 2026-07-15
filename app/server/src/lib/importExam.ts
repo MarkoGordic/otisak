@@ -1,4 +1,3 @@
-import { query } from '../db/client';
 import { createOtisakExam, createOtisakQuestion, updateOtisakExamStatus } from '../db/otisak';
 import type { OtisakExam } from '../db/otisak-types';
 
@@ -28,6 +27,12 @@ export type ExamImportOverrides = Partial<Pick<
 // Validation here is intentionally minimal - title is required, the rest
 // falls back to sensible defaults so legacy fixtures keep importing.
 // The route layer should reject malformed payloads before calling in.
+//
+// exam_mode comes from the CALLER, never from the file. Whether a file
+// becomes a real exam or a practice exam is a placement decision owned by
+// the page doing the import (like subject_id), not a property of the
+// content. Legacy files that still carry exam.exam_mode import fine; the
+// field is ignored and the import dialog warns about it.
 export async function importExamFromJson(
   body: ExamImportInput,
   createdBy: string,
@@ -45,7 +50,7 @@ export async function importExamFromJson(
     // Default TRUE so legacy exports (pre-flag) round-trip with the historical
     // pass/fail rendering preserved.
     has_pass_threshold: typeof examIn.has_pass_threshold === 'boolean' ? examIn.has_pass_threshold : true,
-    exam_mode: overrides.exam_mode ?? (examIn.exam_mode === 'practice' ? 'practice' : 'real'),
+    exam_mode: overrides.exam_mode ?? 'real',
     allow_review: !!examIn.allow_review,
     shuffle_questions: !!examIn.shuffle_questions,
     shuffle_answers: !!examIn.shuffle_answers,
@@ -93,15 +98,4 @@ export async function importExamFromJson(
   }
 
   return { exam, questions: createdQuestions };
-}
-
-// Resolve a subject by case-insensitive name lookup, used by the JSON
-// import route when the payload includes a subject_name hint.
-export async function resolveSubjectIdByName(name: string | undefined | null): Promise<string | null> {
-  if (typeof name !== 'string' || !name.trim()) return null;
-  const result = await query<{ id: string }>(
-    'SELECT id FROM otisak_subjects WHERE LOWER(name) = LOWER($1) LIMIT 1',
-    [name.trim()]
-  );
-  return result.rows[0]?.id ?? null;
 }

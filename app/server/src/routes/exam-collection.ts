@@ -7,6 +7,7 @@ import {
   updateOtisakExam,
   setExamTagRules,
   getOtisakExamById,
+  coerceExamMode,
   DemoExamLockedError,
 } from '../db/otisak';
 import { requireAuth, requireRole } from '../middleware';
@@ -192,13 +193,14 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
 // POST /exams/import-json - admin/assistant, create a new exam from a JSON dump
 // Mirrors the shape produced by GET /exams/:id/export-json:
 //   { version: 1, exam: { title, ... }, questions: [{ type, text, ... answers: [...] }] }
-// Subject resolution order:
-//   1. Explicit `subject_id` on the request body (sent by the import dialog).
-//      Wins over anything in the JSON payload itself. This lets the assistant
-//      reassign on import without editing the file.
-//   2. Otherwise fall back to matching `exam.subject_name` from the JSON
-//      against an existing subject by name (case-insensitive).
-//   3. Otherwise no subject (admin-only - assistants need a subject).
+//
+// Two things come from the REQUEST, not the file, because both are placement
+// decisions owned by the page doing the import rather than properties of the
+// content:
+//   - `subject_id` - mandatory for every caller. 400 SUBJECT_REQUIRED without it.
+//   - `exam_mode`  - 'real' from /manage, 'practice' from /practice.
+// The file's own `exam_mode` and `subject_name` are ignored. `version` is
+// never read.
 router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
@@ -230,7 +232,13 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
       });
     }
 
-    const result = await importExamFromJson(body, user.id, { subject_id: subjectId });
+    // self_service / is_public are deliberately not passed: createOtisakExam
+    // derives them from the mode, so a practice import lands visible to
+    // students instead of silently missing from their practice list.
+    const result = await importExamFromJson(body, user.id, {
+      subject_id: subjectId,
+      exam_mode: coerceExamMode(body.exam_mode),
+    });
     return res.json({ exam: result.exam, questions: result.questions });
   } catch (error) {
     console.error('Import exam JSON error:', error);

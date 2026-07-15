@@ -5,9 +5,11 @@ Exam and practice system. This doc set covers everything you need to set up subj
 ## Contents
 
 - [Managing exams](exams.md) - creation, settings, question types, the question bank, JSON import, lifecycle, results, and AI grading.
+- [Practice exams](practice.md) - self-service tests students start themselves: creating, publishing, visibility, and the global toggle.
 - [Running and conducting tests](running-tests.md) - the live room, starting the timer, lockdown, late-join requests, removing a student, closing the exam.
 - [Managing users](users.md) - roles, adding users, CSV bulk import, edits, password reset.
 - [Managing subjects](subjects.md) - creating subjects and assigning assistants.
+- [Exam JSON format](json-format.md) - every field of the import and export format, all seven question types, scoring, limits, and errors.
 
 ## Images
 

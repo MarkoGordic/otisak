@@ -1,6 +1,10 @@
-# OTISAK Question authoring guide
+# OTISAK Question bank authoring (internal)
 
 This document describes the data model and JSON shape for **bank questions** and **exam questions** in OTISAK so that humans, scripts, or AI assistants can author them consistently.
+
+> **Authoring a whole exam file?** Use the user-facing reference at [`en/json-format.md`](en/json-format.md) instead. It documents the `{version, exam, questions}` envelope that import and export actually speak, which this page does not cover. This page is about the bank's own shape.
+>
+> Where the two overlap (the per-type `content` encodings), json-format.md is the source of truth: it is derived from the exporter and the scoring code, and it is the one that gets kept up to date.
 
 There are two storage areas:
 
@@ -111,7 +115,7 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 ```
 
 - `image_url` accepts either an absolute `http(s)://` URL **or** a base64-encoded data URL (`data:image/png;base64,…`).
-- The bank UI supports drag/drop upload (≤ 4 MB) which embeds as a data URL. The server's JSON limit is 5 MB.
+- The bank UI supports drag/drop upload (≤ 4 MB) which embeds as a data URL. **The server's JSON body limit is 1 MB** (`express.json({ limit: '1mb' })`), so a 4 MB data URL is rejected with a 413 before any handler runs. Link images by URL instead.
 
 ---
 
@@ -151,7 +155,7 @@ These exist on `otisak_questions` but the bank UI does not yet expose authoring 
 
 - `content` is a JSON string. The `items` array is the **correct order**.
 - Student response is JSON-encoded into `text_answer` (their order of items).
-- Partial credit honoured if `partial_scoring` is on (correct positions / total).
+- **Strict all-or-nothing.** `partial_scoring` does not apply to `ordering` (it is a `scoreMultiChoice` parameter only).
 
 ### `matching`
 
@@ -231,5 +235,5 @@ node -e '
 - Keep `text` short and specific. Use code snippets for the technical detail.
 - Tag every question. Tags are how the question bank stays useful at scale.
 - Aim for distractors (wrong answers) that are *plausible*, not absurd. That's where learning happens.
-- Set `partial_scoring` on the exam if you want fractional credit on multi-select / ordering / matching / fill_blank.
+- Set `partial_scoring` on the exam if you want fractional credit on **multi-select** questions. It has no effect on ordering / matching / fill_blank: those are always all-or-nothing.
 - Negative points (`negative_points_*` on the exam) discourage wild guessing. Opt in per exam.

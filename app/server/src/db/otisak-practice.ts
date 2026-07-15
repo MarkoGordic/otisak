@@ -100,10 +100,17 @@ export async function copyQuestionsFromTemplate(
   const copiedQuestions: OtisakQuestionWithAnswers[] = [];
 
   for (const tq of templateQuestions) {
+    // multi_answer, explanation and ai_grading_instructions must be carried:
+    // without multi_answer the child renders checkboxes as radios, and the
+    // student silently loses the ability to answer the question correctly.
     const qResult = await query<OtisakQuestion>(
-      `INSERT INTO otisak_questions (exam_id, type, text, content, points, position)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [childExamId, tq.type, tq.text, tq.content, tq.points, tq.position]
+      `INSERT INTO otisak_questions
+         (exam_id, type, text, content, points, position, multi_answer, explanation, ai_grading_instructions)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [
+        childExamId, tq.type, tq.text, tq.content, tq.points, tq.position,
+        tq.multi_answer, tq.explanation, tq.ai_grading_instructions,
+      ]
     );
     const question = qResult.rows[0];
 
@@ -134,19 +141,26 @@ export async function createPracticeInstance(
   if (!template) throw new Error('Template exam not found');
   if (!template.subject_id) throw new Error('Template exam has no subject');
 
+  // self_service stays FALSE and parent_exam_id is set: that pair is what keeps
+  // these per-student child rows out of both the admin lists and the student
+  // practice list. Everything else is copied from the template, otherwise the
+  // instance scores or renders differently from what the template configured.
   const childResult = await query<OtisakExam>(
     `INSERT INTO otisak_exams (
       title, subject_id, description, duration_minutes,
-      allow_review, shuffle_questions, shuffle_answers, pass_threshold,
+      allow_review, shuffle_questions, shuffle_answers, pass_threshold, has_pass_threshold,
       created_by, exam_mode, status, parent_exam_id, uses_question_bank, self_service,
-      negative_points_enabled, negative_points_value, negative_points_threshold
-    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'practice', 'active', $10, TRUE, FALSE, $11, $12, $13)
+      negative_points_enabled, negative_points_value, negative_points_threshold,
+      partial_scoring, allow_notes, allow_calculator, tags
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'practice', 'active', $11, TRUE, FALSE, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
       template.title, template.subject_id, template.description, template.duration_minutes,
       true, template.shuffle_questions, template.shuffle_answers, template.pass_threshold,
+      template.has_pass_threshold,
       template.created_by, templateExamId,
       template.negative_points_enabled, template.negative_points_value, template.negative_points_threshold,
+      template.partial_scoring, template.allow_notes, template.allow_calculator, template.tags ?? [],
     ]
   );
   const childExam = childResult.rows[0];
