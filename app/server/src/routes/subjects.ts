@@ -24,7 +24,7 @@ router.get('/', async (_req: Request, res: Response) => {
 });
 
 // POST /subjects
-router.post('/', requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/', requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const { name, code, description } = req.body;
     if (!name) {
@@ -40,7 +40,7 @@ router.post('/', requireRole(['admin', 'assistant']), async (req: Request, res: 
 });
 
 // PATCH /subjects
-router.patch('/', requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.patch('/', requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const { id, name, code, description } = req.body;
     if (!id) {

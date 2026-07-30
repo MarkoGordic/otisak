@@ -421,6 +421,7 @@ const sr: Record<I18nKey, string> = {
   'users.lastLogin': 'Poslednja prijava',
   'users.student': 'Student',
   'users.assistant': 'Asistent',
+  'users.professor': 'Profesor',
   'users.admin': 'Administrator',
   'users.never': 'Nikada',
   'users.importCsv': 'Uvezi CSV',

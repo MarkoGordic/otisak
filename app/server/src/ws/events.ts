@@ -38,7 +38,7 @@ type Heartbeatable = WebSocket & { isAlive?: boolean };
 
 async function isUserAllowedOnExam(examId: string, userId: string, role: string): Promise<boolean> {
   // Privileged roles see every exam.
-  if (role === 'admin' || role === 'assistant') return true;
+  if (role === 'admin' || role === 'assistant' || role === 'professor') return true;
   // Students must be linked to the exam in some legitimate way.
   const result = await query<{ ok: boolean }>(
     `SELECT EXISTS (
@@ -175,7 +175,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
           }
 
           if (data.type === 'subscribe_room' && data.exam_id) {
-            if (user.role === 'admin' || user.role === 'assistant') {
+            if (user.role === 'admin' || user.role === 'assistant' || user.role === 'professor') {
               const examId = data.exam_id;
               if (!roomSubscriptions.has(examId)) {
                 roomSubscriptions.set(examId, new Set());
@@ -195,7 +195,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
               examSubscriptions.get(examId)!.add(ws);
               // Admin/assistant subscriptions also "wake up" the live-stats aggregator for this exam.
               // Students don't trigger this - they don't poll /live-stats.
-              if (user.role === 'admin' || user.role === 'assistant') {
+              if (user.role === 'admin' || user.role === 'assistant' || user.role === 'professor') {
                 markExamMonitored(examId);
               }
               ws.send(JSON.stringify({ type: 'subscribed', exam_id: examId }));
@@ -219,7 +219,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
         }
         // If no admin/assistant is still watching any of the monitored exams,
         // unmark them so the 5s aggregator stops doing DB work for them.
-        if (user.role === 'admin' || user.role === 'assistant') {
+        if (user.role === 'admin' || user.role === 'assistant' || user.role === 'professor') {
           for (const examId of listMonitoredExams()) {
             const subs = examSubscriptions.get(examId);
             if (!subs || subs.size === 0) {
@@ -228,7 +228,7 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
             }
             const stillAdmin = Array.from(subs).some((other) => {
               const meta = wsUserMap.get(other);
-              return meta && (meta.role === 'admin' || meta.role === 'assistant');
+              return meta && (meta.role === 'admin' || meta.role === 'assistant' || meta.role === 'professor');
             });
             if (!stillAdmin) unmarkExamMonitored(examId);
           }

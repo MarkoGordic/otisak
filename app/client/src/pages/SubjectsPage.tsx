@@ -36,7 +36,7 @@ export default function SubjectsPage() {
     (async () => {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
-      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant')) {
+      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor')) {
         navigate('/dashboard', { replace: true }); return;
       }
       setUser({ name: data.user?.name, role: data.user?.role, avatar_url: data.user?.avatar_url });
@@ -274,7 +274,7 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
   // already assigned to this subject. Filter is plain substring over name
   // and email - the user list is small (one screen of staff).
   const candidates = users
-    .filter((u) => (u.role === 'assistant' || u.role === 'admin') && !assignedIds.has(u.id))
+    .filter((u) => (u.role === 'assistant' || u.role === 'professor' || u.role === 'admin') && !assignedIds.has(u.id))
     .filter((u) => {
       const q = search.trim().toLowerCase();
       if (!q) return true;

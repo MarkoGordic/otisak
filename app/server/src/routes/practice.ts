@@ -20,7 +20,7 @@ router.get('/', async (req: Request, res: Response) => {
     let staffScope: { allSubjects?: boolean; subjectIds?: string[] } | undefined;
     if (user.role === 'admin') {
       staffScope = { allSubjects: true };
-    } else if (user.role === 'assistant') {
+    } else if (user.role === 'assistant' || user.role === 'professor') {
       staffScope = { subjectIds: await getAssignedSubjectIds(user.id) };
     }
 

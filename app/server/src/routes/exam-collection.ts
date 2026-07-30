@@ -66,8 +66,8 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       const exams = await getOtisakExams(parseExamFilters(req.query as Record<string, unknown>));
       return res.json({ exams });
     }
-    if (user.role === 'assistant') {
-      // Assistants only see exams attached to subjects they're assigned to.
+    if (user.role === 'assistant' || user.role === 'professor') {
+      // Assistants and professors only see exams attached to subjects they're assigned to.
       // Empty assignment list → empty result (the helper short-circuits
       // before hitting the DB on the worst case).
       const subjectIds = await getAssignedSubjectIds(user.id);
@@ -86,7 +86,7 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
 });
 
 // POST /exams
-router.post('/', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const user = req.user!;
     const isAdmin = user.role === 'admin';
@@ -116,7 +116,7 @@ router.post('/', requireAuth, requireRole(['admin', 'assistant']), async (req: R
 });
 
 // PATCH /exams
-router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.patch('/', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const { id, status, tag_rules, ...fields } = req.body;
     if (!id) {
@@ -201,7 +201,7 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant']), async (req: 
 //   - `exam_mode`  - 'real' from /manage, 'practice' from /practice.
 // The file's own `exam_mode` and `subject_name` are ignored. `version` is
 // never read.
-router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/import-json', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const body = req.body || {};
     if (typeof body !== 'object' || !body.exam || !Array.isArray(body.questions)) {
@@ -253,7 +253,7 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant']), as
 //
 // The route is left in place so a stray client request gets a clean 410
 // instead of a confusing 404. The actual DB function is no longer reached.
-router.delete('/', requireAuth, requireRole(['admin', 'assistant']), async (_req: Request, res: Response) => {
+router.delete('/', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (_req: Request, res: Response) => {
   return res.status(410).json({ error: 'EXAM_DELETE_DISABLED' });
 });
 

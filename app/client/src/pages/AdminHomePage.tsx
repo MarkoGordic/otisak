@@ -40,7 +40,7 @@ export default function AdminHomePage() {
         if (!sessionRes.ok) { navigate('/admin', { replace: true }); return; }
         const data = await sessionRes.json();
         if (!data.authenticated) { navigate('/admin', { replace: true }); return; }
-        if (data.user?.role !== 'admin' && data.user?.role !== 'assistant') {
+        if (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor') {
           navigate('/dashboard', { replace: true });
           return;
         }

@@ -110,7 +110,7 @@ export default function DashboardPage() {
             role: data.user?.role,
           });
           // Staff have no enrolled exams - open straight on the practice tab.
-          if (data.user?.role === 'admin' || data.user?.role === 'assistant') {
+          if (data.user?.role === 'admin' || data.user?.role === 'assistant' || data.user?.role === 'professor') {
             setActiveTab('practice');
           }
         }
@@ -124,7 +124,7 @@ export default function DashboardPage() {
       // Staff skip the enrolled-exams feed: for admin/assistant that endpoint
       // returns the management list, not personal enrollments, and their
       // Upcoming tab is hidden anyway.
-      const staff = user?.role === 'admin' || user?.role === 'assistant';
+      const staff = user?.role === 'admin' || user?.role === 'assistant' || user?.role === 'professor';
       const [examsRes, historyRes, practiceRes] = await Promise.all([
         staff ? Promise.resolve(null) : fetch('/api/otisak/exams', { credentials: 'include' }),
         fetch('/api/otisak/history', { credentials: 'include' }),
@@ -209,7 +209,7 @@ export default function DashboardPage() {
     );
   }
 
-  const isStaff = user.role === 'admin' || user.role === 'assistant';
+  const isStaff = user.role === 'admin' || user.role === 'assistant' || user.role === 'professor';
   const greeting = (() => {
     const h = new Date().getHours();
     if (h < 12) return t('dashboard.greeting.morning');

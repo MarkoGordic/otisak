@@ -417,6 +417,7 @@ const en = {
   'users.lastLogin': 'Last Login',
   'users.student': 'Student',
   'users.assistant': 'Assistant',
+  'users.professor': 'Professor',
   'users.admin': 'Admin',
   'users.never': 'Never',
   'users.importCsv': 'Import CSV',

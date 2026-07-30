@@ -142,7 +142,7 @@ async function exchangeAndFetchUser(
 }
 
 function landingFor(role: string): string {
-  return role === 'admin' || role === 'assistant' ? '/admin/home' : '/dashboard';
+  return role === 'admin' || role === 'assistant' || role === 'professor' ? '/admin/home' : '/dashboard';
 }
 
 // --- Public status ------------------------------------------------------------

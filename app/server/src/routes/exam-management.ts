@@ -27,7 +27,7 @@ import { getExamId, assertCanManageExam } from './exam-shared';
 const router = Router({ mergeParams: true });
 
 // GET /exams/:examId/report - admin/assistant, exam attempts summary
-router.get('/report', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/report', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -40,7 +40,7 @@ router.get('/report', requireAuth, requireRole(['admin', 'assistant']), async (r
 });
 
 // GET /exams/:examId/report/:userId - admin/assistant, detailed student report JSON
-router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -131,7 +131,7 @@ router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant']), 
 // GET /exams/:examId/report/:userId/pdf - admin/assistant, single-student PDF report.
 // HTML construction and Puppeteer rendering both live in lib/studentReport so the bulk
 // /export-results path uses an identical layout.
-router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -164,7 +164,7 @@ router.get('/report/:userId/pdf', requireAuth, requireRole(['admin', 'assistant'
 // questions on paper, no answer key) for offline / paper administration. White,
 // ink-friendly, with fill-in fields for the student's name and index. Served
 // inline so the admin's browser opens it straight into the print dialog.
-router.get('/print/pdf', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/print/pdf', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -203,7 +203,7 @@ router.get('/print/pdf', requireAuth, requireRole(['admin', 'assistant']), async
 // artifacts: rezultati.csv (full per-student table), rezultati.pdf (formatted version
 // of the same table), and per-student detailed PDFs under izvestaji/. Intended to be
 // downloaded once an exam is finished, before the admin archives it.
-router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/export-results', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -343,7 +343,7 @@ router.get('/export-results', requireAuth, requireRole(['admin', 'assistant']), 
 });
 
 // POST /exams/:examId/enroll - admin/assistant, enroll students
-router.post('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/enroll', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -386,7 +386,7 @@ router.post('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (
 });
 
 // GET /exams/:examId/enroll - admin/assistant, get enrollments
-router.get('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/enroll', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -405,7 +405,7 @@ router.get('/enroll', requireAuth, requireRole(['admin', 'assistant']), async (r
 // exam_mode is deliberately NOT exported: real vs practice is decided by the
 // page you import on, so a file that carried it would be asserting something
 // the importer ignores. Same reason subject_id isn't here.
-router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/export-json', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -463,7 +463,7 @@ router.get('/export-json', requireAuth, requireRole(['admin', 'assistant']), asy
 });
 
 // GET /exams/:examId/questions - admin/assistant, get questions
-router.get('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/questions', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -476,7 +476,7 @@ router.get('/questions', requireAuth, requireRole(['admin', 'assistant']), async
 });
 
 // POST /exams/:examId/questions - admin/assistant, create question
-router.post('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/questions', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -507,7 +507,7 @@ router.post('/questions', requireAuth, requireRole(['admin', 'assistant']), asyn
 // DELETE handler's "id in body" convention so the client can keep using a
 // single collection URL for create/update/delete. `type` is not editable here
 // (would invalidate answer semantics); change by deleting + recreating.
-router.patch('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.patch('/questions', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -548,7 +548,7 @@ router.patch('/questions', requireAuth, requireRole(['admin', 'assistant']), asy
 });
 
 // DELETE /exams/:examId/questions - admin/assistant, delete question
-router.delete('/questions', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.delete('/questions', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -583,7 +583,7 @@ router.delete('/questions', requireAuth, requireRole(['admin', 'assistant']), as
 // No status gate: meaningful on completed/archived but also usable mid-run
 // for spotting questions everyone is missing. Population is submitted
 // attempts only (in-flight ones would skew everything with partial scores).
-router.get('/stats', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/stats', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;

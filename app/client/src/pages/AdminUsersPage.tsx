@@ -41,7 +41,7 @@ export default function AdminUsersPage() {
   const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(null);
   const [importSummary, setImportSummary] = useState<{ created: number; skipped: number; total: number; items?: { skipped: Array<{ index_number: string; reason: string }> } } | null>(null);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'assistant' | 'admin'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'assistant' | 'professor' | 'admin'>('all');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
 
@@ -285,7 +285,7 @@ export default function AdminUsersPage() {
                 >
                   <option value="all">{t('users.allRoles')}</option>
                   <option value="student">{t('users.student')}</option>
-                  <option value="assistant">{t('users.assistant')}</option>
+                  <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
                   <option value="admin">{t('users.admin')}</option>
                 </select>
               </div>
@@ -324,7 +324,7 @@ export default function AdminUsersPage() {
               <input value={newIndex} onChange={(e) => setNewIndex(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.indexNumber')} />
               <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
                 <option value="student">{t('users.student')}</option>
-                <option value="assistant">{t('users.assistant')}</option>
+                <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
                 <option value="admin">{t('users.admin')}</option>
               </select>
             </div>
@@ -362,7 +362,7 @@ export default function AdminUsersPage() {
 type UserListProps = {
   users: UserData[];
   search: string;
-  roleFilter: 'all' | 'student' | 'assistant' | 'admin';
+  roleFilter: 'all' | 'student' | 'assistant' | 'professor' | 'admin';
   page: number;
   pageSize: number;
   onPageChange: (p: number) => void;
@@ -472,7 +472,7 @@ function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, onOpenProfile,
           className="h-9 px-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
         >
           <option value="student">{t('users.student')}</option>
-          <option value="assistant">{t('users.assistant')}</option>
+          <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
           <option value="admin">{t('users.admin')}</option>
         </select>
       </div>
@@ -570,7 +570,7 @@ function EditUserModal({
           <input value={indexNumber} onChange={(e) => setIndexNumber(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.indexNumber')} />
           <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
             <option value="student">{t('users.student')}</option>
-            <option value="assistant">{t('users.assistant')}</option>
+            <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
             <option value="admin">{t('users.admin')}</option>
           </select>
           <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">

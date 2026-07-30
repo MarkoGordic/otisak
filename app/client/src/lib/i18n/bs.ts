@@ -418,6 +418,7 @@ const bs: Record<I18nKey, string> = {
   'users.lastLogin': 'Посљедња пријава',
   'users.student': 'Студент',
   'users.assistant': 'Асистент',
+  'users.professor': 'Професор',
   'users.admin': 'Администратор',
   'users.never': 'Никада',
   'users.importCsv': 'Увези CSV',

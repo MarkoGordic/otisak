@@ -21,7 +21,7 @@ router.use(requireAuth);
 // numbers. Threshold-having exams are the only ones counted toward the
 // "passed" tally - keeps the metric meaningful when an exam opts out of a
 // pass / fail verdict.
-router.get('/:userId/profile', requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/:userId/profile', requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const targetUserId = req.params.userId;
     const requester = req.user!;

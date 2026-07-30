@@ -72,7 +72,7 @@ export default function ExamStatsPage() {
         const sres = await fetch('/api/auth/session', { credentials: 'include' });
         if (!sres.ok) { navigate('/admin', { replace: true }); return; }
         const sdata = await sres.json();
-        if (!sdata.authenticated || (sdata.user?.role !== 'admin' && sdata.user?.role !== 'assistant')) {
+        if (!sdata.authenticated || (sdata.user?.role !== 'admin' && sdata.user?.role !== 'assistant' && sdata.user?.role !== 'professor')) {
           navigate('/dashboard', { replace: true });
           return;
         }

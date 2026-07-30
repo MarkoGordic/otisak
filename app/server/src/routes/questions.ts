@@ -10,7 +10,7 @@ import { requireAuth, requireRole } from '../middleware';
 
 const router = Router();
 
-router.use(requireAuth, requireRole(['admin', 'assistant']));
+router.use(requireAuth, requireRole(['admin', 'assistant', 'professor']));
 
 // GET /questions
 router.get('/', async (req: Request, res: Response) => {

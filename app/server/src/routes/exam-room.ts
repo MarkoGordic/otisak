@@ -22,7 +22,7 @@ import { getExamId, assertCanManageExam, invalidateExamCache } from './exam-shar
 const router = Router({ mergeParams: true });
 
 // GET /exams/:examId/room - admin/assistant, get room status with participants
-router.get('/room', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/room', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     const roomStatus = await getExamRoomStatus(examId);
@@ -37,7 +37,7 @@ router.get('/room', requireAuth, requireRole(['admin', 'assistant']), async (req
 // Served from a 5s server-side cache populated by the background aggregator. Admin's
 // RoomPage polls this every 5s; the cache absorbs the load so 10 admins polling do not
 // equal 10 DB hits per 5s. First-time hit primes the cache and marks the exam monitored.
-router.get('/live-stats', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/live-stats', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     const cached = getCachedLiveStats(examId);
@@ -57,7 +57,7 @@ router.get('/live-stats', requireAuth, requireRole(['admin', 'assistant']), asyn
 });
 
 // POST /exams/:examId/start - admin/assistant, start exam timer
-router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/start', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -88,7 +88,7 @@ router.post('/start', requireAuth, requireRole(['admin', 'assistant']), async (r
 //   - broadcast exam.finished so every connected student transitions out of
 //     the exam UI immediately. The optional `redirect` flag tells the client
 //     to bounce home instead of showing the results screen.
-router.post('/finish-all', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/finish-all', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -106,7 +106,7 @@ router.post('/finish-all', requireAuth, requireRole(['admin', 'assistant']), asy
 });
 
 // POST /exams/:examId/lockdown - admin/assistant, lock/unlock
-router.post('/lockdown', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/lockdown', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -131,7 +131,7 @@ router.post('/lockdown', requireAuth, requireRole(['admin', 'assistant']), async
 // single student (body.userId set) or to everyone in the exam (userId omitted).
 // Delivered over websocket as { type: 'assistant.message', message }.
 const MAX_MESSAGE_LEN = 1000;
-router.post('/message', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/message', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -155,7 +155,7 @@ router.post('/message', requireAuth, requireRole(['admin', 'assistant']), async 
 });
 
 // GET /exams/:examId/requests - admin/assistant: list pending requests for the exam
-router.get('/requests', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.get('/requests', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     const requests = await listPendingRequestsForExam(examId);
@@ -167,7 +167,7 @@ router.get('/requests', requireAuth, requireRole(['admin', 'assistant']), async 
 });
 
 // POST /exams/:examId/requests/:id/decide - admin/assistant: approve or deny
-router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -207,7 +207,7 @@ router.post('/requests/:id/decide', requireAuth, requireRole(['admin', 'assistan
 // ============================================================================
 
 // POST /exams/:examId/adjust-timer - admin/assistant
-router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
@@ -269,7 +269,7 @@ router.post('/adjust-timer', requireAuth, requireRole(['admin', 'assistant']), a
 // The kicked student can't re-enter THIS exam (GET /exams/:examId sees their
 // submitted attempt and routes them straight to results), but they can pick
 // a different active exam from the home page if there is one.
-router.post('/kick', requireAuth, requireRole(['admin', 'assistant']), async (req: Request, res: Response) => {
+router.post('/kick', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;

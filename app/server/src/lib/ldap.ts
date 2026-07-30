@@ -29,6 +29,7 @@ const DOMAIN = process.env.LDAP_DOMAIN || '';                 // labs.acs.uns.ac
 const CA_FILE = process.env.LDAP_CA_FILE || '';               // /etc/otisak/ipa-ca.crt (verifies ldaps)
 const TLS_INSECURE = bool(process.env.LDAP_TLS_INSECURE);     // skip cert verify (dev only)
 const ADMIN_GROUPS = csv(process.env.LDAP_ADMIN_GROUPS) .length ? csv(process.env.LDAP_ADMIN_GROUPS) : ['admins'];
+const PROFESSOR_GROUPS = csv(process.env.LDAP_PROFESSOR_GROUPS).length ? csv(process.env.LDAP_PROFESSOR_GROUPS) : ['professors'];
 const ASSISTANT_GROUPS = csv(process.env.LDAP_ASSISTANT_GROUPS).length ? csv(process.env.LDAP_ASSISTANT_GROUPS) : ['assistants'];
 const TIMEOUT = Number(process.env.LDAP_TIMEOUT_MS || 8000);
 
@@ -77,7 +78,9 @@ function groupCns(memberOf: unknown): string[] {
 }
 
 function roleFor(cns: string[]): UserRole {
+  // Precedence high -> low: admin, professor, assistant, else student.
   if (cns.some((g) => ADMIN_GROUPS.includes(g))) return 'admin';
+  if (cns.some((g) => PROFESSOR_GROUPS.includes(g))) return 'professor';
   if (cns.some((g) => ASSISTANT_GROUPS.includes(g))) return 'assistant';
   return 'student';
 }

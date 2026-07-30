@@ -73,7 +73,7 @@ export default function QuestionBankPage() {
     (async () => {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
-      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant')) {
+      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor')) {
         navigate('/dashboard', { replace: true });
         return;
       }

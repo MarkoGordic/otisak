@@ -22,7 +22,7 @@ import { terminateUserSockets } from '../ws/events';
 
 const router = Router();
 
-const VALID_ROLES: UserRole[] = ['admin', 'assistant', 'student'];
+const VALID_ROLES: UserRole[] = ['admin', 'professor', 'assistant', 'student'];
 
 // Service-token guard. `requireAllowedClient` additionally enforces the optional
 // ELPIS_ID_INTEGRATION_ALLOWED_CLIENTS allowlist on the sensitive write routes.

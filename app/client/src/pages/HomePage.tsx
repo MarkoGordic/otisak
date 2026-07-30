@@ -48,7 +48,7 @@ export default function HomePage() {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         if (!res.ok) return;
         const data = await res.json();
-        if (mounted && data.authenticated && (data.user?.role === 'admin' || data.user?.role === 'assistant')) {
+        if (mounted && data.authenticated && (data.user?.role === 'admin' || data.user?.role === 'assistant' || data.user?.role === 'professor')) {
           navigate('/admin/home', { replace: true });
         }
       } catch { /* student or unauthenticated - stay on the picker */ }
