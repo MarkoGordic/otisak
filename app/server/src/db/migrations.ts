@@ -193,6 +193,15 @@ const steps: readonly Step[] = [
       ADD COLUMN IF NOT EXISTS sessions_revoked_at TIMESTAMPTZ
     `);
   }],
+
+  ['016_users_ldap_uid', async () => {
+    // FreeIPA/LDAP account link: the IPA login (uid). UNIQUE so one directory account maps to at
+    // most one OTISAK account. NULL for accounts that never signed in via LDAP. See lib/ldap.ts.
+    await query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS ldap_uid TEXT UNIQUE
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {

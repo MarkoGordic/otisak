@@ -7,6 +7,7 @@ import helmet from 'helmet';
 
 import authRoutes from './routes/auth';
 import authElpisRoutes from './routes/authElpis';
+import authLdapRoutes from './routes/authLdap';
 import integrationRoutes from './routes/integration';
 import adminRoutes from './routes/admin';
 import subjectRoutes from './routes/subjects';
@@ -127,6 +128,9 @@ app.use('/api/auth', authRoutes);
 // handles its own exact paths and calls next() otherwise, so /api/auth/elpis/*
 // falls through to this router.
 app.use('/api/auth/elpis', authElpisRoutes);
+// Optional FreeIPA/LDAP login. Inert (status:false, login 404) unless LDAP_ENABLED + LDAP_URL +
+// LDAP_BASE_DN are set. When enabled it becomes the SPA's default login (see LoginPage).
+app.use('/api/auth/ldap', authLdapRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/otisak/subjects', subjectRoutes);
 app.use('/api/otisak/exams', examCollectionRoutes);

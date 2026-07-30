@@ -1,5 +1,5 @@
 import { query } from './client';
-import type { User } from './types';
+import type { User, UserRole } from './types';
 import { logger } from '../lib/logger';
 
 // Case-insensitive on purpose: ELPIS ID profile sync stores emails lowercased,
@@ -168,10 +168,13 @@ export async function createUser(data: {
   // Optional pre-linked ELPIS ID (OIDC `sub`) — set when an account is
   // provisioned from the ELPIS main platform's federation endpoint.
   elpis_id?: string;
+  // Optional pre-linked FreeIPA/LDAP login (uid) — set when an account is
+  // provisioned on first LDAP login.
+  ldap_uid?: string;
 }): Promise<User> {
   const result = await query<User>(
-    `INSERT INTO users (email, password_hash, name, role, index_number, elpis_id)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    `INSERT INTO users (email, password_hash, name, role, index_number, elpis_id, ldap_uid)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
     [
       data.email,
       data.password_hash,
@@ -179,9 +182,61 @@ export async function createUser(data: {
       data.role || 'student',
       data.index_number || null,
       data.elpis_id || null,
+      data.ldap_uid || null,
     ]
   );
   return result.rows[0];
+}
+
+// --- FreeIPA / LDAP account linking -----------------------------------------
+// users.ldap_uid is the IPA login (uid). Unlike ELPIS ID, LDAP login auto-provisions: on first
+// sign-in we create (or link, by email) an OTISAK account, so the whole IPA directory can log in.
+
+export async function findUserByLdapUid(uid: string): Promise<User | null> {
+  const result = await query<User>(
+    'SELECT * FROM users WHERE ldap_uid = $1 AND is_active = TRUE LIMIT 1',
+    [uid]
+  );
+  return result.rows[0] || null;
+}
+
+export async function findOrCreateLdapUser(p: {
+  uid: string;
+  name: string | null;
+  email: string;
+  role: UserRole;
+  indexNumber: string | null;
+}): Promise<User> {
+  // 1) already linked -> refresh name/role/index from the directory (authoritative source)
+  const linked = await findUserByLdapUid(p.uid);
+  if (linked) {
+    await query(
+      `UPDATE users SET name = COALESCE($2, name), role = $3,
+              index_number = COALESCE($4, index_number), updated_at = NOW()
+       WHERE id = $1`,
+      [linked.id, p.name, p.role, p.indexNumber]
+    );
+    return (await findUserById(linked.id)) as User;
+  }
+  // 2) a pre-existing account with the same email (local / ELPIS) -> link it, don't duplicate
+  const byEmail = await findUserByEmail(p.email);
+  if (byEmail) {
+    await query(
+      'UPDATE users SET ldap_uid = $2, name = COALESCE(name, $3), updated_at = NOW() WHERE id = $1',
+      [byEmail.id, p.uid, p.name]
+    );
+    return (await findUserById(byEmail.id)) as User;
+  }
+  // 3) fresh LDAP-only account. password_hash '!' is not a valid bcrypt hash, so local
+  //    email+password login can never match it (LDAP is the only way in for this account).
+  return createUser({
+    email: p.email,
+    password_hash: '!',
+    name: p.name || undefined,
+    role: p.role,
+    index_number: p.indexNumber || undefined,
+    ldap_uid: p.uid,
+  });
 }
 
 export async function updateUser(

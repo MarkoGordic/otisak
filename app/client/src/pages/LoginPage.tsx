@@ -18,6 +18,11 @@ export default function LoginPage() {
   // ELPIS ID login is optional: the button only renders when the server reports
   // the feature enabled. Absent config → this stays false and the UI is unchanged.
   const [elpisEnabled, setElpisEnabled] = useState(false);
+  // FreeIPA/LDAP login is optional too. When the server reports it enabled it becomes the DEFAULT
+  // login (username/index + password); local email login stays as a fallback toggle.
+  const [ldapEnabled, setLdapEnabled] = useState(false);
+  const [mode, setMode] = useState<'ldap' | 'local'>('local');
+  const [username, setUsername] = useState('');
 
   useEffect(() => {
     // Surface a friendly message when a callback bounced back with an error
@@ -34,6 +39,11 @@ export default function LoginPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (alive && d?.enabled) setElpisEnabled(true); })
       .catch(() => { /* feature stays hidden on any error */ });
+    // When LDAP is enabled it is the default login (staff + students use IPA credentials).
+    fetch('/api/auth/ldap/status', { credentials: 'include' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (alive && d?.enabled) { setLdapEnabled(true); setMode('ldap'); } })
+      .catch(() => { /* feature stays hidden on any error */ });
     return () => { alive = false; };
   }, [t]);
 
@@ -43,11 +53,12 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/login', {
+      const isLdap = mode === 'ldap';
+      const res = await fetch(isLdap ? '/api/auth/ldap/login' : '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(isLdap ? { username, password } : { email, password }),
       });
 
       if (!res.ok) {
@@ -144,21 +155,42 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label htmlFor="email" className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}>
-                {t('login.email')}
-              </label>
-              <input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-                className={`w-full h-12 px-4 rounded-xl text-sm transition-all backdrop-blur-sm focus:ring-0 ${isDark ? 'border border-white/10 bg-white/5 text-white placeholder:text-gray-600 focus:border-blue-500/50 focus:shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]'}`}
-                placeholder={t('login.emailPlaceholder')}
-              />
-            </div>
+            {mode === 'ldap' ? (
+              <div>
+                <label htmlFor="username" className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}>
+                  {t('login.ldap.username')}
+                </label>
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  required
+                  autoComplete="username"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className={`w-full h-12 px-4 rounded-xl text-sm transition-all backdrop-blur-sm focus:ring-0 ${isDark ? 'border border-white/10 bg-white/5 text-white placeholder:text-gray-600 focus:border-blue-500/50 focus:shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]'}`}
+                  placeholder={t('login.ldap.usernamePlaceholder')}
+                />
+              </div>
+            ) : (
+              <div>
+                <label htmlFor="email" className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}>
+                  {t('login.email')}
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                  className={`w-full h-12 px-4 rounded-xl text-sm transition-all backdrop-blur-sm focus:ring-0 ${isDark ? 'border border-white/10 bg-white/5 text-white placeholder:text-gray-600 focus:border-blue-500/50 focus:shadow-[0_0_15px_rgba(59,130,246,0.1)]' : 'border border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:shadow-[0_0_0_3px_rgba(59,130,246,0.12)]'}`}
+                  placeholder={t('login.emailPlaceholder')}
+                />
+              </div>
+            )}
 
             <div>
               <label htmlFor="password" className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}>
@@ -200,6 +232,16 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {ldapEnabled && (
+            <button
+              type="button"
+              onClick={() => { setMode(mode === 'ldap' ? 'local' : 'ldap'); setError(''); }}
+              className={`mt-4 w-full text-center text-xs transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-slate-400 hover:text-slate-700'}`}
+            >
+              {mode === 'ldap' ? t('login.ldap.useLocal') : t('login.ldap.useFtn')}
+            </button>
+          )}
 
           {elpisEnabled && (
             <>
