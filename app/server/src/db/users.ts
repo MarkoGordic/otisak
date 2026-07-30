@@ -200,35 +200,43 @@ export async function findUserByLdapUid(uid: string): Promise<User | null> {
   return result.rows[0] || null;
 }
 
+// Returns the account for an authenticated LDAP user, or null if a matching account exists but is
+// deactivated (the caller must then refuse the login - we do NOT silently reactivate a blocked user).
 export async function findOrCreateLdapUser(p: {
   uid: string;
   name: string | null;
   email: string;
   role: UserRole;
   indexNumber: string | null;
-}): Promise<User> {
-  // 1) already linked -> refresh name/role/index from the directory (authoritative source)
-  const linked = await findUserByLdapUid(p.uid);
-  if (linked) {
+}): Promise<User | null> {
+  // Match an existing row by ldap_uid OR email, INCLUDING inactive ones. Filtering on is_active here
+  // would hide a linked-but-deactivated row and make the createUser below collide on the UNIQUE
+  // ldap_uid/email (Postgres 23505 -> 500 on every login). Prefer the ldap_uid match over email.
+  const existing = (
+    await query<User>(
+      `SELECT * FROM users WHERE ldap_uid = $1 OR LOWER(email) = LOWER($2)
+       ORDER BY (ldap_uid = $1) DESC LIMIT 1`,
+      [p.uid, p.email]
+    )
+  ).rows[0];
+
+  if (existing) {
+    if (!existing.is_active) return null; // deactivated -> caller returns 403; never reactivate here
+    // LDAP is authoritative for the role, but never auto-demote a local admin (break-glass / manual
+    // promotions must survive an LDAP login by an IPA account only in a lower group).
     await query(
-      `UPDATE users SET name = COALESCE($2, name), role = $3,
-              index_number = COALESCE($4, index_number), updated_at = NOW()
+      `UPDATE users SET ldap_uid = $2, name = COALESCE($3, name),
+              index_number = COALESCE($4, index_number),
+              role = CASE WHEN role = 'admin' THEN role ELSE $5 END,
+              updated_at = NOW()
        WHERE id = $1`,
-      [linked.id, p.name, p.role, p.indexNumber]
+      [existing.id, p.uid, p.name, p.indexNumber, p.role]
     );
-    return (await findUserById(linked.id)) as User;
+    return (await findUserById(existing.id)) as User;
   }
-  // 2) a pre-existing account with the same email (local / ELPIS) -> link it, don't duplicate
-  const byEmail = await findUserByEmail(p.email);
-  if (byEmail) {
-    await query(
-      'UPDATE users SET ldap_uid = $2, name = COALESCE(name, $3), updated_at = NOW() WHERE id = $1',
-      [byEmail.id, p.uid, p.name]
-    );
-    return (await findUserById(byEmail.id)) as User;
-  }
-  // 3) fresh LDAP-only account. password_hash '!' is not a valid bcrypt hash, so local
-  //    email+password login can never match it (LDAP is the only way in for this account).
+
+  // fresh LDAP-only account. password_hash '!' is not a valid bcrypt hash, so local email+password
+  // login can never match it (LDAP is the only way in for this account).
   return createUser({
     email: p.email,
     password_hash: '!',

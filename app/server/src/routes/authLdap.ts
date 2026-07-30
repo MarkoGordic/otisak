@@ -50,6 +50,10 @@ router.post('/login', loginLimiter, async (req: Request, res: Response, next: Ne
     }
 
     const user = await findOrCreateLdapUser(profile);
+    if (!user) {
+      // a matching OTISAK account exists but was deactivated by an admin
+      return res.status(403).json({ error: 'This account is disabled' });
+    }
     await updateLastLogin(user.id);
 
     const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';

@@ -288,7 +288,10 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ user_id: userId, role: 'assistant' }),
+        body: JSON.stringify({
+          user_id: userId,
+          role: users.find((u) => u.id === userId)?.role === 'professor' ? 'professor' : 'assistant',
+        }),
       });
       if (res.ok) {
         toast.success(t('subjects.assignSuccess'));

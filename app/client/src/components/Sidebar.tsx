@@ -35,7 +35,7 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
   const { t } = useLang();
 
   const isAdmin = userRole === 'admin';
-  const isStaff = userRole === 'admin' || userRole === 'assistant';
+  const isStaff = userRole === 'admin' || userRole === 'assistant' || userRole === 'professor';
 
   const navItems = [
     isStaff
@@ -155,7 +155,7 @@ export function MobileNav({ userRole }: SidebarProps) {
   const { pathname } = useLocation();
   const { t } = useLang();
 
-  const isStaff = userRole === 'admin' || userRole === 'assistant';
+  const isStaff = userRole === 'admin' || userRole === 'assistant' || userRole === 'professor';
 
   const navItems = [
     isStaff
