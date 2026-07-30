@@ -40,17 +40,27 @@ export function ldapEnabled(): boolean {
 // into the bind DN (commas, equals, parens, spaces, ...).
 const UID_RE = /^[a-zA-Z0-9._-]{1,64}$/;
 
+const TLS_SERVERNAME = process.env.LDAP_TLS_SERVERNAME || ''; // SNI / cert-hostname override (when URL uses an IP)
+
 function tlsOptions(): Record<string, unknown> | undefined {
   if (!URL.startsWith('ldaps://')) return undefined;
-  if (TLS_INSECURE) return { rejectUnauthorized: false };
+  const opts: Record<string, unknown> = {};
+  // When LDAP_URL is an IP but the server cert is issued for the hostname, verification fails on the
+  // hostname check. Setting LDAP_TLS_SERVERNAME makes TLS verify against that name instead (like
+  // connecting by hostname). Preferred: just use the hostname in LDAP_URL so DNS + SNI line up.
+  if (TLS_SERVERNAME) opts.servername = TLS_SERVERNAME;
+  if (TLS_INSECURE) {
+    opts.rejectUnauthorized = false;
+    return opts;
+  }
   if (CA_FILE) {
     try {
-      return { ca: readFileSync(CA_FILE) };
+      opts.ca = readFileSync(CA_FILE);
     } catch (err) {
       logger.error({ err, CA_FILE }, 'ldap: cannot read LDAP_CA_FILE, falling back to system CAs');
     }
   }
-  return undefined; // verify against the system trust store
+  return Object.keys(opts).length ? opts : undefined; // else verify against the system trust store
 }
 
 const first = (v: unknown): string | undefined =>
