@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
   Loader2, Plus, Radio, Clock, GraduationCap, FileText, Activity,
-  ArrowRight, AlertTriangle, CalendarIcon, Upload,
+  ArrowRight, AlertTriangle, CalendarIcon, Upload, ClipboardCheck,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -24,6 +24,16 @@ type ExamLite = {
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
 
+// Exam with open-text answers still waiting for a grade (from /grading/summary).
+type GradingSummary = {
+  exam_id: string;
+  title: string;
+  subject_name: string | null;
+  pending: number;
+  graded: number;
+  students_pending: number;
+};
+
 export default function AdminHomePage() {
   const navigate = useNavigate();
   const { t } = useLang();
@@ -31,15 +41,16 @@ export default function AdminHomePage() {
   const [loading, setLoading] = useState(true);
   const [exams, setExams] = useState<ExamLite[]>([]);
   const [studentCount, setStudentCount] = useState<number | null>(null);
+  const [toGrade, setToGrade] = useState<GradingSummary[]>([]);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       try {
         const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
-        if (!sessionRes.ok) { navigate('/admin', { replace: true }); return; }
+        if (!sessionRes.ok) { navigate('/login', { replace: true }); return; }
         const data = await sessionRes.json();
-        if (!data.authenticated) { navigate('/admin', { replace: true }); return; }
+        if (!data.authenticated) { navigate('/login', { replace: true }); return; }
         if (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor') {
           navigate('/dashboard', { replace: true });
           return;
@@ -47,16 +58,21 @@ export default function AdminHomePage() {
         if (!mounted) return;
         setUser({ name: data.user?.name, role: data.user?.role, avatar_url: data.user?.avatar_url });
 
-        const [examsRes, usersRes] = await Promise.all([
+        const [examsRes, usersRes, gradingRes] = await Promise.all([
           fetch('/api/otisak/exams', { credentials: 'include' }),
           // Users endpoint is admin-only - assistants will silently fail (403), which is fine.
           data.user?.role === 'admin'
             ? fetch('/api/admin/users', { credentials: 'include' })
             : Promise.resolve(null),
+          fetch('/api/otisak/grading/summary', { credentials: 'include' }),
         ]);
         if (mounted && examsRes.ok) {
           const ed = await examsRes.json();
           setExams((ed.exams || []) as ExamLite[]);
+        }
+        if (mounted && gradingRes.ok) {
+          const gd = await gradingRes.json();
+          setToGrade((gd.exams || []) as GradingSummary[]);
         }
         if (mounted && usersRes && usersRes.ok) {
           const ud = await usersRes.json();
@@ -82,19 +98,12 @@ export default function AdminHomePage() {
     return t('dashboard.greeting.evening');
   })();
 
-  const activeExams = exams.filter((e) => e.status === 'active').length;
+  const activeExamList = exams.filter((e) => e.status === 'active');
+  const activeExams = activeExamList.length;
   const draftExams = exams.filter((e) => e.status === 'draft').length;
   const completedExams = exams.filter((e) => e.status === 'completed').length;
   // Drafts that exist but have no questions yet - gentle nudge to finish.
   const emptyDrafts = exams.filter((e) => e.status === 'draft' && (e.question_count ?? 0) === 0);
-  const recentExams = [...exams]
-    .sort((a, b) => {
-      // Active first, then by status priority, then by creation order (newest first via reverse).
-      if (a.status === 'active' && b.status !== 'active') return -1;
-      if (b.status === 'active' && a.status !== 'active') return 1;
-      return 0;
-    })
-    .slice(0, 10);
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
@@ -158,7 +167,7 @@ export default function AdminHomePage() {
 
             {/* Empty-draft callout - only renders when there's work to finish. */}
             {emptyDrafts.length > 0 && (
-              <div className="mb-6 rounded-xl border border-warning/30 bg-warning-light/40 p-4 flex items-start gap-3">
+              <div className="mb-6 rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-warning-light/40 p-4 flex items-start gap-3">
                 <AlertTriangle size={18} className="text-warning flex-shrink-0 mt-0.5" />
                 <div className="flex-1 min-w-0">
                   <div className="text-sm font-medium text-[var(--text-primary)]">
@@ -186,10 +195,55 @@ export default function AdminHomePage() {
               </div>
             )}
 
-            {/* Recent exams */}
+            {/* Open-text answers waiting for a grade - only renders when there's work. */}
+            {toGrade.length > 0 && (
+              <section className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
+                    {t('adminHome.toGrade')}
+                  </h2>
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {t('adminHome.toGradeTotal', { count: toGrade.reduce((s, e) => s + e.pending, 0) })}
+                  </span>
+                </div>
+                <div className="space-y-2">
+                  {toGrade.map((g) => {
+                    const total = g.pending + g.graded;
+                    const pct = total > 0 ? Math.round((g.graded / total) * 100) : 0;
+                    return (
+                      <button
+                        key={g.exam_id}
+                        type="button"
+                        onClick={() => navigate(`/manage/${g.exam_id}/grading`)}
+                        className="w-full flex items-center gap-3 p-4 rounded-xl border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[var(--bg-elevated)] hover:border-warning transition-colors text-left"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-warning-light flex items-center justify-center flex-shrink-0">
+                          <ClipboardCheck size={16} className="text-warning" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium text-[var(--text-primary)] truncate">{g.title}</div>
+                          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)] mt-0.5">
+                            {g.subject_name && <span>{g.subject_name}</span>}
+                            <span className="text-warning font-medium">{t('adminHome.toGradeAnswers', { count: g.pending })}</span>
+                            <span>{t('adminHome.toGradeStudents', { count: g.students_pending })}</span>
+                          </div>
+                          <div className="w-full max-w-[240px] h-1 mt-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
+                            <div className="h-full bg-success" style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                        <span className="text-xs text-accent flex-shrink-0">{t('adminHome.gradeNow')}</span>
+                        <ArrowRight size={14} className="text-[var(--text-muted)] flex-shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Currently active exams */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">{t('adminHome.recentExams')}</h2>
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">{t('adminHome.activeExams')}</h2>
                 <button
                   type="button"
                   onClick={() => navigate('/manage')}
@@ -199,16 +253,16 @@ export default function AdminHomePage() {
                 </button>
               </div>
 
-              {recentExams.length === 0 ? (
+              {activeExamList.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-elevated)] p-10 text-center">
-                  <p className="text-sm text-[var(--text-secondary)] mb-3">{t('adminHome.noExams')}</p>
+                  <p className="text-sm text-[var(--text-secondary)] mb-3">{t('adminHome.noActiveExams')}</p>
                   <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => navigate('/manage')}>
                     {t('manage.newExam')}
                   </Button>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {recentExams.map((exam, idx) => (
+                  {activeExamList.map((exam, idx) => (
                     <motion.button
                       key={exam.id}
                       type="button"

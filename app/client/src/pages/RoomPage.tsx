@@ -6,6 +6,7 @@ import {
   Fingerprint, Radio, ShieldOff, ShieldAlert, FileText,
   Plus, Minus, X, UserPlus, UserX, Timer as TimerIcon, AlertTriangle, Wifi, WifiOff,
   Trophy, User, BarChart3, MessageSquare, Send,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -409,14 +410,24 @@ export default function ExamRoomPage() {
                     <p className="text-xs text-[var(--text-secondary)] mt-1">{t('room.readOnly.statsDesc')}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => navigate(`/manage/${examId}/stats`)}
-                  className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-accent-light text-accent border border-accent/30 text-sm font-medium hover:bg-accent hover:text-white transition-colors"
-                >
-                  <BarChart3 size={16} />
-                  {t('room.readOnly.openStats')}
-                </button>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/manage/${examId}/stats`)}
+                    className="inline-flex items-center gap-2 h-10 px-4 rounded-lg bg-accent-light text-accent border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-sm font-medium hover:bg-accent hover:text-white transition-colors"
+                  >
+                    <BarChart3 size={16} />
+                    {t('room.readOnly.openStats')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => navigate(`/manage/${examId}/grading`)}
+                    className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                  >
+                    <ClipboardCheck size={16} />
+                    {t('grading.open')}
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -617,9 +628,9 @@ export default function ExamRoomPage() {
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               className={`mb-6 bg-[var(--bg-elevated)] border rounded-xl p-5 flex items-center justify-between ${
                 timer.expired
-                  ? 'border-danger/40'
+                  ? 'border-[color-mix(in_srgb,var(--danger)_40%,transparent)]'
                   : timer.totalSeconds <= 5 * 60
-                    ? 'border-warning/40'
+                    ? 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]'
                     : 'border-[var(--border-default)]'
               }`}
             >
@@ -831,7 +842,7 @@ export default function ExamRoomPage() {
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
               className="mt-6 bg-success-light border border-[var(--border-default)] rounded-xl p-5 flex items-center gap-4 flex-wrap"
             >
-              <div className="w-10 h-10 rounded-full bg-success/15 flex items-center justify-center flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-[color-mix(in_srgb,var(--success)_15%,transparent)] flex items-center justify-center flex-shrink-0">
                 <Play size={20} className="text-success fill-current" />
               </div>
               <div className="flex-1 min-w-0">
@@ -957,7 +968,7 @@ export default function ExamRoomPage() {
             >
               <div className="flex items-center gap-4">
                 <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
-                  locked ? 'bg-accent/15' : 'bg-[var(--bg-tertiary)]'
+                  locked ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]' : 'bg-[var(--bg-tertiary)]'
                 }`}>
                   {locked
                     ? <ShieldAlert size={20} className="text-accent" />

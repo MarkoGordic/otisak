@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Fingerprint, Loader2, Eye, EyeOff, AlertCircle, ArrowLeft } from 'lucide-react';
 import { AppCopyright } from '../components/AppCopyright';
+import { OtisakBackground, OtisakLogo } from '../components/otisak';
 import { useTheme } from '../components/ThemeProvider';
 import { useLang } from '../components/LangProvider';
 import { ToggleCluster } from '../components/ToggleCluster';
@@ -82,37 +83,9 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
-      {/* Animated background */}
-      <div className={`fixed inset-0 ${isDark ? 'bg-[#070b14]' : 'bg-[#F8FAFC]'}`}>
-        {/* Grid pattern */}
-        <div className={`absolute inset-0 ${isDark ? 'opacity-[0.03]' : 'opacity-[0.06]'}`} style={{
-          backgroundImage: 'linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)',
-          backgroundSize: '60px 60px',
-        }} />
+      <OtisakBackground />
 
-        {/* Animated gradient orbs */}
-        <div className={`absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/15' : 'bg-blue-400/30'}`} />
-        <div className={`absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-indigo-600/10' : 'bg-indigo-300/30'}`} style={{ animationDelay: '2s' }} />
-        <div className={`absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full blur-[120px] animate-pulse ${isDark ? 'bg-cyan-600/8' : 'bg-cyan-300/25'}`} style={{ animationDelay: '4s' }} />
-
-        {/* Floating particles effect */}
-        <div className="absolute inset-0 overflow-hidden">
-          {[...Array(6)].map((_, i) => (
-            <div
-              key={i}
-              className={`absolute w-1 h-1 rounded-full ${isDark ? 'bg-blue-400/20' : 'bg-blue-500/30'}`}
-              style={{
-                left: `${15 + i * 15}%`,
-                top: `${20 + (i % 3) * 25}%`,
-                animation: `float ${6 + i}s ease-in-out infinite`,
-                animationDelay: `${i * 0.8}s`,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-
-      {/* Back to student picker - mirrors the "Admin login" pill on the home page */}
+      {/* Back to student picker - mirrors the "Sign in" pill on the home page */}
       <button
         type="button"
         onClick={() => navigate('/')}
@@ -130,15 +103,13 @@ export default function LoginPage() {
       <div className="w-full max-w-[420px] relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className={`inline-flex items-center justify-center w-20 h-20 rounded-2xl border mb-5 ${isDark ? 'bg-blue-500/10 border-blue-500/20 shadow-[0_0_40px_rgba(59,130,246,0.15)]' : 'bg-blue-50 border-blue-200 shadow-[0_0_40px_rgba(59,130,246,0.18)]'}`}>
-            <Fingerprint className={`w-10 h-10 ${isDark ? 'text-blue-400' : 'text-blue-600'}`} strokeWidth={1.5} />
-          </div>
+          <OtisakLogo className="w-16 h-16 sm:w-20 sm:h-20 mx-auto drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] mb-5" />
           <h1 className={`text-4xl font-light tracking-[0.15em] ${isDark ? 'text-white drop-shadow-lg' : 'text-slate-900'}`}>
             OTISAK
           </h1>
-          <p className={`text-sm mt-2 tracking-wider ${isDark ? 'text-blue-400/60' : 'text-blue-600/70'}`}>
-            {t('app.subtitle')}
-          </p>
+          <span className={`block text-xs mt-2 tracking-[0.4em] uppercase font-medium ${isDark ? 'text-blue-400/80' : 'text-blue-600/70'}`}>
+            v 2.0
+          </span>
         </div>
 
         {/* Login Card */}
@@ -271,19 +242,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {/* Version */}
-        <p className={`text-center text-[10px] uppercase tracking-[0.3em] mt-6 ${isDark ? 'text-gray-600' : 'text-slate-400'}`}>
-          {t('app.version')}
-        </p>
         <AppCopyright className="text-center mt-3" />
       </div>
-
-      <style>{`
-        @keyframes float {
-          0%, 100% { transform: translateY(0px); opacity: 0.3; }
-          50% { transform: translateY(-20px); opacity: 0.8; }
-        }
-      `}</style>
     </div>
   );
 }

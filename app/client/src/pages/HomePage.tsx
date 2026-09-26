@@ -1,8 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, RefreshCw, Clock, BookOpen, ArrowRight, ShieldCheck } from 'lucide-react';
-import { OtisakLogo, OtisakFooter } from '../components/otisak';
+import { Loader2, RefreshCw, Clock, BookOpen, ArrowRight, LogIn, UserRound } from 'lucide-react';
+import { OtisakBackground, OtisakLogo, OtisakFooter } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
 import { ToggleCluster } from '../components/ToggleCluster';
@@ -24,6 +24,8 @@ export default function HomePage() {
   const [exams, setExams] = useState<ActiveExam[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  // A signed-in student gets "My account" (their dashboard) instead of "Sign in".
+  const [studentSignedIn, setStudentSignedIn] = useState(false);
 
   const load = useCallback(async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -40,7 +42,7 @@ export default function HomePage() {
     }
   }, []);
 
-  // Admin/assistant: this isn't a meaningful screen - push them to the dashboard.
+  // Staff: this isn't a meaningful screen - push them to the admin home.
   useEffect(() => {
     let mounted = true;
     (async () => {
@@ -48,8 +50,11 @@ export default function HomePage() {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         if (!res.ok) return;
         const data = await res.json();
-        if (mounted && data.authenticated && (data.user?.role === 'admin' || data.user?.role === 'assistant' || data.user?.role === 'professor')) {
+        if (!mounted || !data.authenticated) return;
+        if (data.user?.role === 'admin' || data.user?.role === 'assistant' || data.user?.role === 'professor') {
           navigate('/admin/home', { replace: true });
+        } else {
+          setStudentSignedIn(true);
         }
       } catch { /* student or unauthenticated - stay on the picker */ }
     })();
@@ -63,7 +68,6 @@ export default function HomePage() {
   }, [load]);
 
   // Theme-aware palette helpers - keeps the JSX readable.
-  const pageBg = isDark ? 'bg-[#0a0a14]' : 'bg-[#F8FAFC]';
   const titleClass = isDark ? 'text-white drop-shadow-lg' : 'text-slate-900';
   const subtitleClass = isDark ? 'text-gray-400' : 'text-slate-600';
   const versionClass = isDark ? 'text-blue-400/80' : 'text-blue-600/70';
@@ -87,22 +91,18 @@ export default function HomePage() {
   const emptyTextClass = isDark ? 'text-gray-400' : 'text-slate-500';
 
   return (
-    <div className={`min-h-screen w-full ${pageBg} flex flex-col items-center relative overflow-hidden transition-colors`}>
-      {/* Background glows - softer in light mode so they don't blow out the page */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className={`absolute top-[-10%] right-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/20' : 'bg-blue-400/30'}`} />
-        <div className={`absolute bottom-[-10%] left-[-10%] w-[50vw] h-[50vw] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/15' : 'bg-indigo-300/30'}`} style={{ animationDelay: '1s' }} />
-      </div>
+    <div className="min-h-screen w-full flex flex-col items-center relative overflow-hidden">
+      <OtisakBackground />
 
-      {/* Top-right cluster: theme toggle, language toggle, admin login */}
+      {/* Top-right cluster: theme toggle, language toggle, sign in / my account */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-2">
         <ToggleCluster position="static" variant="glass" />
         <button
-          onClick={() => navigate('/admin')}
+          onClick={() => navigate(studentSignedIn ? '/dashboard' : '/login')}
           className={`flex items-center gap-2 px-3 py-2 rounded-xl border backdrop-blur-sm transition-colors text-xs uppercase tracking-widest ${togglePillClass}`}
         >
-          <ShieldCheck size={14} />
-          {t('home.adminLogin')}
+          {studentSignedIn ? <UserRound size={14} /> : <LogIn size={14} />}
+          {studentSignedIn ? t('home.myAccount') : t('home.signIn')}
         </button>
       </div>
 
@@ -197,7 +197,7 @@ export default function HomePage() {
         )}
       </div>
 
-      <div className="absolute bottom-0 w-full"><OtisakFooter /></div>
+      <div className="absolute bottom-0 w-full z-10"><OtisakFooter /></div>
     </div>
   );
 }

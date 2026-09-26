@@ -256,7 +256,9 @@ router.get('/results', requireAuth, async (req: Request, res: Response) => {
           correct_answer_ids: [],
           text_answer: null,
           ai_grading_status: q.ai_grading_status,
-          ai_feedback: null,
+          // The grader's comment on an open-text answer is written for the
+          // student; it carries no answer key the way choice data would.
+          ai_feedback: q.question.type === 'open_text' ? q.ai_feedback : null,
         })),
       };
       return res.json({ results: safe });

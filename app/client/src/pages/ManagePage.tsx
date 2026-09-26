@@ -4,6 +4,7 @@ import {
   Loader2, Plus, Settings, Play, Pause, Archive,
   FileText, CalendarIcon, Radio,
   Download, Upload, Pencil, Package, BarChart3, Printer,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -316,6 +317,16 @@ export default function ManagePage() {
                             title={t('manage.openStats')}
                           >
                             <BarChart3 size={14} />
+                          </button>
+                        )}
+                        {exam.status !== 'draft' && (
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/manage/${exam.id}/grading`)}
+                            className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                            title={t('grading.open')}
+                          >
+                            <ClipboardCheck size={14} />
                           </button>
                         )}
                         {statusActions[exam.status]?.map((action) => (

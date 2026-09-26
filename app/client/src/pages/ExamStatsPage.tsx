@@ -70,7 +70,7 @@ export default function ExamStatsPage() {
     (async () => {
       try {
         const sres = await fetch('/api/auth/session', { credentials: 'include' });
-        if (!sres.ok) { navigate('/admin', { replace: true }); return; }
+        if (!sres.ok) { navigate('/login', { replace: true }); return; }
         const sdata = await sres.json();
         if (!sdata.authenticated || (sdata.user?.role !== 'admin' && sdata.user?.role !== 'assistant' && sdata.user?.role !== 'professor')) {
           navigate('/dashboard', { replace: true });
@@ -215,7 +215,7 @@ export default function ExamStatsPage() {
               {(hardest || easiest) && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
                   {hardest && (
-                    <div className="bg-[var(--bg-elevated)] border border-danger/30 rounded-xl p-4">
+                    <div className="bg-[var(--bg-elevated)] border border-[color-mix(in_srgb,var(--danger)_30%,transparent)] rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingDown className="w-4 h-4 text-danger" />
                         <span className="text-xs font-semibold text-danger uppercase tracking-wider">{t('examStats.hardest')}</span>
@@ -225,7 +225,7 @@ export default function ExamStatsPage() {
                     </div>
                   )}
                   {easiest && (
-                    <div className="bg-[var(--bg-elevated)] border border-success/30 rounded-xl p-4">
+                    <div className="bg-[var(--bg-elevated)] border border-[color-mix(in_srgb,var(--success)_30%,transparent)] rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
                         <TrendingUp className="w-4 h-4 text-success" />
                         <span className="text-xs font-semibold text-success uppercase tracking-wider">{t('examStats.easiest')}</span>

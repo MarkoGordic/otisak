@@ -109,7 +109,7 @@ export default function ExamEditPage() {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
       if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor')) {
-        navigate('/admin', { replace: true });
+        navigate('/login', { replace: true });
         return;
       }
       setUser({ name: data.user?.name, role: data.user?.role, avatar_url: data.user?.avatar_url });
@@ -594,7 +594,7 @@ export default function ExamEditPage() {
                   </div>
 
                   {exam.status === 'completed' && (
-                    <div className="col-span-1 sm:col-span-2 flex items-center gap-2 rounded-lg border border-warning/30 bg-warning-light/30 px-3 py-2 text-xs text-warning">
+                    <div className="col-span-1 sm:col-span-2 flex items-center gap-2 rounded-lg border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-warning-light/30 px-3 py-2 text-xs text-warning">
                       <AlertTriangle size={14} />
                       <span>{t('examEdit.rescoreNotice')}</span>
                     </div>
@@ -991,7 +991,7 @@ function TagChipsEditor({
           <button
             type="button"
             onClick={() => onChange(value.filter((t) => t !== tag))}
-            className="text-accent/70 hover:text-accent"
+            className="text-[color-mix(in_srgb,var(--accent)_70%,transparent)] hover:text-accent"
             aria-label={`Remove tag ${tag}`}
           >
             <X size={12} />

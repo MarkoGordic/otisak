@@ -15,6 +15,8 @@ import {
   rescoreExam,
   getLiveExamStats,
   getExamStats,
+  getExamGradingItems,
+  gradeOpenTextAnswer,
 } from '../db/otisak';
 import { getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
 import { findUserById } from '../db/users';
@@ -77,6 +79,8 @@ router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant', 'p
             selected_answer_ids: q.selected_answer_ids,
             correct_answer_ids: q.correct_answer_ids,
             text_answer: q.text_answer,
+            ai_grading_status: q.ai_grading_status,
+            ai_feedback: q.ai_feedback,
             answers: q.answers.map((a) => ({
               id: a.id,
               text: a.text,
@@ -124,6 +128,60 @@ router.get('/report/:userId', requireAuth, requireRole(['admin', 'assistant', 'p
     });
   } catch (error) {
     console.error('Student report error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /exams/:examId/grading - staff of the exam's subject, every open-text
+// answer (pending and already graded) for manual grading.
+router.get('/grading', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
+    const exam = await getOtisakExamById(examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    const items = await getExamGradingItems(examId);
+    return res.json({
+      exam: { id: exam.id, title: exam.title, subject_name: exam.subject_name, status: exam.status },
+      items,
+    });
+  } catch (error) {
+    console.error('Grading list error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /exams/:examId/grading - staff of the exam's subject, grade one
+// open-text answer. Body: { attempt_id, question_id, points, feedback? }.
+router.post('/grading', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
+    const { attempt_id, question_id, points, feedback } = req.body ?? {};
+    if (typeof attempt_id !== 'string' || typeof question_id !== 'string') {
+      return res.status(400).json({ error: 'attempt_id and question_id are required' });
+    }
+    const pts = Number(points);
+    if (points === null || points === undefined || points === '' || !Number.isFinite(pts)) {
+      return res.status(400).json({ error: 'points must be a number' });
+    }
+    // Omitted feedback keeps the existing comment; an empty string clears it.
+    const note = feedback === undefined
+      ? undefined
+      : typeof feedback === 'string' && feedback.trim() ? feedback.trim().slice(0, 5000) : null;
+
+    const result = await gradeOpenTextAnswer({
+      examId,
+      attemptId: attempt_id,
+      questionId: question_id,
+      points: pts,
+      feedback: note,
+      graderId: req.user!.id,
+    });
+    if (!result.ok) return res.status(result.status).json({ error: result.error });
+    return res.json(result);
+  } catch (error) {
+    console.error('Grade answer error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

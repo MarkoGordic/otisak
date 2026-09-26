@@ -63,7 +63,7 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    navigate('/admin');
+    navigate('/login');
   };
 
   const [showPasswordModal, setShowPasswordModal] = useState(false);

@@ -101,7 +101,7 @@ export default function DashboardPage() {
       try {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         const data = await res.json();
-        if (!data.authenticated) { navigate('/admin', { replace: true }); return; }
+        if (!data.authenticated) { navigate('/login', { replace: true }); return; }
         if (mounted) {
           setUser({
             name: data.user?.name,
@@ -114,7 +114,7 @@ export default function DashboardPage() {
             setActiveTab('practice');
           }
         }
-      } catch { navigate('/admin', { replace: true }); }
+      } catch { navigate('/login', { replace: true }); }
     })();
     return () => { mounted = false; };
   }, [navigate]);
@@ -423,7 +423,12 @@ export default function DashboardPage() {
                                 <div className="w-32 hidden md:block text-[13px] text-[var(--text-muted)] truncate pr-4">{formatDate(attempt.started_at)}</div>
                                 <div className="w-24 text-center"><span className={`text-base font-mono font-bold ${noThreshold ? 'text-accent' : passed ? 'text-success' : 'text-danger'}`}>{pct}%</span></div>
                                 <div className="w-20 text-center hidden md:block text-[13px] font-mono text-[var(--text-muted)]">{formatDuration(Number(attempt.time_spent_seconds || 0))}</div>
-                                <div className="w-24 text-center">{noThreshold ? <Badge variant="neutral" size="sm">&#8212;</Badge> : <Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? t('dashboard.passed') : t('dashboard.failed')}</Badge>}</div>
+                                <div className="w-24 text-center">
+                                  {/* Open-text answers still waiting for the professor: no verdict yet. */}
+                                  {attempt.ai_grading_status === 'pending'
+                                    ? <Badge variant="warning" size="sm">{t('dashboard.awaitingGrade')}</Badge>
+                                    : noThreshold ? <Badge variant="neutral" size="sm">&#8212;</Badge> : <Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? t('dashboard.passed') : t('dashboard.failed')}</Badge>}
+                                </div>
                                 <div className="w-20 flex justify-end">
                                   <Button variant="ghost" size="sm" className="text-accent hover:text-accent-hover px-2" rightIcon={<ExternalLink size={14} />}>{t('dashboard.view')}</Button>
                                 </div>

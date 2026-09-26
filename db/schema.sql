@@ -8,7 +8,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- USERS & AUTH
 -- ========================================
 
-CREATE TYPE user_role AS ENUM ('admin', 'assistant', 'student');
+CREATE TYPE user_role AS ENUM ('admin', 'assistant', 'student', 'professor');
 
 CREATE TABLE users (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -194,9 +194,14 @@ CREATE TABLE otisak_attempt_answers (
   ai_grading_status TEXT CHECK (ai_grading_status IN ('pending', 'grading', 'graded', 'error')),
   ai_feedback TEXT,
   ai_graded_at TIMESTAMPTZ,
+  -- Who graded an open-text answer by hand. Kept in sync with migration 017_manual_open_text_grading.
+  graded_by UUID REFERENCES users(id) ON DELETE SET NULL,
   answered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(attempt_id, question_id)
 );
+
+CREATE INDEX idx_otisak_attempt_answers_pending ON otisak_attempt_answers(attempt_id)
+  WHERE ai_grading_status = 'pending';
 
 -- ========================================
 -- QUESTION BANK

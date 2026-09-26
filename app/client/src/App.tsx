@@ -20,6 +20,7 @@ const ManagePage = lazy(() => import('./pages/ManagePage'));
 const PracticeManagePage = lazy(() => import('./pages/PracticeManagePage'));
 const ExamEditPage = lazy(() => import('./pages/ExamEditPage'));
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage'));
+const GradingPage = lazy(() => import('./pages/GradingPage'));
 const RoomPage = lazy(() => import('./pages/RoomPage'));
 const ReportPage = lazy(() => import('./pages/ReportPage'));
 const SubjectsPage = lazy(() => import('./pages/SubjectsPage'));
@@ -45,6 +46,8 @@ export default function App() {
       <Suspense fallback={<RouteFallback />}>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          {/* Old sign-in address, kept so existing links and bookmarks still work. */}
           <Route path="/admin" element={<LoginPage />} />
           <Route path="/admin/home" element={<AdminHomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -53,6 +56,7 @@ export default function App() {
           <Route path="/manage/:examId/edit" element={<ExamEditPage />} />
           <Route path="/manage/:examId/report/:userId" element={<ReportPage />} />
           <Route path="/manage/:examId/stats" element={<ExamStatsPage />} />
+          <Route path="/manage/:examId/grading" element={<GradingPage />} />
           {/* Practice templates are administered separately from real exams. */}
           <Route path="/practice" element={<PracticeManagePage />} />
           <Route path="/subjects" element={<SubjectsPage />} />

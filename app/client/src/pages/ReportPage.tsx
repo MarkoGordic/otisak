@@ -16,6 +16,7 @@ type ReportData = {
     questions: Array<{
       index: number; text: string; type: string; points: number; points_awarded: number;
       selected_answer_ids: string[]; correct_answer_ids: string[]; text_answer: string | null;
+      ai_grading_status: string | null; ai_feedback: string | null;
       answers: Array<{ id: string; text: string; is_correct: boolean }>;
     }>;
   } | null;
@@ -168,19 +169,33 @@ export default function StudentReportPage() {
             <div className="space-y-3">
               {results.questions.map((q, idx) => {
                 const correct = q.points_awarded > 0;
+                const pending = q.ai_grading_status === 'pending';
                 return (
                   <motion.div key={idx} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
-                    className={`rounded-xl border p-4 ${correct ? 'border-green-500/20 bg-green-500/[0.02]' : 'border-red-500/20 bg-red-500/[0.02]'}`}>
+                    className={`rounded-xl border p-4 ${pending ? 'border-amber-500/30 bg-amber-500/[0.03]' : correct ? 'border-green-500/20 bg-green-500/[0.02]' : 'border-red-500/20 bg-red-500/[0.02]'}`}>
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
-                        {correct ? <Check size={14} className="text-green-400" /> : <X size={14} className="text-red-400" />}
+                        {pending ? <Clock size={14} className="text-amber-400" /> : correct ? <Check size={14} className="text-green-400" /> : <X size={14} className="text-red-400" />}
                         <span className="text-xs text-gray-500">Pitanje {q.index}</span>
                       </div>
-                      <span className={`text-xs font-mono font-bold ${correct ? 'text-green-400' : 'text-red-400'}`}>{q.points_awarded}/{q.points}</span>
+                      <span className={`text-xs font-mono font-bold ${pending ? 'text-amber-400' : correct ? 'text-green-400' : 'text-red-400'}`}>{pending ? '…' : q.points_awarded}/{q.points}</span>
                     </div>
                     <p className="text-sm text-gray-300 mb-3">{q.text}</p>
                     {q.type === 'open_text' ? (
-                      <div className="bg-[#111827] rounded-lg p-3 text-xs text-gray-400">{q.text_answer || <em>Bez odgovora</em>}</div>
+                      <div className="space-y-2">
+                        <div className="bg-[#111827] rounded-lg p-3 text-xs text-gray-400 whitespace-pre-wrap">{q.text_answer || <em>Bez odgovora</em>}</div>
+                        {q.ai_feedback && (
+                          <div className="rounded-lg p-3 text-xs border border-purple-500/25 bg-purple-500/[0.06] text-purple-200 whitespace-pre-wrap">{q.ai_feedback}</div>
+                        )}
+                        <div className="flex items-center gap-3 text-xs">
+                          {q.ai_grading_status === 'pending' && <span className="text-amber-400">Čeka ocenjivanje</span>}
+                          {q.ai_grading_status && (
+                            <button type="button" onClick={() => navigate(`/manage/${examId}/grading`)} className="text-blue-400 hover:text-blue-300">
+                              {q.ai_grading_status === 'pending' ? 'Oceni' : 'Izmeni ocenu'} &rarr;
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     ) : (
                       <div className="space-y-1.5">
                         {q.answers.map(a => {

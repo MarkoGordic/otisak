@@ -12,3 +12,4 @@ export * from './otisak-attempts';
 export * from './otisak-analytics';
 export * from './otisak-practice';
 export * from './otisak-room';
+export * from './otisak-grading';

@@ -318,6 +318,19 @@ export default function ResultsPage() {
                     );
                   })}
                 </div>
+                {/* Grader comments on open-text answers (real exams only get these, no answers). */}
+                {results.questions.some((q) => q.ai_feedback) && (
+                  <div className="mt-3 space-y-2">
+                    {results.questions.map((q, i) => q.ai_feedback && (
+                      <div key={q.question.id} className={`rounded-lg border px-3 py-2 text-xs ${isDark ? 'border-purple-500/25 bg-purple-500/[0.06] text-purple-200' : 'border-purple-200 bg-purple-50 text-purple-800'}`}>
+                        <span className="block text-[10px] uppercase tracking-wider mb-0.5 opacity-70">
+                          {t('results.questionNumber', { number: i + 1 })} · {t('results.aiFeedback')}
+                        </span>
+                        <span className="whitespace-pre-wrap">{q.ai_feedback}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </motion.div>
             )}
 

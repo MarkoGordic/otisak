@@ -202,6 +202,48 @@ const steps: readonly Step[] = [
       ADD COLUMN IF NOT EXISTS ldap_uid TEXT UNIQUE
     `);
   }],
+
+  ['017_manual_open_text_grading', async () => {
+    // Open-text answers are graded by the subject's staff. graded_by records who
+    // scored the answer (NULL = not graded by a person); the grade itself reuses
+    // points_awarded / ai_grading_status / ai_feedback / ai_graded_at.
+    await query(`
+      ALTER TABLE otisak_attempt_answers
+      ADD COLUMN IF NOT EXISTS graded_by UUID REFERENCES users(id) ON DELETE SET NULL
+    `);
+    // The grading queue only ever looks for pending rows.
+    await query(`
+      CREATE INDEX IF NOT EXISTS idx_otisak_attempt_answers_pending
+        ON otisak_attempt_answers (attempt_id)
+        WHERE ai_grading_status = 'pending'
+    `);
+    // A blank open-text answer has nothing to grade: store it as unanswered so
+    // it neither waits in the queue nor counts as a wrong answer.
+    await query(`
+      UPDATE otisak_attempt_answers
+         SET text_answer = NULL, ai_grading_status = NULL, points_awarded = 0
+       WHERE ai_grading_status = 'pending'
+         AND (text_answer IS NULL OR btrim(text_answer) = '')
+    `);
+    // Attempts left marked pending with nothing pending any more are done.
+    await query(`
+      UPDATE otisak_attempts a
+         SET ai_grading_status = 'graded'
+       WHERE a.ai_grading_status = 'pending'
+         AND NOT EXISTS (
+           SELECT 1 FROM otisak_attempt_answers aa
+            WHERE aa.attempt_id = a.id AND aa.ai_grading_status = 'pending'
+         )
+    `);
+  }],
+
+  ['018_user_role_professor', async () => {
+    // The professor role shipped in code without extending the enum, so any
+    // write of role = 'professor' (LDAP professors group, admin role change)
+    // failed. Runs outside a transaction, as ALTER TYPE ... ADD VALUE requires
+    // before the new value can be used.
+    await query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'professor'`);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {

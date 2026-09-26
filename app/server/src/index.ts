@@ -16,6 +16,7 @@ import examRoutes from './routes/exam';
 import practiceRoutes from './routes/practice';
 import questionsRoutes from './routes/questions';
 import historyRoutes from './routes/history';
+import gradingRoutes from './routes/grading';
 import usersRoutes from './routes/users';
 import clientLogRoutes from './routes/clientLog';
 import { setupWebSocket } from './ws/events';
@@ -139,6 +140,7 @@ app.use('/api/otisak/users', usersRoutes);
 app.use('/api/otisak/practice', practiceRoutes);
 app.use('/api/otisak/questions', questionsRoutes);
 app.use('/api/otisak/history', historyRoutes);
+app.use('/api/otisak/grading', gradingRoutes);
 // Client-side error ingestion (unauthenticated, rate limited).
 app.use('/api/_log', clientLogRoutes);
 
