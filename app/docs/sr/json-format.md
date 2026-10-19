@@ -1,6 +1,6 @@
 # JSON format ispita
 
-Tačan oblik koji prima **Uvezi JSON** i koji pravi **Izvezi JSON**. Ovo je referenca: za sam postupak pogledaj [Upravljanje ispitima](exams.md) i [Vežbe](practice.md).
+Tačan oblik koji primaju **Uvezi ispit** i **Izvezi ispit**, kao JSON fajl ili kao ZIP sa slikama. Ovo je referenca: za sam postupak pogledaj [Upravljanje ispitima](exams.md) i [Vežbe](practice.md).
 
 Uvoz JSON-a nije samo prečica. Pitanja tipa `ordering`, `matching` i `fill_blank` **ne mogu da se naprave u editoru ispita**, pa je za te tipove ovo jedini način da se napišu.
 
@@ -19,6 +19,33 @@ Uvoz JSON-a nije samo prečica. Pitanja tipa `ordering`, `matching` i `fill_blan
 | `version` | ne | Izvoz ga upisuje, uvoz ga nikad ne čita. Informativno. |
 | `exam` | **da** | Objekat. Ako nedostaje, vraća `400`. |
 | `questions` | **da** | Niz. Može da bude prazan, ali mora da postoji i mora da bude niz. |
+
+## ZIP sa slikama
+
+Umesto samog JSON fajla može da se uveze **ZIP**: JSON ispita i slike zajedno. Kod pitanja tipa `image`, `content` je tada **putanja do slike unutar ZIP-a**, relativno u odnosu na JSON fajl.
+
+```
+kolokvijum.zip
+├── exam.json
+└── slike/
+    ├── 01.jpg
+    └── 02.png
+```
+
+```json
+{ "type": "image", "text": "Koja topologija je prikazana?", "points": 1, "multi_answer": false,
+  "content": "slike/01.jpg",
+  "answers": [ { "text": "Zvezda", "is_correct": true }, { "text": "Prsten", "is_correct": false } ] }
+```
+
+- JSON fajl može da se zove bilo kako ako je jedini u ZIP-u. Ako ih ima više, uvozi se onaj koji se zove `exam.json`.
+- Sve može da bude i u jednom folderu (npr. `Kolokvijum/exam.json`, `Kolokvijum/slike/01.jpg`), što je ono što pravi **Compress** na macOS-u ili **Send to > Compressed folder** na Windows-u. `__MACOSX` i skriveni fajlovi se zanemaruju.
+- Velika i mala slova u imenu slike se ne razlikuju (`01.JPG` i `01.jpg` su isti fajl).
+- Slike mogu da budu bilo koje veličine do 25 MB po slici. Aplikacija ih sama smanji i kompresuje.
+- **Ako i jedna slika fali ili je neispravna, uvoz se odbija pre nego što se išta napravi**, uz spisak imena koja ne valjaju.
+- Ista slika može da se koristi u više pitanja i čuva se jednom.
+
+**Izvezi ispit** pravi upravo ovakav ZIP čim ispit ima bar jednu otpremljenu sliku (slike idu u `images/`). Ispit bez slika se izvozi kao običan JSON.
 
 ## Šta fajl ne odlučuje
 
@@ -64,7 +91,7 @@ Boolean vrednosti se tumače široko: `"true"` i `1` važe kao tačno, a `0`, `"
 | `multi_answer` | boolean | izvedeno | Radio dugmad ili polja za štikliranje. Ako se izostavi, dva ili više tačnih odgovora znači štikliranje. |
 | `answers` | niz | `[]` | Vidi ispod. |
 
-Kada ga postaviš, `multi_answer` je merodavan. **Ne** izvodi se iz broja tačnih odgovora. Ako ga izostaviš na pitanju sa više tačnih odgovora, prikazaće se radio dugmad i student će moći da izabere samo jedan odgovor.
+Kada ga postaviš, `multi_answer` je merodavan: `false` prikazuje radio dugmad čak i kada je više odgovora označeno kao tačno, pa student može da izabere samo jedan. Ako ga izostaviš, izvodi se jednom, pri uvozu, iz broja tačnih odgovora. Ipak ga uvek piši eksplicitno, da namera ostane ista i posle kasnijih izmena odgovora.
 
 ### Stavke u `answers`
 
@@ -123,7 +150,7 @@ Radi i običan string sa kodom, samo bez bojenja sintakse.
 
 ### image
 
-`content` je `http(s)` adresa ili `data:` adresa.
+`content` je putanja do slike u ZIP-u (vidi [ZIP sa slikama](#zip-sa-slikama)), adresa otpremljene slike (`/api/otisak/images/...`), `http(s)` adresa ili `data:` adresa.
 
 ```json
 {
@@ -138,7 +165,9 @@ Radi i običan string sa kodom, samo bez bojenja sintakse.
 }
 ```
 
-Bolje je koristiti običnu adresu. `data:` adresa se upisuje u sam fajl, a ceo zahtev mora da stane u 1 MB (vidi [Ograničenja](#ogranicenja)).
+Najlakše je uvesti ZIP sa slikama. Druga mogućnost je da se slika otpremi kasnije, dugmetom **Otpremi sliku** u editoru ispita. Ako se običan JSON sa putanjama do slika uveze bez ZIP-a, uvoz uspeva, aplikacija upozori koje slike nedostaju, a ta pitanja čekaju da im se slika otpremi u editoru.
+
+`data:` adresa pri uvozu postaje otpremljena slika, a u pitanju ostaje samo kratka adresa. Spoljna `http(s)` adresa se ne preuzima, nego se prikazuje direktno sa tog servera, pa nestaje ako nestane i taj server.
 
 ### open_text
 
@@ -230,7 +259,7 @@ Ni ovo se nikad ne postavlja uvozom: `status` (uvek `draft`), `scheduled_at`, `a
 
 ## Ograničenja
 
-**Ceo zahtev mora da stane u 1 MB.** U to ulaze sva pitanja i sve ugrađene `data:` slike zajedno. Preko toga, slanje pada sa `413` pre nego što aplikacija uopšte vidi fajl, pa nema jasne poruke o grešci. To je glavni razlog da se slike povezuju adresom umesto da se ugrađuju.
+**ZIP može da ima do 100 MB** (do 300 MB raspakovan, najviše 25 MB po slici). **JSON fajl do 40 MB**, zajedno sa eventualnim ugrađenim `data:` slikama.
 
 Po polju: `text` 8000 znakova, `content` 16000, `explanation` 4000, `ai_grading_instructions` 4000.
 
@@ -242,7 +271,9 @@ Po polju: `text` 8000 znakova, `content` 16000, `explanation` 4000, `ai_grading_
 | `400` | Nije izabran predmet (`SUBJECT_REQUIRED`). |
 | `400` | Izabrani predmet ne postoji (administrator). |
 | `403` | Asistent si i nisi dodeljen izabranom predmetu. |
-| `413` | Fajl je preko 1 MB. |
+| `400` | U ZIP-u nedostaje slika (`MISSING_IMAGES`) ili je neispravna (`BAD_IMAGE`). Ništa nije napravljeno. |
+| `400` | ZIP nema JSON fajl, ima ih više a nijedan nije `exam.json`, ili fajl nije ispravan ZIP. |
+| `413` | ZIP je preko 100 MB (300 MB raspakovan), ili JSON preko 40 MB. |
 | `500` | Nedostaje `exam.title`, nepoznat `type` pitanja, ili je polje duže od dozvoljenog. |
 
 Dva načina otkazivanja se ponašaju različito i vredi znati koji je koji:

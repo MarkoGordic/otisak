@@ -141,6 +141,25 @@ CREATE TABLE otisak_answers (
 CREATE INDEX idx_otisak_answers_question ON otisak_answers(question_id);
 
 -- ========================================
+-- OTISAK IMAGES
+-- Uploaded question images, already scaled and re-encoded server-side (see
+-- app/server/src/lib/images.ts). Questions reference them by URL
+-- (/api/otisak/images/<id>). Content-addressed: sha256 of the stored bytes.
+-- ========================================
+
+CREATE TABLE otisak_images (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sha256 TEXT NOT NULL UNIQUE,
+  mime TEXT NOT NULL,
+  width INTEGER NOT NULL,
+  height INTEGER NOT NULL,
+  bytes INTEGER NOT NULL,
+  data BYTEA NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ========================================
 -- OTISAK ENROLLMENTS
 -- ========================================
 

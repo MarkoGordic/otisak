@@ -7,6 +7,7 @@ import {
 import { isSubjectManageableByUser } from '../db/auth-helpers';
 import { query } from '../db/client';
 import { requireAuth, requireRole } from '../middleware';
+import { isStoredImageUrl } from '../lib/images';
 
 const router = Router();
 
@@ -60,11 +61,12 @@ router.post('/', async (req: Request, res: Response) => {
   }
 });
 
-// Image URLs come from the bank-question editor: either a remote http(s) URL
-// or a base64 data URL embedded by the file picker. Anything else (javascript:,
-// vbscript:, etc.) gets rejected, and base64 payloads bigger than ~600 KB are
-// refused so a single question can't bloat the DB or PDF render.
+// Image URLs come from the bank-question editor: an uploaded image
+// (/api/otisak/images/<id>), a remote http(s) URL, or a legacy base64 data URL
+// (stored as an uploaded image on save). Anything else (javascript:,
+// vbscript:, etc.) gets rejected.
 function validateImageUrl(url: string): { ok: true } | { ok: false; error: string } {
+  if (isStoredImageUrl(url)) return { ok: true };
   if (url.length > 800 * 1024) return { ok: false, error: 'Image URL too large (max ~600KB base64)' };
   if (/^https?:\/\//i.test(url)) return { ok: true };
   const dataUrlMatch = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/i.exec(url);

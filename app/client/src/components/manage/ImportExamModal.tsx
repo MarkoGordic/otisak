@@ -8,7 +8,8 @@ import type { OtisakExamMode } from '../../lib/types';
 
 type Subject = { id: string; name: string; code: string | null };
 
-// Import-exam dialog shared by /manage and /practice. The page's `mode` is
+// Import-exam dialog shared by /manage and /practice. Takes a .json file or a
+// .zip (exam.json + images). The page's `mode` is
 // what decides real vs practice; the file has no say. A legacy file that
 // still carries exam.exam_mode imports fine, and we warn that it was ignored.
 export function ImportExamModal({
@@ -37,47 +38,84 @@ export function ImportExamModal({
   // Mirrors the collapse in DocsPage.
   const docsLang = locale === 'en' ? 'en' : 'sr';
 
+  // Server error codes from the zip path (lib/examArchive.ts) mapped to
+  // something a person can act on. `details` names the offending files.
+  const describeError = (d: { code?: string; error?: string; details?: string[] }): string => {
+    const list = (d.details || []).join(', ');
+    switch (d.code) {
+      case 'MISSING_IMAGES': return t('manage.importMissingImages', { list });
+      case 'BAD_IMAGE': return t('manage.importBadImage', { list });
+      case 'ZIP_NO_JSON': return t('manage.importZipNoJson');
+      case 'ZIP_MANY_JSON': return t('manage.importZipManyJson', { list });
+      case 'INVALID_ZIP': return t('manage.importZipInvalid');
+      case 'ZIP_TOO_LARGE': return t('manage.importZipTooLarge');
+      case 'INVALID_JSON': return t('manage.importInvalidJson');
+      default: return d.error || t('manage.importFailed');
+    }
+  };
+
   const handleImport = async () => {
     if (!importFile || !importSubjectId) return;
     setImporting(true);
     try {
-      const json = JSON.parse(await importFile.text());
-      // A file holding bare `null` or a scalar parses fine but has no fields to
-      // read. Bail here so the user gets the server's wording rather than a
-      // raw "Cannot read properties of null" from the property access below.
-      if (!json || typeof json !== 'object') {
-        toast.error(t('manage.importFailed'));
-        return;
+      // A .zip (exam.json + its images) goes up as-is; the server unpacks it.
+      // Anything else is read as JSON here first, so a malformed file fails
+      // with a clear message before any upload.
+      const isZip = /\.zip$/i.test(importFile.name) || importFile.type.includes('zip');
+      let res: Response;
+      if (isZip) {
+        const qs = new URLSearchParams({ subject_id: importSubjectId, exam_mode: mode });
+        res = await fetch(`/api/otisak/exams/import-zip?${qs}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/zip' },
+          credentials: 'include',
+          body: importFile,
+        });
+      } else {
+        let json: unknown;
+        try {
+          json = JSON.parse(await importFile.text());
+        } catch {
+          toast.error(t('manage.importInvalidJson'));
+          return;
+        }
+        // A file holding bare `null` or a scalar parses fine but has no fields to
+        // read. Bail here so the user gets the server's wording rather than a
+        // raw "Cannot read properties of null" from the property access below.
+        if (!json || typeof json !== 'object') {
+          toast.error(t('manage.importFailed'));
+          return;
+        }
+        const file = json as { exam?: unknown; questions?: unknown };
+        // Built explicitly rather than by spreading `json`: the file must not be
+        // able to contribute a top-level subject_id or exam_mode, and `version`
+        // is not read by the server.
+        res = await fetch('/api/otisak/exams/import-json', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ exam: file.exam, questions: file.questions, subject_id: importSubjectId, exam_mode: mode }),
+        });
       }
-      const hadMode = !!json.exam && typeof json.exam === 'object' && 'exam_mode' in json.exam;
 
-      // Built explicitly rather than by spreading `json`: the file must not be
-      // able to contribute a top-level subject_id or exam_mode, and `version`
-      // is not read by the server.
-      const body = {
-        exam: json.exam,
-        questions: json.questions,
-        subject_id: importSubjectId,
-        exam_mode: mode,
-      };
-
-      const res = await fetch('/api/otisak/exams/import-json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
+      const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d.error || t('manage.importFailed'));
+        toast.error(describeError(d));
         return;
       }
 
       toast.success(mode === 'practice' ? t('practiceAdmin.createSuccess') : t('manage.importSuccess'));
-      if (hadMode) {
+      if (d.exam_mode_ignored) {
         toast.warning(
           mode === 'practice' ? t('manage.importModeIgnoredPractice') : t('manage.importModeIgnoredReal'),
           { title: t('manage.importModeIgnoredTitle'), duration: 8000 },
+        );
+      }
+      const unresolved: string[] = Array.isArray(d.unresolved_images) ? d.unresolved_images : [];
+      if (unresolved.length) {
+        toast.warning(
+          t('manage.importUnresolvedImages', { count: unresolved.length, list: unresolved.slice(0, 5).join(', ') + (unresolved.length > 5 ? ', ...' : '') }),
+          { title: t('manage.importUnresolvedImagesTitle'), duration: 12000 },
         );
       }
       onImported();
@@ -100,7 +138,7 @@ export function ImportExamModal({
             <label className="block">
               <input
                 type="file"
-                accept="application/json,.json"
+                accept="application/json,.json,application/zip,.zip"
                 className="hidden"
                 onChange={(e) => setImportFile(e.target.files?.[0] || null)}
               />

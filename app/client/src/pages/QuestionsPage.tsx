@@ -13,6 +13,7 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Dropdown } from '../components/ui/Dropdown';
 import { EmptyState } from '../components/ui/EmptyState';
+import { ImageUploadButton } from '../components/manage/ImageUploadButton';
 
 type Subject = { id: string; name: string; code: string | null };
 type BankQuestion = {
@@ -59,7 +60,7 @@ export default function QuestionBankPage() {
   const [newTags, setNewTags] = useState('');
   const [newCodeSnippet, setNewCodeSnippet] = useState('');
   const [newCodeLanguage, setNewCodeLanguage] = useState('python');
-  const [newImageUrl, setNewImageUrl] = useState(''); // either http(s) URL or data:image/...
+  const [newImageUrl, setNewImageUrl] = useState(''); // uploaded /api/otisak/images/<id> or a pasted http(s) URL
   const [imageError, setImageError] = useState('');
   const [newAnswers, setNewAnswers] = useState([
     { text: '', is_correct: true },
@@ -169,26 +170,6 @@ export default function QuestionBankPage() {
     } finally {
       setCreating(false);
     }
-  };
-
-  const handleImageFile = (file: File | null) => {
-    setImageError('');
-    if (!file) return;
-    if (!file.type.startsWith('image/')) {
-      setImageError(t('questions.imageInvalidType'));
-      return;
-    }
-    if (file.size > 4 * 1024 * 1024) { // 4 MB cap - fits within the server's 5 MB JSON limit with overhead
-      setImageError(t('questions.imageTooBig'));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result === 'string') setNewImageUrl(result);
-    };
-    reader.onerror = () => setImageError(t('questions.imageReadFailed'));
-    reader.readAsDataURL(file);
   };
 
   const handleDelete = async (id: string) => {
@@ -435,16 +416,13 @@ export default function QuestionBankPage() {
                 <div className="space-y-2">
                   <label className="block text-sm font-medium text-[var(--text-secondary)]">{t('questions.imageSection')}</label>
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 h-10 px-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors">
+                    <ImageUploadButton
+                      onUploaded={(url) => { setImageError(''); setNewImageUrl(url); }}
+                      className="flex-1 flex items-center justify-center gap-2 h-10 px-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors"
+                    >
                       <Upload size={14} />
                       {t('questions.imageUpload')}
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageFile(e.target.files?.[0] || null)}
-                      />
-                    </label>
+                    </ImageUploadButton>
                     <input
                       value={newImageUrl.startsWith('data:') ? '' : newImageUrl}
                       onChange={(e) => { setImageError(''); setNewImageUrl(e.target.value); }}

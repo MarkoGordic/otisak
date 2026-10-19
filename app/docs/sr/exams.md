@@ -17,15 +17,15 @@ Klikom na dugme "Napravi" ispit će biti kreiran i prikazan u listi ispita, kao 
 
 ![Kreiranje ispita](../assets/image-2.png)
 
-### Kreiranje ispita uvozom JSON datoteke
+### Kreiranje ispita uvozom datoteke
 
-Druga mogućnost za kreiranje ispita je uvoz ispita putem JSON datoteke. Klikom na dugme "Uvezi JSON" otvara se forma za uvoz.
+Druga mogućnost za kreiranje ispita je uvoz JSON datoteke, ili ZIP-a kada ispit ima slike. Klikom na dugme "Uvezi ispit" otvara se forma za uvoz.
 
 ![Uvoz ispita](../assets/image-3.png)
 
 Potrebno je:
 
-1. Odabrati JSON datoteku sa ispitom.
+1. Odabrati JSON ili ZIP datoteku sa ispitom.
 2. Odabrati **predmet**. Obavezan je i jači je od svega što piše u datoteci. Asistenti vide samo svoje predmete, a uvoz pod tuđi predmet vraća `403`.
 3. Pokrenuti uvoz. Ispit se pravi kao nacrt i kao **pravi ispit**, zato što si na stranici `/manage`. Za uvoz vežbe uradi isto na `/practice`.
 
@@ -68,7 +68,7 @@ Datoteka treba da bude u ovom obliku:
 
 Za sva polja, sve podrazumevane vrednosti i sve tipove pitanja vidi [JSON format ispita](json-format.md).
 
-Dugme "Izvezi JSON" na svakom redu pravi datoteku istog oblika, pa ispit može da se prebaci u drugo okruženje ili sačuva kao rezerva.
+Dugme "Izvezi ispit" na svakom redu pravi datoteku istog oblika (ZIP ako ispit ima slike, inače JSON), pa ispit može da se prebaci u drugo okruženje ili sačuva kao rezerva.
 
 Nakon uspešnog uvoza, ispit će biti prikazan u listi ispita. Ukoliko je potrebno, nakon kreiranja ispita moguće je izvršiti izmene podešavanja ispita, kao i dodati ili izmeniti pitanja i odgovore.
 

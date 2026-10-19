@@ -1,4 +1,5 @@
 import { query, transaction } from './client';
+import { internDataUrl } from '../lib/images';
 
 export type OtisakQuestionBankType = 'text' | 'code' | 'image' | 'open_text';
 
@@ -317,6 +318,7 @@ export async function createOtisakQuestionBankQuestion(
   input: CreateOtisakQuestionBankQuestionInput,
   actorUserId: string
 ): Promise<OtisakQuestionBankQuestion> {
+  input = { ...input, image_url: await internDataUrl(input.image_url, actorUserId) };
   return transaction(async (client) => {
     const tags = normalizeTags(input.tags);
 
@@ -406,6 +408,7 @@ export async function updateOtisakQuestionBankQuestion(
   input: UpdateOtisakQuestionBankQuestionInput,
   actorUserId: string
 ): Promise<OtisakQuestionBankQuestion | null> {
+  input = { ...input, image_url: await internDataUrl(input.image_url, actorUserId) };
   return transaction(async (client) => {
     const existing = await client.query<{ id: string }>(
       'SELECT id FROM otisak_question_bank WHERE id = $1 LIMIT 1',

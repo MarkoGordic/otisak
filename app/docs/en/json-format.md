@@ -1,6 +1,6 @@
 # Exam JSON format
 
-The exact shape accepted by **Import JSON** and produced by **Export JSON**. This is a reference: for the workflow, see [Managing exams](exams.md) and [Practice exams](practice.md).
+The exact shape accepted by **Import exam** and produced by **Export exam**, as a JSON file or as a ZIP with images. This is a reference: for the workflow, see [Managing exams](exams.md) and [Practice exams](practice.md).
 
 JSON import is not only a convenience. `ordering`, `matching` and `fill_blank` questions **cannot be created in the exam editor at all**, so for those types this is the only authoring path.
 
@@ -19,6 +19,33 @@ JSON import is not only a convenience. `ordering`, `matching` and `fill_blank` q
 | `version` | no | Written by export, never read by import. Informational. |
 | `exam` | **yes** | Object. Missing gives `400`. |
 | `questions` | **yes** | Array. May be empty, but must be present and an array. |
+
+## ZIP with images
+
+Instead of a bare JSON file you can import a **ZIP**: the exam JSON and its images together. For an `image` question, `content` is then **the image's path inside the ZIP**, relative to the JSON file.
+
+```
+midterm.zip
+├── exam.json
+└── images/
+    ├── 01.jpg
+    └── 02.png
+```
+
+```json
+{ "type": "image", "text": "Which topology is shown?", "points": 1, "multi_answer": false,
+  "content": "images/01.jpg",
+  "answers": [ { "text": "Star", "is_correct": true }, { "text": "Ring", "is_correct": false } ] }
+```
+
+- The JSON file can have any name if it is the only one in the ZIP. With several, the one named `exam.json` is imported.
+- Everything may sit inside one folder (e.g. `Midterm/exam.json`, `Midterm/images/01.jpg`), which is what **Compress** on macOS or **Send to > Compressed folder** on Windows produces. `__MACOSX` and hidden files are ignored.
+- Image names are matched case-insensitively (`01.JPG` and `01.jpg` are the same file).
+- Images can be any size up to 25 MB each. The app scales and compresses them itself.
+- **If even one image is missing or broken, the import is refused before anything is created**, with a list of the bad names.
+- One image can be used by several questions and is stored once.
+
+**Export exam** produces exactly this kind of ZIP as soon as the exam has at least one uploaded image (images go in `images/`). An exam without images exports as plain JSON.
 
 ## What the file does not decide
 
@@ -64,7 +91,7 @@ Booleans are coerced loosely: `"true"` and `1` count as true, while `0`, `""` an
 | `multi_answer` | boolean | derived | Radio vs checkbox. If omitted, two or more correct answers means checkboxes. |
 | `answers` | array | `[]` | See below. |
 
-`multi_answer` is authoritative when you set it. It is **not** inferred from how many answers are correct. Leaving it off on a question with several correct answers shows radio buttons, and the student can only pick one.
+`multi_answer` is authoritative when you set it: `false` shows radio buttons even if several answers are marked correct, and the student can only pick one. Leave it off and it is inferred once, at import, from how many answers are correct. Set it explicitly anyway, so the intent survives later edits to the answer list.
 
 ### `answers` entries
 
@@ -123,7 +150,7 @@ A plain snippet string also works and renders without syntax highlighting.
 
 ### image
 
-`content` is an `http(s)` URL or a `data:` URL.
+`content` is an image path inside a ZIP (see [ZIP with images](#zip-with-images)), an uploaded image URL (`/api/otisak/images/...`), an `http(s)` URL, or a `data:` URL.
 
 ```json
 {
@@ -138,7 +165,9 @@ A plain snippet string also works and renders without syntax highlighting.
 }
 ```
 
-Prefer a normal URL. A `data:` URL is embedded in the file itself, and the whole request has to fit inside 1 MB (see [Limits](#limits)).
+The easiest route is a ZIP with the images. Alternatively, upload the image later with **Upload image** in the exam editor. A plain JSON with image paths imported without its ZIP still succeeds; the app warns which images are missing, and those questions wait for an upload in the editor.
+
+A `data:` URL is turned into an uploaded image on import and the question keeps only a short URL. An external `http(s)` URL is not downloaded; it is shown straight from that server, so it disappears if that server does.
 
 ### open_text
 
@@ -230,7 +259,7 @@ These are never settable by import either: `status` (always `draft`), `scheduled
 
 ## Limits
 
-**The whole request must fit in 1 MB.** That budget covers every question and every embedded `data:` image together. Over it, the upload fails with `413` before the app sees it, so you get no friendly message. This is the main reason to link images by URL rather than embedding them.
+**A ZIP can be up to 100 MB** (up to 300 MB unpacked, at most 25 MB per image). **A JSON file up to 40 MB**, including any embedded `data:` images.
 
 Per field: `text` 8000 characters, `content` 16000, `explanation` 4000, `ai_grading_instructions` 4000.
 
@@ -242,7 +271,9 @@ Per field: `text` 8000 characters, `content` 16000, `explanation` 4000, `ai_grad
 | `400` | No subject picked (`SUBJECT_REQUIRED`). |
 | `400` | The picked subject does not exist (admin). |
 | `403` | You are an assistant and not assigned to the picked subject. |
-| `413` | The file is over 1 MB. |
+| `400` | An image in the ZIP is missing (`MISSING_IMAGES`) or broken (`BAD_IMAGE`). Nothing was created. |
+| `400` | The ZIP has no JSON file, has several and none is `exam.json`, or is not a valid ZIP. |
+| `413` | The ZIP is over 100 MB (300 MB unpacked), or the JSON is over 40 MB. |
 | `500` | `exam.title` is missing, an unknown question `type`, or a field over its length cap. |
 
 Two failure modes behave differently, and it is worth knowing which is which:

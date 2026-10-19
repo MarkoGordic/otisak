@@ -29,7 +29,7 @@ Two paths:
 
    Saves as `draft`, as a real exam. To create a practice exam, use `/practice` instead.
 
-2. **JSON import.** `/manage`, **Uvezi JSON**. See [JSON import](#json-import).
+2. **File import.** `/manage`, **Import exam**. See [JSON import](#json-import).
 
 ## Settings panel
 
@@ -83,13 +83,13 @@ The `multi_answer` flag on a question controls radio vs checkbox. It's not deriv
 
 ## JSON import
 
-`/manage`, **Uvezi JSON**:
+`/manage`, **Import exam**:
 
-1. Pick a `.json` file.
+1. Pick a `.json` file, or a `.zip` when the exam has images.
 2. Pick a **subject**. Required, and it wins over anything in the file. Assistants only see their assigned subjects; picking one that isn't yours returns `403`.
 3. Import. The exam is created as a `draft` **real exam**, because you are on `/manage`. To import a practice exam, do the same on `/practice`.
 
-**Export JSON** on any row produces a file in the same shape, so you can move an exam between environments or keep a backup.
+**Export exam** on any row produces a file in the same shape (a ZIP when the exam has images, JSON otherwise), so you can move an exam between environments or keep a backup.
 
 For every field, every default and every question type, see [Exam JSON format](json-format.md).
 

@@ -2,6 +2,7 @@
 // ========================================
 
 import { query, transaction } from './client';
+import { internDataUrl } from '../lib/images';
 import type {
   OtisakQuestion,
   OtisakAnswer,
@@ -56,6 +57,10 @@ export async function createOtisakQuestion(
   examId: string,
   data: CreateOtisakQuestionInput
 ): Promise<OtisakQuestionWithAnswers> {
+  // An inline data: image (older client, imported file) is stored as an
+  // uploaded image first, so the row keeps a short URL and the length cap
+  // below applies to that URL rather than to the base64 payload.
+  data = { ...data, content: await internDataUrl(data.content, null) };
   if (!data.text || typeof data.text !== 'string' || data.text.length === 0) {
     throw new Error('Question text is required');
   }
@@ -116,6 +121,7 @@ export async function updateOtisakQuestion(
   questionId: string,
   data: UpdateOtisakQuestionInput
 ): Promise<OtisakQuestionWithAnswers | null> {
+  data = { ...data, content: await internDataUrl(data.content, null) };
   if (data.text !== undefined) {
     if (!data.text || data.text.length === 0) {
       throw new Error('Question text is required');

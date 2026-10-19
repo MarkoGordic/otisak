@@ -114,8 +114,9 @@ The shapes are **almost identical** for both areas. Where they differ, this doc 
 }
 ```
 
-- `image_url` accepts either an absolute `http(s)://` URL **or** a base64-encoded data URL (`data:image/png;base64,…`).
-- The bank UI supports drag/drop upload (≤ 4 MB) which embeds as a data URL. **The server's JSON body limit is 1 MB** (`express.json({ limit: '1mb' })`), so a 4 MB data URL is rejected with a 413 before any handler runs. Link images by URL instead.
+- `image_url` accepts an uploaded image URL (`/api/otisak/images/<id>`), an absolute `http(s)://` URL, or a base64 data URL (`data:image/png;base64,…`).
+- The editors upload files to `POST /api/otisak/images` (raw body, `Content-Type: image/*`, up to 25 MB). The server EXIF-rotates, scales to 1920 px on the long edge, strips metadata and re-encodes as WebP under ~500 KB, then returns the short URL. See `server/src/lib/images.ts`.
+- A data URL sent on create/update is stored the same way, so the row only ever holds the short URL. The regular 1 MB JSON body limit still applies to these requests; prefer the upload endpoint.
 
 ---
 

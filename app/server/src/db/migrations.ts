@@ -244,6 +244,25 @@ const steps: readonly Step[] = [
     // before the new value can be used.
     await query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'professor'`);
   }],
+
+  ['019_images_table', async () => {
+    // Uploaded question images move out of the question row (data: URLs hit
+    // the 16000-char content cap and the 1 MB body limit) into their own
+    // table. See lib/images.ts.
+    await query(`
+      CREATE TABLE IF NOT EXISTS otisak_images (
+        id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+        sha256 TEXT NOT NULL UNIQUE,
+        mime TEXT NOT NULL,
+        width INTEGER NOT NULL,
+        height INTEGER NOT NULL,
+        bytes INTEGER NOT NULL,
+        data BYTEA NOT NULL,
+        created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+  }],
 ];
 
 export async function runMigrations(): Promise<void> {

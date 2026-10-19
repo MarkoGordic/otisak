@@ -1,4 +1,4 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import {
   getOtisakExams,
   getExamsForUser,
@@ -11,6 +11,14 @@ import {
   DemoExamLockedError,
 } from '../db/otisak';
 import { requireAuth, requireRole } from '../middleware';
+import type { ExamImportInput } from '../lib/importExam';
+import {
+  ExamArchiveError,
+  MAX_ZIP_BYTES,
+  readExamZip,
+  resolveArchiveImages,
+  unresolvedImagePaths,
+} from '../lib/examArchive';
 import {
   canUserManageExam,
   getAssignedSubjectIds,
@@ -190,9 +198,10 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant', 'professor']),
   }
 });
 
-// POST /exams/import-json - admin/assistant, create a new exam from a JSON dump
-// Mirrors the shape produced by GET /exams/:id/export-json:
-//   { version: 1, exam: { title, ... }, questions: [{ type, text, ... answers: [...] }] }
+// Exam import. Two endpoints, one flow:
+//   POST /exams/import-json  body: { subject_id, exam_mode, exam, questions }
+//   POST /exams/import-zip?subject_id=..&exam_mode=..  body: the raw .zip
+// The file shapes are documented in lib/examArchive.ts and docs/*/json-format.md.
 //
 // Two things come from the REQUEST, not the file, because both are placement
 // decisions owned by the page doing the import rather than properties of the
@@ -201,22 +210,28 @@ router.patch('/', requireAuth, requireRole(['admin', 'assistant', 'professor']),
 //   - `exam_mode`  - 'real' from /manage, 'practice' from /practice.
 // The file's own `exam_mode` and `subject_name` are ignored. `version` is
 // never read.
-router.post('/import-json', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
-  try {
-    const body = req.body || {};
-    if (typeof body !== 'object' || !body.exam || !Array.isArray(body.questions)) {
-      return res.status(400).json({ error: 'Invalid exam JSON: missing exam or questions' });
-    }
+export const IMPORT_JSON_PATH = '/api/otisak/exams/import-json';
+const IMPORT_JSON_LIMIT = '40mb';
 
+const ARCHIVE_ERROR_STATUS: Record<string, number> = { ZIP_TOO_LARGE: 413 };
+
+// Shared tail of both import endpoints. `resolve` runs only after the subject
+// check passes, so a rejected caller never gets images stored.
+async function runImport(
+  req: Request,
+  res: Response,
+  subjectIdIn: unknown,
+  examModeIn: unknown,
+  resolve: () => Promise<ExamImportInput>,
+) {
+  try {
     const user = req.user!;
 
     // Subject is now mandatory for every caller. The previous "fall back to
     // exam.subject_name from the JSON" path made it possible for an admin to
     // import an exam without realising which subject it landed under -
     // forcing an explicit pick removes that whole class of mistake.
-    const subjectId = typeof body.subject_id === 'string' && body.subject_id
-      ? body.subject_id
-      : null;
+    const subjectId = typeof subjectIdIn === 'string' && subjectIdIn ? subjectIdIn : null;
     if (!subjectId) {
       return res.status(400).json({ error: 'Subject is required', code: 'SUBJECT_REQUIRED' });
     }
@@ -232,19 +247,59 @@ router.post('/import-json', requireAuth, requireRole(['admin', 'assistant', 'pro
       });
     }
 
+    const body = await resolve();
+    if (!body || typeof body !== 'object' || !body.exam || !Array.isArray(body.questions)) {
+      return res.status(400).json({ error: 'Invalid exam JSON: missing exam or questions' });
+    }
+
     // self_service / is_public are deliberately not passed: createOtisakExam
     // derives them from the mode, so a practice import lands visible to
     // students instead of silently missing from their practice list.
     const result = await importExamFromJson(body, user.id, {
       subject_id: subjectId,
-      exam_mode: coerceExamMode(body.exam_mode),
+      exam_mode: coerceExamMode(examModeIn),
     });
-    return res.json({ exam: result.exam, questions: result.questions });
+    return res.json({
+      exam: result.exam,
+      questions: result.questions,
+      // Lets the dialog warn about what the file asserted but did not decide.
+      exam_mode_ignored: typeof body.exam === 'object' && 'exam_mode' in body.exam,
+      // Image paths only mean something inside a zip. In a plain JSON import
+      // they are kept as-is (the images can be uploaded in the editor) but
+      // reported, since they will show as broken images until then.
+      unresolved_images: unresolvedImagePaths(body),
+    });
   } catch (error) {
-    console.error('Import exam JSON error:', error);
+    if (error instanceof ExamArchiveError) {
+      return res.status(ARCHIVE_ERROR_STATUS[error.message] ?? 400).json({
+        error: error.message,
+        code: error.message,
+        details: error.details,
+      });
+    }
+    console.error('Import exam error:', error);
     return res.status(500).json({ error: (error as Error).message || 'Internal server error' });
   }
+}
+
+router.post('/import-json', requireAuth, requireRole(['admin', 'assistant', 'professor']), express.json({ limit: IMPORT_JSON_LIMIT }), async (req: Request, res: Response) => {
+  const body = req.body || {};
+  return runImport(req, res, body.subject_id, body.exam_mode, async () => body);
 });
+
+router.post(
+  '/import-zip',
+  requireAuth,
+  requireRole(['admin', 'assistant', 'professor']),
+  // Any Content-Type: browsers label .zip files inconsistently
+  // (application/zip, application/x-zip-compressed, or nothing at all).
+  express.raw({ type: () => true, limit: MAX_ZIP_BYTES }),
+  async (req: Request, res: Response) => {
+    const buf = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    return runImport(req, res, req.query.subject_id, req.query.exam_mode, () =>
+      resolveArchiveImages(readExamZip(buf), req.user!.id));
+  }
+);
 
 // DELETE /exams - disabled. Exams are not deletable, period. Once an exam
 // has any attempts, deletion would silently destroy student data and audit

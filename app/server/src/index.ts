@@ -19,6 +19,8 @@ import historyRoutes from './routes/history';
 import gradingRoutes from './routes/grading';
 import usersRoutes from './routes/users';
 import clientLogRoutes from './routes/clientLog';
+import imageRoutes from './routes/images';
+import { IMPORT_JSON_PATH } from './routes/exam-collection';
 import { setupWebSocket } from './ws/events';
 import { startLiveStatsAggregator, stopLiveStatsAggregator } from './ws/liveStatsAggregator';
 import { startExamExpiryWatcher, stopExamExpiryWatcher } from './jobs/examExpiryWatcher';
@@ -117,10 +119,15 @@ app.use(cors({
 // A smaller cap reduces blast radius from a malicious or runaway client.
 // The verify hook keeps the raw bytes on req.rawBody for the ELPIS ID webhook
 // receiver, whose HMAC signature is computed over the exact wire payload.
-app.use(express.json({
+// Exam import is the one JSON body that legitimately exceeds 1 MB: an exported
+// exam carries its images inline as data: URLs (see export-json). It is skipped
+// here and parsed by the route itself with a larger limit, after auth, so an
+// anonymous client can't make the server buffer a big body.
+const jsonParser = express.json({
   limit: '1mb',
   verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; },
-}));
+});
+app.use((req, res, next) => (req.path === IMPORT_JSON_PATH ? next() : jsonParser(req, res, next)));
 
 // API Routes (all under /api)
 app.use('/api/auth', authRoutes);
@@ -141,6 +148,7 @@ app.use('/api/otisak/practice', practiceRoutes);
 app.use('/api/otisak/questions', questionsRoutes);
 app.use('/api/otisak/history', historyRoutes);
 app.use('/api/otisak/grading', gradingRoutes);
+app.use('/api/otisak/images', imageRoutes);
 // Client-side error ingestion (unauthenticated, rate limited).
 app.use('/api/_log', clientLogRoutes);
 

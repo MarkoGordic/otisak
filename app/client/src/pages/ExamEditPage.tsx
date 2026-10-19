@@ -13,6 +13,7 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { CodeBlock } from '../components/otisak';
 import { parseCodeContent } from '../lib/codeQuestion';
+import { ImageUploadButton } from '../components/manage/ImageUploadButton';
 
 type Exam = {
   id: string;
@@ -310,15 +311,6 @@ export default function ExamEditPage() {
     }
   };
 
-  const handleImageFile = (file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error(t('questions.imageInvalidType')); return; }
-    if (file.size > 4 * 1024 * 1024) { toast.error(t('questions.imageTooBig')); return; }
-    const reader = new FileReader();
-    reader.onload = () => { if (typeof reader.result === 'string') setDraftImage(reader.result); };
-    reader.readAsDataURL(file);
-  };
-
   if (!user || loading) {
     return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
   }
@@ -463,17 +455,6 @@ export default function ExamEditPage() {
     }
   };
 
-  const handleEditImageFile = (qid: string, file: File | null) => {
-    if (!file) return;
-    if (!file.type.startsWith('image/')) { toast.error(t('questions.imageInvalidType')); return; }
-    if (file.size > 4 * 1024 * 1024) { toast.error(t('questions.imageTooBig')); return; }
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === 'string') patchDraft(qid, { content: reader.result });
-    };
-    reader.readAsDataURL(file);
-  };
-
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
       <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
@@ -511,7 +492,7 @@ export default function ExamEditPage() {
                   <Printer size={14} />{t('manage.printTest')}
                 </a>
                 <a
-                  href={`/api/otisak/exams/${exam.id}/export-json`}
+                  href={`/api/otisak/exams/${exam.id}/export`}
                   className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
                 >
                   <Download size={14} />{t('manage.exportJson')}
@@ -661,10 +642,12 @@ export default function ExamEditPage() {
               {draftType === 'image' && (
                 <div className="mt-3 space-y-2">
                   <div className="flex flex-col sm:flex-row gap-2">
-                    <label className="flex-1 cursor-pointer flex items-center justify-center gap-2 h-10 px-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors">
+                    <ImageUploadButton
+                      onUploaded={setDraftImage}
+                      className="flex-1 flex items-center justify-center gap-2 h-10 px-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors"
+                    >
                       <UploadIcon size={14} />{t('questions.imageUpload')}
-                      <input type="file" accept="image/*" className="hidden" onChange={(e) => handleImageFile(e.target.files?.[0] || null)} />
-                    </label>
+                    </ImageUploadButton>
                     <input value={draftImage.startsWith('data:') ? '' : draftImage} onChange={(e) => setDraftImage(e.target.value)} className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('questions.imageUrlPlaceholder')} />
                   </div>
                   {draftImage && (
@@ -838,10 +821,12 @@ export default function ExamEditPage() {
                               {draft.type === 'image' && (
                                 <Field label={t('questions.image')}>
                                   <div className="flex items-center gap-2">
-                                    <label className="cursor-pointer inline-flex items-center gap-1.5 px-3 h-10 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
+                                    <ImageUploadButton
+                                      onUploaded={(url) => patchDraft(q.id, { content: url })}
+                                      className="inline-flex items-center gap-1.5 px-3 h-10 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                    >
                                       <UploadIcon size={14} />{t('questions.imageUpload')}
-                                      <input type="file" accept="image/*" hidden onChange={(e) => handleEditImageFile(q.id, e.target.files?.[0] || null)} />
-                                    </label>
+                                    </ImageUploadButton>
                                     <input
                                       value={draft.content?.startsWith('data:') ? '' : (draft.content ?? '')}
                                       onChange={(e) => patchDraft(q.id, { content: e.target.value })}

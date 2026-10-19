@@ -23,7 +23,7 @@ A practice exam is one students start themselves, whenever they want, as many ti
 
 A **subject is required** here, unlike on `/manage`. A practice exam with no subject can be created but a student clicking Start on it gets an error, so the form blocks it up front.
 
-**From JSON.** `/practice`, **Import JSON**. Pick a file and a subject. The exam is always created as a practice exam, whatever the file says. See [Exam JSON format](json-format.md).
+**From a file.** `/practice`, **Import exam**. Pick a JSON or ZIP file and a subject. The exam is always created as a practice exam, whatever the file says. See [Exam JSON format](json-format.md).
 
 If your file was exported from an older version and still has an `exam_mode` field, the import works and the app tells you the field was ignored.
 

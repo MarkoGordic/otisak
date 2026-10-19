@@ -8,3 +8,4 @@
 - [Upravljanje korisnicima](users.md) - promena lozinke, izmena podataka o korisniku i dodavanje novih korisnika
 - [Upravljanje predmetima](subjects.md) - pravljenje predmeta i dodela asistenata.
 - [JSON format ispita](json-format.md) - sva polja formata za uvoz i izvoz, svih sedam tipova pitanja, bodovanje, ograničenja i greške
+- [Konverzija pitanja pomoću AI](ai-konverzija.md) - uputstvo koje se predaje AI asistentu da postojeća pitanja pretvori u fajl za uvoz

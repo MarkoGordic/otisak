@@ -13,6 +13,11 @@ function toAppError(err: unknown): AppError {
   if (e?.type === 'entity.parse.failed' || (err instanceof SyntaxError && e?.status === 400)) {
     return new ValidationError('Invalid JSON body');
   }
+  // Body parsers reject an oversized body before any handler runs. Without
+  // this it would surface as an opaque 500.
+  if (e?.type === 'entity.too.large') {
+    return new AppError('Request body too large', { statusCode: 413, code: 'PAYLOAD_TOO_LARGE', expose: true });
+  }
   if (e?.code === '23505') {
     return new ConflictError('Resource already exists', 'DUPLICATE');
   }

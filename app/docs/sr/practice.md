@@ -23,7 +23,7 @@ Vežba je ispit koji student pokreće sam, kad god hoće i koliko god puta hoće
 
 Ovde je **predmet obavezan**, za razliku od `/manage`. Vežba bez predmeta može da se napravi, ali student koji klikne Pokreni dobija grešku, pa je forma unapred sprečava.
 
-**Iz JSON-a.** `/practice`, **Uvezi JSON**. Izaberi fajl i predmet. Ispit se uvek pravi kao vežba, bez obzira na to šta piše u fajlu. Vidi [JSON format ispita](json-format.md).
+**Iz fajla.** `/practice`, **Uvezi ispit**. Izaberi JSON ili ZIP fajl i predmet. Ispit se uvek pravi kao vežba, bez obzira na to šta piše u fajlu. Vidi [JSON format ispita](json-format.md).
 
 Ako je fajl izvezen iz starije verzije i još uvek ima polje `exam_mode`, uvoz radi, a aplikacija ti javi da je polje zanemareno.
 

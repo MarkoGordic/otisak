@@ -22,6 +22,7 @@ import { getActivityLog, getActivityStats, enrichActivityEventData } from '../db
 import { findUserById } from '../db/users';
 import { buildStudentReportHTML, buildResultsTableHTML, renderHtmlToPdf } from '../lib/studentReport';
 import { buildPrintableExamHTML } from '../lib/examPrint';
+import { buildExportPayload, buildExamZip, hasUploadedImages, inlinePayloadImages } from '../lib/examArchive';
 import archiver from 'archiver';
 import { requireAuth, requireRole } from '../middleware';
 import { getExamId, assertCanManageExam } from './exam-shared';
@@ -456,61 +457,68 @@ router.get('/enroll', requireAuth, requireRole(['admin', 'assistant', 'professor
   }
 });
 
-// GET /exams/:examId/export-json - admin/assistant, dump exam config + questions
-// Used to back up an exam or move it between environments. The shape mirrors
-// the body accepted by /api/otisak/exams/import-json.
-//
-// exam_mode is deliberately NOT exported: real vs practice is decided by the
-// page you import on, so a file that carried it would be asserting something
-// the importer ignores. Same reason subject_id isn't here.
+// Serbian Cyrillic to Latin, for download names only.
+const CYR: Record<string, string> = {
+  а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', ђ: 'dj', е: 'e', ж: 'z', з: 'z', и: 'i', ј: 'j', к: 'k',
+  л: 'l', љ: 'lj', м: 'm', н: 'n', њ: 'nj', о: 'o', п: 'p', р: 'r', с: 's', т: 't', ћ: 'c', у: 'u',
+  ф: 'f', х: 'h', ц: 'c', ч: 'c', џ: 'dz', ш: 's',
+};
+
+// "Šaljivi test: Đaci" -> "Saljivi_test_Djaci", "Испит" -> "Ispit". Letters
+// are folded to ASCII rather than dropped so the download name stays readable.
+function exportFileName(title: string): string {
+  return title
+    .replace(/[\u0400-\u04ff]/g, (c) => {
+      const lat = CYR[c.toLowerCase()];
+      if (lat === undefined) return c;
+      return c === c.toLowerCase() ? lat : lat[0].toUpperCase() + lat.slice(1);
+    })
+    .replace(/[đĐ]/g, (c) => (c === 'đ' ? 'dj' : 'Dj'))
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9._-]+/gi, '_')
+    .replace(/^_+|_+$/g, '') || 'exam';
+}
+
+// GET /exams/:examId/export - admin/assistant, the download behind the
+// "Export" button. An exam with uploaded images comes out as a zip (exam.json
+// + images/); one without stays a single readable JSON file. Both import back
+// through the same dialog. See lib/examArchive.ts for the shapes.
+router.get('/export', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    if (!(await assertCanManageExam(req, res, examId))) return;
+    const exam = await getOtisakExamById(examId);
+    if (!exam) return res.status(404).json({ error: 'Exam not found' });
+    const payload = await buildExportPayload(exam);
+
+    const safeName = exportFileName(exam.title);
+    if (hasUploadedImages(payload)) {
+      const zip = await buildExamZip(payload);
+      res.setHeader('Content-Type', 'application/zip');
+      res.setHeader('Content-Disposition', `attachment; filename="otisak-${safeName}.zip"`);
+      return res.send(Buffer.from(zip.buffer, zip.byteOffset, zip.length));
+    }
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="otisak-${safeName}.json"`);
+    return res.send(JSON.stringify(payload, null, 2));
+  } catch (error) {
+    console.error('Export exam error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// GET /exams/:examId/export-json - admin/assistant, always a single JSON file,
+// with uploaded images inlined as data: URLs so it still imports on another
+// server. Kept for scripts and API callers; the UI uses /export.
 router.get('/export-json', requireAuth, requireRole(['admin', 'assistant', 'professor']), async (req: Request, res: Response) => {
   try {
     const examId = getExamId(req);
     if (!(await assertCanManageExam(req, res, examId))) return;
     const exam = await getOtisakExamById(examId);
     if (!exam) return res.status(404).json({ error: 'Exam not found' });
-    const questions = await getOtisakQuestions(examId);
+    const payload = await inlinePayloadImages(await buildExportPayload(exam));
 
-    const payload = {
-      version: 1,
-      exam: {
-        title: exam.title,
-        description: exam.description,
-        duration_minutes: Number(exam.duration_minutes),
-        pass_threshold: Number(exam.pass_threshold),
-        has_pass_threshold: !!exam.has_pass_threshold,
-        allow_review: exam.allow_review,
-        shuffle_questions: exam.shuffle_questions,
-        shuffle_answers: exam.shuffle_answers,
-        partial_scoring: exam.partial_scoring,
-        negative_points_enabled: exam.negative_points_enabled,
-        negative_points_value: Number(exam.negative_points_value),
-        negative_points_threshold: Number(exam.negative_points_threshold),
-        // Informational only. Import ignores both; the caller picks the subject.
-        subject_name: exam.subject_name,
-        subject_code: exam.subject_code,
-      },
-      questions: questions.map((q) => ({
-        type: q.type,
-        text: q.text,
-        content: q.content,
-        points: Number(q.points),
-        position: q.position,
-        explanation: q.explanation,
-        ai_grading_instructions: q.ai_grading_instructions,
-        // Carry the single/multi distinction in the export so a round-trip
-        // (export → re-import) preserves authoring intent - not just whatever
-        // is_correct count happens to be on disk.
-        multi_answer: q.multi_answer,
-        answers: q.answers.map((a) => ({
-          text: a.text,
-          is_correct: a.is_correct,
-          position: a.position,
-        })),
-      })),
-    };
-
-    const safeName = exam.title.replace(/[^a-z0-9._-]+/gi, '_');
+    const safeName = exportFileName(exam.title);
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="otisak-${safeName}.json"`);
     return res.send(JSON.stringify(payload, null, 2));

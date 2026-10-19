@@ -281,7 +281,7 @@ export default function ManagePage() {
                           {t('manage.edit')}
                         </Button>
                         <a
-                          href={`/api/otisak/exams/${exam.id}/export-json`}
+                          href={`/api/otisak/exams/${exam.id}/export`}
                           className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
                           title={t('manage.exportJson')}
                         >

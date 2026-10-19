@@ -35,7 +35,7 @@ export type DocsPage = {
 // so admins/assistants read it the way the system is meant to be used (subjects
 // first, then users, then exams, then practice, then running tests). The JSON
 // reference goes last: it's looked up, not read through.
-const FILE_ORDER = ['README', 'subjects', 'users', 'exams', 'practice', 'running-tests', 'json-format'];
+const FILE_ORDER = ['README', 'subjects', 'users', 'exams', 'practice', 'running-tests', 'json-format', 'ai-konverzija'];
 
 // Fallback titles used when a doc has no first H1.
 const FALLBACK_TITLE: Record<string, { sr: string; en: string }> = {
@@ -43,6 +43,7 @@ const FALLBACK_TITLE: Record<string, { sr: string; en: string }> = {
   exams: { sr: 'Upravljanje ispitima', en: 'Managing exams' },
   practice: { sr: 'Vežbe', en: 'Practice exams' },
   'json-format': { sr: 'JSON format ispita', en: 'Exam JSON format' },
+  'ai-konverzija': { sr: 'Konverzija pitanja pomoću AI', en: 'Converting questions with AI' },
   'running-tests': { sr: 'Pokretanje i vođenje testa', en: 'Running tests' },
   users: { sr: 'Upravljanje korisnicima', en: 'Managing users' },
   subjects: { sr: 'Upravljanje predmetima', en: 'Managing subjects' },
