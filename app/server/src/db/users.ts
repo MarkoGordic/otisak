@@ -1,6 +1,7 @@
 import { query } from './client';
 import type { User, UserRole } from './types';
 import { logger } from '../lib/logger';
+import { lookupLdapStudent, LdapUnavailableError } from '../lib/ldap';
 
 // Case-insensitive on purpose: ELPIS ID profile sync stores emails lowercased,
 // so an account created with a mixed-case email must still match the exact
@@ -245,6 +246,61 @@ export async function findOrCreateLdapUser(p: {
     index_number: p.indexNumber || undefined,
     ldap_uid: p.uid,
   });
+}
+
+// The index-number exam join: the local account by index, or, when the student has never signed in
+// to OTISAK, an account created from the directory entry (FreeIPA login = index number). Never
+// reactivates a deactivated account.
+export async function findOrProvisionStudentByIndex(
+  indexNumber: string
+): Promise<{ user: User | null; error?: string }> {
+  const local = await findUserByIndexNumber(indexNumber);
+  if (local) return { user: local };
+
+  let profile;
+  try {
+    profile = await lookupLdapStudent(indexNumber);
+  } catch (err) {
+    if (err instanceof LdapUnavailableError) {
+      return { user: null, error: 'Directory service unavailable. Try again or contact your administrator.' };
+    }
+    throw err;
+  }
+  const notFound = { user: null, error: 'Index number not found. Contact your administrator.' };
+  if (!profile) return notFound;
+
+  // An account for this login may exist without an index number on it. Use it only if it is an active
+  // student account; never change its role here (an anonymous lookup cannot see IPA groups, so it must
+  // not turn a student assistant into a student). Staff do not take real exams by index anyway.
+  const existing = (
+    await query<User>(
+      `SELECT * FROM users WHERE ldap_uid = $1 OR LOWER(email) = LOWER($2)
+       ORDER BY (ldap_uid = $1) DESC LIMIT 1`,
+      [profile.uid, profile.email]
+    )
+  ).rows[0];
+  if (existing) {
+    if (!existing.is_active) return { user: null, error: 'This account is disabled. Contact your administrator.' };
+    if (existing.role !== 'student') return notFound;
+    await query(
+      `UPDATE users SET ldap_uid = COALESCE(ldap_uid, $2), index_number = COALESCE(index_number, $3),
+              updated_at = NOW()
+       WHERE id = $1`,
+      [existing.id, profile.uid, profile.indexNumber]
+    );
+    return { user: await findUserById(existing.id) };
+  }
+
+  const user = await createUser({
+    email: profile.email,
+    password_hash: '!', // LDAP-only account, like findOrCreateLdapUser
+    name: profile.name || undefined,
+    role: 'student',
+    index_number: profile.indexNumber || undefined,
+    ldap_uid: profile.uid,
+  });
+  logger.info({ uid: profile.uid, userId: user.id }, 'student account created from the directory at exam join');
+  return { user };
 }
 
 export async function updateUser(

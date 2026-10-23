@@ -32,6 +32,15 @@ const ADMIN_GROUPS = csv(process.env.LDAP_ADMIN_GROUPS) .length ? csv(process.en
 const PROFESSOR_GROUPS = csv(process.env.LDAP_PROFESSOR_GROUPS).length ? csv(process.env.LDAP_PROFESSOR_GROUPS) : ['professors'];
 const ASSISTANT_GROUPS = csv(process.env.LDAP_ASSISTANT_GROUPS).length ? csv(process.env.LDAP_ASSISTANT_GROUPS) : ['assistants'];
 const TIMEOUT = Number(process.env.LDAP_TIMEOUT_MS || 8000);
+// Directory lookup without the user's password (the index-number exam join, see lookupLdapStudent).
+// Optional read account (FreeIPA sysaccount): without it the search is anonymous, and FreeIPA then
+// hides group membership, mail and the lock flag.
+const BIND_DN = process.env.LDAP_BIND_DN || '';
+const BIND_PASSWORD = process.env.LDAP_BIND_PASSWORD || '';
+const USERS_BASE = process.env.LDAP_USERS_BASE || '';         // default cn=users,cn=accounts,<base>
+// What a student login (= index number) looks like, e.g. e223-2026, in15-2023. Used to tell students
+// from staff when the anonymous search cannot see groups.
+const STUDENT_UID_RE = new RegExp(process.env.LDAP_STUDENT_UID_PATTERN || '^[a-z]{1,6}[0-9]{1,6}-[0-9]{4}$');
 
 export function ldapEnabled(): boolean {
   return bool(process.env.LDAP_ENABLED) && !!URL && !!BASE_DN;
@@ -83,6 +92,59 @@ function roleFor(cns: string[]): UserRole {
   if (cns.some((g) => PROFESSOR_GROUPS.includes(g))) return 'professor';
   if (cns.some((g) => ASSISTANT_GROUPS.includes(g))) return 'assistant';
   return 'student';
+}
+
+// Index number as typed ("IN 15/2023") -> FreeIPA login ("in15-2023").
+export function indexToUid(raw: string): string {
+  return (raw || '').trim().toLowerCase().replace(/\s+/g, '').replace(/\//g, '-');
+}
+
+// Finds a STUDENT in the directory by index number, without their password. Used when a student
+// joins an exam by index and has no OTISAK account yet, so the account can be created on the spot.
+// Returns null when there is no such student, when the entry belongs to staff, or when it is locked.
+// With LDAP_BIND_DN set the role comes from group membership like at login; on an anonymous search
+// FreeIPA hides the groups, so only a login shaped like an index number counts as a student.
+// Throws LdapUnavailableError if the directory can't be reached or the read account is rejected.
+export async function lookupLdapStudent(rawIndex: string): Promise<LdapProfile | null> {
+  if (!ldapEnabled()) return null;
+  const uid = indexToUid(rawIndex);
+  if (!UID_RE.test(uid)) return null;
+
+  const client = new Client({ url: URL, timeout: TIMEOUT, connectTimeout: TIMEOUT, tlsOptions: tlsOptions() });
+  try {
+    if (BIND_DN && BIND_PASSWORD) await client.bind(BIND_DN, BIND_PASSWORD);
+    // uid passed UID_RE (no parentheses, asterisks or backslashes), so it is safe in the filter.
+    const { searchEntries } = await client.search(USERS_BASE || `cn=users,cn=accounts,${BASE_DN}`, {
+      scope: 'one',
+      filter: `(uid=${uid})`,
+      sizeLimit: 1,
+      attributes: ['uid', 'cn', 'displayName', 'mail', 'memberOf', 'nsAccountLock'],
+    });
+    const e = searchEntries[0] as Record<string, unknown> | undefined;
+    if (!e) return null;
+    if (/^true$/i.test(String(first(e.nsAccountLock) || ''))) return null;
+
+    const groups = groupCns(e.memberOf);
+    if (groups.length) {
+      if (roleFor(groups) !== 'student') return null;
+    } else if (!STUDENT_UID_RE.test(uid)) {
+      return null;
+    }
+    const name = first(e.displayName) || first(e.cn) || null;
+    const email = (first(e.mail) || (DOMAIN ? `${uid}@${DOMAIN}` : `${uid}@ldap.local`)).toLowerCase();
+    return { uid, name, email, role: 'student', indexNumber: uid };
+  } catch (err) {
+    const code = (err as { code?: number })?.code;
+    if (code === 32) return null; // no such object
+    logger.error({ err }, 'ldap: student lookup failed');
+    throw new LdapUnavailableError('directory service unavailable');
+  } finally {
+    try {
+      await client.unbind();
+    } catch {
+      /* ignore unbind errors */
+    }
+  }
 }
 
 // Returns the profile on valid credentials, null on bad credentials / unknown user.

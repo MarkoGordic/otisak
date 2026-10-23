@@ -4,6 +4,7 @@
 import { query } from './client';
 import { getOtisakExamById } from './otisak-exams';
 import { enrollUserInExam } from './otisak-enrollments';
+import { findOrProvisionStudentByIndex } from './users';
 import type {
   OtisakExam,
 } from './otisak-types';
@@ -34,18 +35,15 @@ export async function joinExamByIndex(examId: string, indexNumber: string): Prom
   user: { id: string; name: string | null; index_number: string | null } | null;
   error?: string;
 }> {
-  const normalized = indexNumber.trim().toLowerCase().replace(/\s+/g, '');
-  const userResult = await query<{ id: string; name: string | null; index_number: string | null }>(
-    `SELECT id, name, index_number FROM users
-     WHERE LOWER(REPLACE(index_number, ' ', '')) = $1 AND is_active = TRUE LIMIT 1`,
-    [normalized]
-  );
-  const user = userResult.rows[0];
-  if (!user) return { user: null, error: 'Index number not found. Contact your administrator.' };
-
+  // Exam first, so a join attempt on an inactive exam never creates an account.
   const exam = await getOtisakExamById(examId);
   if (!exam) return { user: null, error: 'Exam not found.' };
   if (exam.status !== 'active') return { user: null, error: 'Exam is not active.' };
+
+  // The local account by index, or one created from FreeIPA for a student who never signed in.
+  const found = await findOrProvisionStudentByIndex(indexNumber);
+  if (!found.user) return { user: null, error: found.error };
+  const user = { id: found.user.id, name: found.user.name, index_number: found.user.index_number };
 
   await enrollUserInExam(examId, user.id);
   return { user };

@@ -20,7 +20,7 @@ import {
   listRequestsForUser,
   isSubmittableByStudent,
 } from '../db/exam-requests';
-import { findUserById, findUserByIndexNumber } from '../db/users';
+import { findUserById, findOrProvisionStudentByIndex } from '../db/users';
 import { broadcastExamEvent } from '../ws/events';
 import { refreshLiveStatsNow } from '../ws/liveStatsAggregator';
 import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
@@ -289,9 +289,10 @@ router.post('/lookup-by-index', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Exam is not active' });
     }
 
-    const user = await findUserByIndexNumber(index_number.trim());
+    // Creates the account from FreeIPA when the student has never signed in to OTISAK.
+    const { user, error } = await findOrProvisionStudentByIndex(index_number.trim());
     if (!user) {
-      return res.status(404).json({ error: 'Index number not found. Contact your administrator.' });
+      return res.status(404).json({ error });
     }
 
     return res.json({
