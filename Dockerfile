@@ -1,4 +1,6 @@
-# syntax=docker/dockerfile:1.6
+# No "# syntax=" line on purpose: it makes BuildKit fetch the Dockerfile frontend from Docker Hub
+# itself, bypassing the daemon's proxy, which fails on hosts that reach the internet only through one.
+# The built-in frontend of Docker 23+ already supports RUN --mount.
 #
 # Build optimisations:
 #   - BuildKit cache mounts for apt and npm so re-runs reuse downloaded
@@ -56,6 +58,24 @@ COPY app/server/package.json app/server/package-lock.json* ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci --omit=dev --no-audit --no-fund
 
+# sharp: the prebuilt linux-x64 binary needs an x86-64-v2 CPU (SSE4.2). On an older CPU (e.g. a Xeon
+# E5420) sharp has to use its WebAssembly build instead, which needs SSE4.1 visible to the machine (on
+# Proxmox: CPU type "host", not the default kvm64). The native package must go: sharp loads it first,
+# rejects it on such a CPU and never tries the WebAssembly one.
+# SHARP_WASM=auto picks WebAssembly when the build host has no sse4_2; 1 forces it, 0 keeps native.
+# The image is meant to be built on the host that runs it.
+ARG SHARP_WASM=auto
+RUN --mount=type=cache,target=/root/.npm \
+    if [ "$SHARP_WASM" = 1 ] || { [ "$SHARP_WASM" = auto ] && ! grep -qw sse4_2 /proc/cpuinfo; }; then \
+        v="$(node -p "require('./node_modules/sharp/package.json').version")" \
+        && npm install --no-save --force --no-audit --no-fund "@img/sharp-wasm32@${v}" \
+        && rm -rf node_modules/@img/sharp-linux-x64 node_modules/@img/sharp-libvips-linux-x64 \
+                  node_modules/@img/sharp-linuxmusl-x64 node_modules/@img/sharp-libvips-linuxmusl-x64 \
+        && echo "sharp: WebAssembly build"; \
+    else \
+        echo "sharp: native build"; \
+    fi
+
 # ========================================
 # Stage 3: Production runner
 # ========================================
@@ -96,6 +116,9 @@ COPY --from=server-build      /app/server/package.json   ./server/
 
 # Client: pre-built static assets
 COPY --from=client-build /app/client/dist ./client/dist
+
+# Fail the build, not the server start, when sharp cannot run on this CPU (see SHARP_WASM above).
+RUN cd /app/server && node -e "require('sharp')({create:{width:8,height:8,channels:3,background:'red'}}).webp().toBuffer().then(() => console.log('sharp ok'))"
 
 USER otisak
 EXPOSE 3001
