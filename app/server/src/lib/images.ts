@@ -1,11 +1,22 @@
 import crypto from 'crypto';
-import sharp from 'sharp';
+import { Jimp } from 'jimp';
+import { imageSize } from 'image-size';
 import { query } from '../db/client';
 
 // Uploaded question images. Every upload is normalised server-side, whatever
 // the client sent: EXIF-rotated, scaled down to fit MAX_DIM, metadata stripped
-// (phone photos carry GPS), and re-encoded as WebP under TARGET_BYTES. A 12 MB
-// phone photo lands as a few hundred KB; a small screenshot stays crisp.
+// (phone photos carry GPS), and re-encoded under TARGET_BYTES: photos as JPEG,
+// screenshots, diagrams and anything with transparency as PNG. A 12 MB phone
+// photo lands as a few hundred KB; a small screenshot stays crisp.
+//
+// Pure JavaScript on purpose (jimp + image-size, no native or WebAssembly
+// code): OTISAK runs on old CPUs (Xeon E5420, no SSE4.2) where neither the
+// prebuilt libvips of sharp nor its WebAssembly build (needs Wasm SIMD) loads.
+// It is slower than libvips, which is fine for authoring-time uploads; at most
+// MAX_PARALLEL images are decoded at once to bound RAM.
+//
+// WebP and GIF (WebP from exports made by older OTISAK versions, animated
+// GIFs) cannot be re-encoded here; they are checked and stored as they are.
 //
 // Bytes live in Postgres (otisak_images) rather than on disk: the container
 // never writes to its filesystem, and the pgdata volume plus pg_dump already
@@ -27,16 +38,13 @@ const FALLBACK_DIM = 1280;
 const TARGET_BYTES = 500 * 1024;
 const LOSSY_QUALITIES = [82, 72, 62];
 
-// Decompression-bomb guard: a tiny file that decodes to gigapixels is refused
-// before libvips allocates the pixel buffer.
-const MAX_INPUT_PIXELS = 120_000_000;
+// Decompression-bomb guard: the pixel count is read from the header and a file
+// that would decode to more than this is refused before any pixel buffer is
+// allocated. Pure-JS decoding holds RGBA in memory (4 bytes per pixel), so the
+// limit is lower than a libvips pipeline would need: 50 MP = 200 MB.
+const MAX_INPUT_PIXELS = 50_000_000;
 
-// libvips keeps an operation cache and spins up a thread pool per image. On a
-// small server several parallel 25 MB uploads would otherwise compete for RAM,
-// so the cache is off and at most MAX_PARALLEL images are decoded at once.
-sharp.cache(false);
-sharp.concurrency(2);
-const MAX_PARALLEL = 2;
+const MAX_PARALLEL = 1;
 let running = 0;
 const waiting: Array<() => void> = [];
 
@@ -53,54 +61,100 @@ async function withSlot<T>(fn: () => Promise<T>): Promise<T> {
 
 export class ImageError extends Error {}
 
-type Encoded = { data: Buffer; width: number; height: number };
+type Mime = 'image/jpeg' | 'image/png' | 'image/webp' | 'image/gif';
+type Encoded = { data: Buffer; width: number; height: number; mime: Mime };
 
-async function encode(input: Buffer, dim: number, opts: sharp.WebpOptions): Promise<Encoded> {
-  const { data, info } = await sharp(input, { limitInputPixels: MAX_INPUT_PIXELS })
-    .rotate()
-    .resize({ width: dim, height: dim, fit: 'inside', withoutEnlargement: true })
-    .webp({ effort: 4, ...opts })
-    .toBuffer({ resolveWithObject: true });
-  return { data, width: info.width, height: info.height };
+// Formats jimp decodes and re-encodes; WebP and GIF are stored as they are.
+const DECODABLE = new Set(['jpg', 'png', 'bmp', 'tiff']);
+const PASSTHROUGH: Record<string, Mime> = { webp: 'image/webp', gif: 'image/gif' };
+
+// JPEG segments before the image data: APP1 carries EXIF and XMP (camera,
+// GPS, orientation), APP2 an ICC profile. None of them -> already clean.
+function jpegIsClean(buf: Buffer): boolean {
+  let i = 2;
+  while (i + 4 <= buf.length && buf[i] === 0xff) {
+    const marker = buf[i + 1];
+    if (marker === 0xda) return true; // start of scan, no more metadata
+    if (marker === 0xe1 || marker === 0xe2) return false;
+    i += 2 + buf.readUInt16BE(i + 2);
+  }
+  return true;
 }
 
-// Screenshots, diagrams and anything with transparency try lossless first:
-// lossy compression smears thin lines and small text, and flat-colour images
-// usually compress well losslessly anyway. Photos go straight to the lossy
-// ladder. Whatever wins the ladder is kept even if it is still over budget,
-// after one last step down in size.
+// PNG chunks that carry EXIF or text metadata.
+function pngIsClean(buf: Buffer): boolean {
+  let i = 8;
+  while (i + 8 <= buf.length) {
+    const type = buf.toString('latin1', i + 4, i + 8);
+    if (type === 'eXIf' || type === 'tEXt' || type === 'iTXt' || type === 'zTXt') return false;
+    if (type === 'IDAT') return true;
+    i += 12 + buf.readUInt32BE(i);
+  }
+  return true;
+}
+
 async function processImage(input: Buffer): Promise<Encoded> {
-  let meta: sharp.Metadata;
+  let header: ReturnType<typeof imageSize>;
   try {
-    // Header only, no pixel decode, so the pixel limit is checked by hand
-    // below to report it as its own error.
-    meta = await sharp(input, { limitInputPixels: false }).metadata();
+    header = imageSize(input);
   } catch {
     throw new ImageError('UNSUPPORTED_IMAGE');
   }
-  if (!meta.width || !meta.height) throw new ImageError('UNSUPPORTED_IMAGE');
-  if (meta.width * meta.height > MAX_INPUT_PIXELS) throw new ImageError('IMAGE_TOO_MANY_PIXELS');
+  const { type } = header;
+  let width = header.width ?? 0;
+  let height = header.height ?? 0;
+  if (!type || !width || !height) throw new ImageError('UNSUPPORTED_IMAGE');
+  if (width * height > MAX_INPUT_PIXELS) throw new ImageError('IMAGE_TOO_MANY_PIXELS');
+  // EXIF orientations 5-8 swap the axes.
+  if ((header.orientation ?? 1) >= 5) [width, height] = [height, width];
+
+  if (PASSTHROUGH[type]) {
+    return { data: input, width, height, mime: PASSTHROUGH[type] };
+  }
+  if (!DECODABLE.has(type)) throw new ImageError('UNSUPPORTED_IMAGE');
 
   // Already in the shape this pipeline produces (typically one of our own
   // images coming back through an export/import round trip): keep the bytes.
   // Re-encoding would cost quality on every round trip and, with different
   // bytes, defeat the content-addressed dedupe.
-  const clean = !meta.exif && !meta.xmp && !meta.icc && (meta.orientation ?? 1) === 1 && (meta.pages ?? 1) === 1;
-  if (meta.format === 'webp' && clean && input.length <= TARGET_BYTES && Math.max(meta.width, meta.height) <= MAX_DIM) {
-    return { data: input, width: meta.width, height: meta.height };
-  }
+  const fits = input.length <= TARGET_BYTES && Math.max(width, height) <= MAX_DIM;
+  if (fits && type === 'jpg' && jpegIsClean(input)) return { data: input, width, height, mime: 'image/jpeg' };
+  if (fits && type === 'png' && pngIsClean(input)) return { data: input, width, height, mime: 'image/png' };
 
-  const graphic = meta.hasAlpha || meta.format === 'png' || meta.format === 'gif' || meta.format === 'svg';
-  if (graphic) {
-    const lossless = await encode(input, MAX_DIM, { lossless: true });
-    if (lossless.data.length <= TARGET_BYTES) return lossless;
-  }
+  // Decoding applies the EXIF orientation; re-encoding drops all metadata.
+  const image = await Jimp.read(input);
+  const fit = (dim: number) => {
+    if (Math.max(image.width, image.height) > dim) image.scaleToFit({ w: dim, h: dim });
+  };
+  const out = async (mime: 'image/jpeg' | 'image/png', quality?: number): Promise<Encoded> => {
+    const data = mime === 'image/jpeg'
+      ? await image.getBuffer('image/jpeg', { quality })
+      : await image.getBuffer('image/png');
+    return { data, width: image.width, height: image.height, mime };
+  };
+  fit(MAX_DIM);
 
+  // Screenshots, diagrams and anything with transparency try PNG (lossless)
+  // first: lossy compression smears thin lines and small text, and flat-colour
+  // images compress well losslessly anyway. Transparency has to stay PNG (JPEG
+  // has none), one step smaller if needed. Photos go straight to the JPEG
+  // ladder; whatever wins it is kept even if still over budget, after one last
+  // step down in size.
+  const alpha = image.hasAlpha();
+  if (alpha || type !== 'jpg') {
+    const png = await out('image/png');
+    if (png.data.length <= TARGET_BYTES) return png;
+    if (alpha) {
+      fit(FALLBACK_DIM);
+      return out('image/png');
+    }
+  }
   for (const quality of LOSSY_QUALITIES) {
-    const out = await encode(input, MAX_DIM, { quality, alphaQuality: 90 });
-    if (out.data.length <= TARGET_BYTES) return out;
+    const jpg = await out('image/jpeg', quality);
+    if (jpg.data.length <= TARGET_BYTES) return jpg;
   }
-  return encode(input, FALLBACK_DIM, { quality: LOSSY_QUALITIES[LOSSY_QUALITIES.length - 1], alphaQuality: 90 });
+  fit(FALLBACK_DIM);
+  return out('image/jpeg', LOSSY_QUALITIES[LOSSY_QUALITIES.length - 1]);
 }
 
 export type StoredImage = {
@@ -121,8 +175,8 @@ export async function storeImage(input: Buffer, createdBy: string | null): Promi
     enc = await withSlot(() => processImage(input));
   } catch (err) {
     if (err instanceof ImageError) throw err;
-    // libvips errors (truncated file, pixel limit, unsupported codec such as
-    // HEIC/HEVC) all mean the same thing to the uploader.
+    // Decoder errors (truncated or corrupt file) mean the same thing to the
+    // uploader as an unsupported format such as HEIC.
     throw new ImageError('UNSUPPORTED_IMAGE');
   }
 
@@ -131,10 +185,10 @@ export async function storeImage(input: Buffer, createdBy: string | null): Promi
   // existing row's id on a duplicate.
   const r = await query<{ id: string }>(
     `INSERT INTO otisak_images (sha256, mime, width, height, bytes, data, created_by)
-     VALUES ($1, 'image/webp', $2, $3, $4, $5, $6)
+     VALUES ($1, $7, $2, $3, $4, $5, $6)
      ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
      RETURNING id`,
-    [sha, enc.width, enc.height, enc.data.length, enc.data, createdBy]
+    [sha, enc.width, enc.height, enc.data.length, enc.data, createdBy, enc.mime]
   );
   const id = r.rows[0].id;
   return {
