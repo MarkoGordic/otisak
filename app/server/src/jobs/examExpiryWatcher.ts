@@ -25,7 +25,7 @@ async function tick(): Promise<void> {
     // submitted attempts and still need to flip to 'completed'.
     const result = await query<{ id: string }>(
       `SELECT id FROM otisak_exams
-       WHERE status = 'active' AND exam_started_at IS NOT NULL`
+       WHERE status = 'active' AND exam_started_at IS NOT NULL`,
     );
     for (const row of result.rows) {
       try {

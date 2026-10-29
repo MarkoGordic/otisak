@@ -40,9 +40,12 @@ export function LangProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const t = useCallback((key: string, params?: Record<string, string | number>) => {
-    return translate(key, locale, params);
-  }, [locale]);
+  const t = useCallback(
+    (key: string, params?: Record<string, string | number>) => {
+      return translate(key, locale, params);
+    },
+    [locale],
+  );
 
   if (!mounted) return null;
 

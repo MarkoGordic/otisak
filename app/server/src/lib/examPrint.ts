@@ -14,9 +14,16 @@ export type PrintableExamResult =
 // browser renders.
 function escapeHtml(s: unknown): string {
   if (s === null || s === undefined) return '';
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>
-  )[c]);
+  return String(s).replace(
+    /[&<>"']/g,
+    (c) =>
+      (
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }) as Record<
+          string,
+          string
+        >
+      )[c],
+  );
 }
 
 // A1, ..., Z, AA, ... for option/column lettering.
@@ -51,7 +58,12 @@ function seededShuffle(arr: string[], seed: string): string[] {
     .map((x) => x.el);
 }
 
-function parseContent(content: string | null): { items?: string[]; left?: string[]; right?: string[]; blanks?: Array<{ id: string }> } {
+function parseContent(content: string | null): {
+  items?: string[];
+  left?: string[];
+  right?: string[];
+  blanks?: Array<{ id: string }>;
+} {
   try {
     return JSON.parse(content || '{}');
   } catch {
@@ -67,10 +79,13 @@ const FILL_BLANK_RE = /(___[A-Z0-9_]+___)/g;
 const FILL_BLANK_ONE = /^___[A-Z0-9_]+___$/;
 
 // A writeable underline that stretches to fill its row.
-const FILL = '<span style="flex:1;border-bottom:1px solid #111;height:15px;margin-left:8px;"></span>';
+const FILL =
+  '<span style="flex:1;border-bottom:1px solid #111;height:15px;margin-left:8px;"></span>';
 // An empty box the student writes a single mark/letter/number into.
-const BOX_SM = '<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #111;border-radius:3px;flex:0 0 auto;margin-top:1px;"></span>';
-const BOX_LG = '<span style="display:inline-block;width:26px;height:22px;border:1.5px solid #111;border-radius:3px;flex:0 0 auto;"></span>';
+const BOX_SM =
+  '<span style="display:inline-block;width:14px;height:14px;border:1.5px solid #111;border-radius:3px;flex:0 0 auto;margin-top:1px;"></span>';
+const BOX_LG =
+  '<span style="display:inline-block;width:26px;height:22px;border:1.5px solid #111;border-radius:3px;flex:0 0 auto;"></span>';
 
 function fillField(label: string, flex: number): string {
   return `<div style="display:flex;align-items:flex-end;flex:${flex};min-width:0;">
@@ -80,33 +95,42 @@ function fillField(label: string, flex: number): string {
 
 function renderChoice(q: OtisakQuestionWithAnswers): string {
   const mono = q.type === 'code';
-  const opts = q.answers.map((a, i) => {
-    let body: string;
-    if (mono) {
-      body = `<span style="white-space:pre-wrap;font-family:'JetBrains Mono','DejaVu Sans Mono',monospace;font-size:11px;">${escapeHtml(a.text)}</span>`;
-    } else {
-      body = `<span>${escapeHtml(a.text)}</span>`;
-    }
-    return `<div style="display:flex;align-items:flex-start;gap:9px;margin:5px 0;font-size:12px;">
+  const opts = q.answers
+    .map((a, i) => {
+      let body: string;
+      if (mono) {
+        body = `<span style="white-space:pre-wrap;font-family:'JetBrains Mono','DejaVu Sans Mono',monospace;font-size:11px;">${escapeHtml(a.text)}</span>`;
+      } else {
+        body = `<span>${escapeHtml(a.text)}</span>`;
+      }
+      return `<div style="display:flex;align-items:flex-start;gap:9px;margin:5px 0;font-size:12px;">
       ${BOX_SM}
       <span style="font-weight:700;flex:0 0 auto;">${letter(i)})</span>
       <span style="flex:1;min-width:0;">${body}</span>
     </div>`;
-  }).join('');
+    })
+    .join('');
   return `<div style="margin-top:6px;">${opts}</div>`;
 }
 
 function renderOpenText(points: number): string {
   const n = Math.min(14, Math.max(4, Math.round(points) * 2 + 2));
-  const lines = Array.from({ length: n }, () => '<div style="border-bottom:1px solid #999;height:22px;"></div>').join('');
+  const lines = Array.from(
+    { length: n },
+    () => '<div style="border-bottom:1px solid #999;height:22px;"></div>',
+  ).join('');
   return `<div style="margin-top:8px;">${lines}</div>`;
 }
 
 function renderOrdering(q: OtisakQuestionWithAnswers, hint: string): string {
   const items = seededShuffle(parseContent(q.content).items || [], q.id);
-  const rows = items.map((it) => `<div style="display:flex;align-items:center;gap:10px;margin:5px 0;font-size:12px;">
+  const rows = items
+    .map(
+      (it) => `<div style="display:flex;align-items:center;gap:10px;margin:5px 0;font-size:12px;">
     ${BOX_LG}<span style="flex:1;min-width:0;">${escapeHtml(it)}</span>
-  </div>`).join('');
+  </div>`,
+    )
+    .join('');
   return `<div style="font-size:10px;color:#444;font-style:italic;margin:4px 0 6px;">${escapeHtml(hint)}</div>${rows}`;
 }
 
@@ -114,14 +138,25 @@ function renderMatching(q: OtisakQuestionWithAnswers, hint: string): string {
   const data = parseContent(q.content);
   const left = data.left || [];
   const right = seededShuffle(data.right || [], q.id);
-  const leftCol = left.map((it, i) => `<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px;">
+  const leftCol = left
+    .map(
+      (it, i) => `<div style="display:flex;align-items:center;gap:8px;margin:5px 0;font-size:12px;">
     <span style="font-weight:700;flex:0 0 auto;">${i + 1}.</span>
     <span style="flex:1;min-width:0;">${escapeHtml(it)}</span>${BOX_LG}
-  </div>`).join('');
-  const rightCol = right.map((it, j) => `<div style="display:flex;align-items:flex-start;gap:8px;margin:5px 0;font-size:12px;">
+  </div>`,
+    )
+    .join('');
+  const rightCol = right
+    .map(
+      (
+        it,
+        j,
+      ) => `<div style="display:flex;align-items:flex-start;gap:8px;margin:5px 0;font-size:12px;">
     <span style="font-weight:700;flex:0 0 auto;">${letter(j)})</span>
     <span style="flex:1;min-width:0;">${escapeHtml(it)}</span>
-  </div>`).join('');
+  </div>`,
+    )
+    .join('');
   return `<div style="font-size:10px;color:#444;font-style:italic;margin:4px 0 6px;">${escapeHtml(hint)}</div>
     <div style="display:flex;gap:24px;">
       <div style="flex:1;min-width:0;">${leftCol}</div>
@@ -133,11 +168,13 @@ function renderMatching(q: OtisakQuestionWithAnswers, hint: string): string {
 // underlines. Text segments are escaped; only the placeholder is replaced.
 function renderFillBlankText(text: string): string {
   const parts = text.split(FILL_BLANK_RE);
-  return parts.map((p) =>
-    FILL_BLANK_ONE.test(p)
-      ? '<span style="display:inline-block;border-bottom:1px solid #111;min-width:38mm;height:14px;vertical-align:-2px;margin:0 3px;"></span>'
-      : escapeHtml(p),
-  ).join('');
+  return parts
+    .map((p) =>
+      FILL_BLANK_ONE.test(p)
+        ? '<span style="display:inline-block;border-bottom:1px solid #111;min-width:38mm;height:14px;vertical-align:-2px;margin:0 3px;"></span>'
+        : escapeHtml(p),
+    )
+    .join('');
 }
 
 function parseCodeSnippet(content: string): string {
@@ -165,7 +202,10 @@ async function renderMedia(q: OtisakQuestionWithAnswers): Promise<string> {
   return '';
 }
 
-export async function buildPrintableExamHTML(examId: string, locale?: ReportLocale | string): Promise<PrintableExamResult> {
+export async function buildPrintableExamHTML(
+  examId: string,
+  locale?: ReportLocale | string,
+): Promise<PrintableExamResult> {
   const S = examPrintStrings(locale);
 
   const exam = await getOtisakExamById(examId);
@@ -182,25 +222,29 @@ export async function buildPrintableExamHTML(examId: string, locale?: ReportLoca
 
   const media = await Promise.all(questions.map(renderMedia));
 
-  const questionsHtml = questions.map((q, idx) => {
-    const points = Number(q.points || 0);
-    const isMulti = q.type !== 'open_text' && (q.type === 'text' || q.type === 'code' || q.type === 'image') && q.multi_answer;
+  const questionsHtml = questions
+    .map((q, idx) => {
+      const points = Number(q.points || 0);
+      const isMulti =
+        q.type !== 'open_text' &&
+        (q.type === 'text' || q.type === 'code' || q.type === 'image') &&
+        q.multi_answer;
 
-    // For fill_blank the prompt itself carries the blanks, so it doubles as the body.
-    const head = q.type === 'fill_blank' ? renderFillBlankText(q.text) : escapeHtml(q.text);
+      // For fill_blank the prompt itself carries the blanks, so it doubles as the body.
+      const head = q.type === 'fill_blank' ? renderFillBlankText(q.text) : escapeHtml(q.text);
 
-    let body = '';
-    if (q.type === 'open_text') body = renderOpenText(points);
-    else if (q.type === 'ordering') body = renderOrdering(q, S.orderingHint);
-    else if (q.type === 'matching') body = renderMatching(q, S.matchingHint);
-    else if (q.type === 'fill_blank') body = '';
-    else body = renderChoice(q); // text / code / image
+      let body = '';
+      if (q.type === 'open_text') body = renderOpenText(points);
+      else if (q.type === 'ordering') body = renderOrdering(q, S.orderingHint);
+      else if (q.type === 'matching') body = renderMatching(q, S.matchingHint);
+      else if (q.type === 'fill_blank') body = '';
+      else body = renderChoice(q); // text / code / image
 
-    const multiHint = isMulti
-      ? `<div style="font-size:10px;color:#444;font-style:italic;margin:2px 0 4px;">${escapeHtml(S.multiSelectHint)}</div>`
-      : '';
+      const multiHint = isMulti
+        ? `<div style="font-size:10px;color:#444;font-style:italic;margin:2px 0 4px;">${escapeHtml(S.multiSelectHint)}</div>`
+        : '';
 
-    return `<div class="q">
+      return `<div class="q">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px;">
         <div style="font-size:12.5px;white-space:pre-wrap;"><b>${idx + 1}.</b> ${head}</div>
         <div style="font-size:10px;color:#333;white-space:nowrap;border:1px solid #aaa;border-radius:4px;padding:1px 7px;">${points} ${escapeHtml(S.pointsShort)}</div>
@@ -209,7 +253,8 @@ export async function buildPrintableExamHTML(examId: string, locale?: ReportLoca
       ${multiHint}
       ${body}
     </div>`;
-  }).join('');
+    })
+    .join('');
 
   const html = `<!DOCTYPE html>
 <html>

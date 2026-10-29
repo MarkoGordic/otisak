@@ -108,7 +108,9 @@ export function OtisakTimer({
     : 'bg-white border-slate-200';
 
   const DigitBox = ({ value }: { value: string }) => (
-    <div className={`relative rounded px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[1.8rem] sm:min-w-[2.2rem] flex justify-center items-center shadow-inner border ${digitBoxSurface}`}>
+    <div
+      className={`relative rounded px-1.5 sm:px-2 py-0.5 sm:py-1 min-w-[1.8rem] sm:min-w-[2.2rem] flex justify-center items-center shadow-inner border ${digitBoxSurface}`}
+    >
       <span
         className={`font-mono text-lg sm:text-2xl md:text-3xl font-bold tracking-widest tabular-nums ${glow} ${digitColor}`}
       >
@@ -119,8 +121,8 @@ export function OtisakTimer({
 
   const Separator = () => (
     <motion.span
-      animate={(paused || notStarted) ? { opacity: 0.6 } : { opacity: [1, 0.4, 1] }}
-      transition={(paused || notStarted) ? { duration: 0 } : { duration: 1, repeat: Infinity }}
+      animate={paused || notStarted ? { opacity: 0.6 } : { opacity: [1, 0.4, 1] }}
+      transition={paused || notStarted ? { duration: 0 } : { duration: 1, repeat: Infinity }}
       className={`text-lg sm:text-2xl font-bold pb-1 ${sepColor}`}
     >
       :

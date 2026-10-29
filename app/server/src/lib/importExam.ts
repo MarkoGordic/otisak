@@ -16,10 +16,9 @@ export type ExamImportResult = {
   questions: number;
 };
 
-export type ExamImportOverrides = Partial<Pick<
-  OtisakExam,
-  'exam_mode' | 'self_service' | 'is_public' | 'subject_id'
->> & { status?: OtisakExam['status'] };
+export type ExamImportOverrides = Partial<
+  Pick<OtisakExam, 'exam_mode' | 'self_service' | 'is_public' | 'subject_id'>
+> & { status?: OtisakExam['status'] };
 
 // Build a single exam + its questions + answers from a JSON dump.
 // Returns the new exam and the number of questions actually created.
@@ -36,32 +35,36 @@ export type ExamImportOverrides = Partial<Pick<
 export async function importExamFromJson(
   body: ExamImportInput,
   createdBy: string,
-  overrides: ExamImportOverrides = {}
+  overrides: ExamImportOverrides = {},
 ): Promise<ExamImportResult> {
   const examIn = body.exam || {};
   const title = typeof examIn.title === 'string' ? examIn.title.trim() : '';
   if (!title) throw new Error('exam.title is required');
 
-  const exam = await createOtisakExam({
-    title,
-    description: typeof examIn.description === 'string' ? examIn.description : null,
-    duration_minutes: Number(examIn.duration_minutes) || 60,
-    pass_threshold: Number(examIn.pass_threshold) || 50,
-    // Default TRUE so legacy exports (pre-flag) round-trip with the historical
-    // pass/fail rendering preserved.
-    has_pass_threshold: typeof examIn.has_pass_threshold === 'boolean' ? examIn.has_pass_threshold : true,
-    exam_mode: overrides.exam_mode ?? 'real',
-    allow_review: !!examIn.allow_review,
-    shuffle_questions: !!examIn.shuffle_questions,
-    shuffle_answers: !!examIn.shuffle_answers,
-    partial_scoring: !!examIn.partial_scoring,
-    negative_points_enabled: !!examIn.negative_points_enabled,
-    negative_points_value: Number(examIn.negative_points_value) || 0,
-    negative_points_threshold: Number(examIn.negative_points_threshold) || 0,
-    subject_id: overrides.subject_id ?? null,
-    self_service: overrides.self_service,
-    is_public: overrides.is_public,
-  } as never, createdBy);
+  const exam = await createOtisakExam(
+    {
+      title,
+      description: typeof examIn.description === 'string' ? examIn.description : null,
+      duration_minutes: Number(examIn.duration_minutes) || 60,
+      pass_threshold: Number(examIn.pass_threshold) || 50,
+      // Default TRUE so legacy exports (pre-flag) round-trip with the historical
+      // pass/fail rendering preserved.
+      has_pass_threshold:
+        typeof examIn.has_pass_threshold === 'boolean' ? examIn.has_pass_threshold : true,
+      exam_mode: overrides.exam_mode ?? 'real',
+      allow_review: !!examIn.allow_review,
+      shuffle_questions: !!examIn.shuffle_questions,
+      shuffle_answers: !!examIn.shuffle_answers,
+      partial_scoring: !!examIn.partial_scoring,
+      negative_points_enabled: !!examIn.negative_points_enabled,
+      negative_points_value: Number(examIn.negative_points_value) || 0,
+      negative_points_threshold: Number(examIn.negative_points_threshold) || 0,
+      subject_id: overrides.subject_id ?? null,
+      self_service: overrides.self_service,
+      is_public: overrides.is_public,
+    } as never,
+    createdBy,
+  );
 
   let createdQuestions = 0;
   for (const q of body.questions || []) {
@@ -78,8 +81,12 @@ export async function importExamFromJson(
       multi_answer: multiAnswer,
       answers: Array.isArray(q.answers)
         ? q.answers
-            .filter((a: unknown): a is { text: string; is_correct?: boolean; position?: number } =>
-              typeof a === 'object' && a !== null && typeof (a as { text?: unknown }).text === 'string')
+            .filter(
+              (a: unknown): a is { text: string; is_correct?: boolean; position?: number } =>
+                typeof a === 'object' &&
+                a !== null &&
+                typeof (a as { text?: unknown }).text === 'string',
+            )
             .map((a: { text: string; is_correct?: boolean; position?: number }, i: number) => ({
               text: a.text,
               is_correct: !!a.is_correct,

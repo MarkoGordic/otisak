@@ -26,7 +26,8 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
       if (!data.authenticated || data.user?.role !== 'admin') {
-        navigate('/dashboard', { replace: true }); return;
+        navigate('/dashboard', { replace: true });
+        return;
       }
       setUser({ name: data.user?.name, role: data.user?.role });
     })();
@@ -35,13 +36,24 @@ export default function AdminSettingsPage() {
   const loadSettings = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/settings', { credentials: 'include' });
-      if (res.ok) { const d = await res.json(); setSettings(d.settings || {}); }
+      if (res.ok) {
+        const d = await res.json();
+        setSettings(d.settings || {});
+      }
       const st = await fetch('/api/auth/elpis/status', { credentials: 'include' });
-      if (st.ok) { const s = await st.json(); setElpisConfigured(!!s.configured); }
-    } catch {} finally { setLoading(false); }
+      if (st.ok) {
+        const s = await st.json();
+        setElpisConfigured(!!s.configured);
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { if (user) loadSettings(); }, [user, loadSettings]);
+  useEffect(() => {
+    if (user) loadSettings();
+  }, [user, loadSettings]);
 
   const toggleSetting = async (key: string) => {
     setSaving(true);
@@ -54,7 +66,7 @@ export default function AdminSettingsPage() {
         body: JSON.stringify({ [key]: newValue }),
       });
       if (res.ok) {
-        setSettings(prev => ({ ...prev, [key]: newValue }));
+        setSettings((prev) => ({ ...prev, [key]: newValue }));
         toast.success(t('settings.saveSuccess'));
       } else {
         const d = await res.json().catch(() => ({}));
@@ -68,7 +80,11 @@ export default function AdminSettingsPage() {
   };
 
   if (!user || loading) {
-    return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
   }
 
   return (
@@ -84,8 +100,12 @@ export default function AdminSettingsPage() {
                 <Settings className="w-6 h-6 text-accent" strokeWidth={1.5} />
               </div>
               <div>
-                <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">Podesavanja sistema</h1>
-                <p className="text-sm text-[var(--text-secondary)]">Upravljanje globalnim podesavanjima platforme</p>
+                <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                  Podesavanja sistema
+                </h1>
+                <p className="text-sm text-[var(--text-secondary)]">
+                  Upravljanje globalnim podesavanjima platforme
+                </p>
               </div>
             </div>
 
@@ -98,20 +118,30 @@ export default function AdminSettingsPage() {
                       <BookOpen className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">Rezim vezbe</h3>
-                      <p className="text-sm text-[var(--text-secondary)]">Dozvoli studentima pristup ispitima za vezbu</p>
+                      <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">
+                        Rezim vezbe
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        Dozvoli studentima pristup ispitima za vezbu
+                      </p>
                     </div>
                   </div>
                   <button
                     onClick={() => toggleSetting('practice_mode_enabled')}
                     disabled={saving}
                     className={`relative w-14 h-7 rounded-full transition-colors ${
-                      settings.practice_mode_enabled === 'true' ? 'bg-success' : 'bg-[var(--text-muted)]'
+                      settings.practice_mode_enabled === 'true'
+                        ? 'bg-success'
+                        : 'bg-[var(--text-muted)]'
                     }`}
                   >
-                    <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
-                      settings.practice_mode_enabled === 'true' ? 'translate-x-7' : 'translate-x-0.5'
-                    }`} />
+                    <div
+                      className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                        settings.practice_mode_enabled === 'true'
+                          ? 'translate-x-7'
+                          : 'translate-x-0.5'
+                      }`}
+                    />
                   </button>
                 </div>
                 <p className="text-xs text-[var(--text-muted)] mt-3 ml-14">
@@ -129,20 +159,30 @@ export default function AdminSettingsPage() {
                       <Fingerprint className="w-5 h-5 text-accent" />
                     </div>
                     <div>
-                      <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">ELPIS ID prijava</h3>
-                      <p className="text-sm text-[var(--text-secondary)]">Prikaži dugme „Nastavi sa ELPIS ID“ na stranici za prijavu</p>
+                      <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">
+                        ELPIS ID prijava
+                      </h3>
+                      <p className="text-sm text-[var(--text-secondary)]">
+                        Prikaži dugme „Nastavi sa ELPIS ID“ na stranici za prijavu
+                      </p>
                     </div>
                   </div>
                   <button
                     onClick={() => elpisConfigured && toggleSetting('elpis_id_login_enabled')}
                     disabled={saving || !elpisConfigured}
                     className={`relative w-14 h-7 rounded-full transition-colors ${
-                      elpisConfigured && settings.elpis_id_login_enabled !== 'false' ? 'bg-success' : 'bg-[var(--text-muted)]'
+                      elpisConfigured && settings.elpis_id_login_enabled !== 'false'
+                        ? 'bg-success'
+                        : 'bg-[var(--text-muted)]'
                     } ${!elpisConfigured ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    <div className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
-                      elpisConfigured && settings.elpis_id_login_enabled !== 'false' ? 'translate-x-7' : 'translate-x-0.5'
-                    }`} />
+                    <div
+                      className={`absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${
+                        elpisConfigured && settings.elpis_id_login_enabled !== 'false'
+                          ? 'translate-x-7'
+                          : 'translate-x-0.5'
+                      }`}
+                    />
                   </button>
                 </div>
                 <p className="text-xs text-[var(--text-muted)] mt-3 ml-14">
@@ -161,13 +201,22 @@ export default function AdminSettingsPage() {
                     <Shield className="w-5 h-5 text-warning" />
                   </div>
                   <div>
-                    <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">Pristup predmetima</h3>
-                    <p className="text-sm text-[var(--text-secondary)]">Samo administratori mogu da kreiraju, menjaju i brisu predmete. Asistenti mogu da upravljaju ispitima i pitanjima u okviru dodeljenih predmeta.</p>
+                    <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">
+                      Pristup predmetima
+                    </h3>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Samo administratori mogu da kreiraju, menjaju i brisu predmete. Asistenti mogu
+                      da upravljaju ispitima i pitanjima u okviru dodeljenih predmeta.
+                    </p>
                   </div>
                 </div>
                 <div className="mt-4 ml-14 flex gap-3">
-                  <Button variant="secondary" size="sm" onClick={() => navigate('/subjects')}>Upravljaj predmetima</Button>
-                  <Button variant="secondary" size="sm" onClick={() => navigate('/admin/users')}>Upravljaj korisnicima</Button>
+                  <Button variant="secondary" size="sm" onClick={() => navigate('/subjects')}>
+                    Upravljaj predmetima
+                  </Button>
+                  <Button variant="secondary" size="sm" onClick={() => navigate('/admin/users')}>
+                    Upravljaj korisnicima
+                  </Button>
                 </div>
               </div>
 
@@ -178,8 +227,13 @@ export default function AdminSettingsPage() {
                     <Shield className="w-5 h-5 text-danger" />
                   </div>
                   <div>
-                    <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">Zabranjivanje rada</h3>
-                    <p className="text-sm text-[var(--text-secondary)]">Tokom aktivnog ispita, mozete zabraniti rad na racunarima studenata iz sobe za ispit. Studentima se prikazuje crveni ekran sa porukom.</p>
+                    <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">
+                      Zabranjivanje rada
+                    </h3>
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      Tokom aktivnog ispita, mozete zabraniti rad na racunarima studenata iz sobe za
+                      ispit. Studentima se prikazuje crveni ekran sa porukom.
+                    </p>
                   </div>
                 </div>
                 <p className="text-xs text-[var(--text-muted)] mt-3 ml-14">
@@ -188,7 +242,9 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
+          <div className="px-4 pb-6 pt-2 flex justify-center">
+            <AppCopyright />
+          </div>
         </main>
       </div>
     </div>

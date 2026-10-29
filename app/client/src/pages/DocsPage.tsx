@@ -3,16 +3,17 @@ import { useNavigate, useParams, Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import {
-  BookOpen, Menu, X, ChevronRight, ExternalLink,
-} from 'lucide-react';
+import { BookOpen, Menu, X, ChevronRight, ExternalLink } from 'lucide-react';
 import 'highlight.js/styles/github-dark-dimmed.css';
 
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import {
-  type DocsLanguage, type DocsPage as DocsPageData,
-  getPages, findPage, resolveImage,
+  type DocsLanguage,
+  type DocsPage as DocsPageData,
+  getPages,
+  findPage,
+  resolveImage,
 } from '../lib/docs';
 
 type SessionUser = { id?: string; name?: string; role?: string };
@@ -28,11 +29,7 @@ export default function DocsPage() {
 
   // URL wins for language; fall back to app locale; final fallback Serbian.
   const language: DocsLanguage =
-    params.lang === 'en' || params.lang === 'sr'
-      ? params.lang
-      : locale === 'en'
-        ? 'en'
-        : 'sr';
+    params.lang === 'en' || params.lang === 'sr' ? params.lang : locale === 'en' ? 'en' : 'sr';
 
   // First-load redirect to a canonical URL with the language in the path.
   useEffect(() => {
@@ -54,7 +51,10 @@ export default function DocsPage() {
       try {
         const res = await fetch('/api/auth/session', { credentials: 'include' });
         if (cancelled) return;
-        if (!res.ok) { setSessionUser(undefined); return; }
+        if (!res.ok) {
+          setSessionUser(undefined);
+          return;
+        }
         const data = await res.json();
         if (data?.authenticated && data.user) setSessionUser(data.user);
         else setSessionUser(undefined);
@@ -62,7 +62,9 @@ export default function DocsPage() {
         if (!cancelled) setSessionUser(undefined);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const switchLanguage = (next: DocsLanguage) => {
@@ -72,7 +74,9 @@ export default function DocsPage() {
   };
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
-  useEffect(() => { setMobileNavOpen(false); }, [slug, language]);
+  useEffect(() => {
+    setMobileNavOpen(false);
+  }, [slug, language]);
 
   const content = (
     <>
@@ -91,21 +95,26 @@ export default function DocsPage() {
       <main className="min-w-0">
         {page ? (
           <article className="docs-prose">
-            {page.slug !== '' && (
-              <Breadcrumb language={language} title={page.title} />
-            )}
+            {page.slug !== '' && <Breadcrumb language={language} title={page.title} />}
             <ReactMarkdown
               remarkPlugins={[remarkGfm]}
               rehypePlugins={[rehypeHighlight]}
               components={{
                 a: ({ href, children, ...rest }) => {
                   if (!href) return <a {...rest}>{children}</a>;
-                  const internal = /^\.{0,2}\//.test(href) || /^[^/:#?]+\.md(#|$)/.test(href) || /^\/docs(\/|$)/.test(href);
+                  const internal =
+                    /^\.{0,2}\//.test(href) ||
+                    /^[^/:#?]+\.md(#|$)/.test(href) ||
+                    /^\/docs(\/|$)/.test(href);
                   if (internal && !href.startsWith('http')) {
                     const target = resolveInternalHref(href, language, page);
                     if (target) return <Link to={target}>{children}</Link>;
                   }
-                  return <a href={href} {...rest}>{children}</a>;
+                  return (
+                    <a href={href} {...rest}>
+                      {children}
+                    </a>
+                  );
                 },
                 img: ({ src, alt, ...rest }) => {
                   const resolved = typeof src === 'string' ? (resolveImage(page, src) ?? src) : src;
@@ -146,9 +155,7 @@ export default function DocsPage() {
         <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
           <main className="flex-1 pb-20 lg:pb-8">
             <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
-              <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
-                {content}
-              </div>
+              <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">{content}</div>
             </div>
           </main>
         </div>
@@ -238,7 +245,10 @@ function resolveInternalHref(
   const segments: string[] = [];
   for (const part of bare.split('/')) {
     if (part === '' || part === '.') continue;
-    if (part === '..') { segments.pop(); continue; }
+    if (part === '..') {
+      segments.pop();
+      continue;
+    }
     segments.push(part);
   }
 
@@ -253,7 +263,13 @@ function resolveInternalHref(
 }
 
 function DocsTopicNav({
-  pages, language, activeSlug, mobileOpen, onClose, currentLang, onSwitchLanguage,
+  pages,
+  language,
+  activeSlug,
+  mobileOpen,
+  onClose,
+  currentLang,
+  onSwitchLanguage,
 }: {
   pages: DocsPageData[];
   language: DocsLanguage;
@@ -266,11 +282,7 @@ function DocsTopicNav({
   return (
     <>
       {mobileOpen && (
-        <div
-          className="lg:hidden fixed inset-0 bg-black/40 z-40"
-          onClick={onClose}
-          aria-hidden
-        />
+        <div className="lg:hidden fixed inset-0 bg-black/40 z-40" onClick={onClose} aria-hidden />
       )}
       <aside
         className={`${
@@ -327,8 +339,13 @@ function DocsTopicNav({
 function Breadcrumb({ language, title }: { language: DocsLanguage; title: string }) {
   const { t } = useLang();
   return (
-    <div className="not-prose flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-1" style={{ marginTop: 0 }}>
-      <Link to={`/docs/${language}`} className="hover:text-[var(--text-primary)]">{t('docs.home')}</Link>
+    <div
+      className="not-prose flex items-center gap-1.5 text-xs text-[var(--text-muted)] mb-1"
+      style={{ marginTop: 0 }}
+    >
+      <Link to={`/docs/${language}`} className="hover:text-[var(--text-primary)]">
+        {t('docs.home')}
+      </Link>
       <ChevronRight size={12} />
       <span className="text-[var(--text-primary)] font-medium truncate">{title}</span>
     </div>
@@ -340,7 +357,9 @@ function NotFound({ language }: { language: DocsLanguage }) {
   return (
     <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-10 text-center">
       <BookOpen size={32} className="mx-auto text-[var(--text-muted)] mb-3" />
-      <h2 className="text-lg font-display font-semibold text-[var(--text-primary)]">{t('docs.notFoundTitle')}</h2>
+      <h2 className="text-lg font-display font-semibold text-[var(--text-primary)]">
+        {t('docs.notFoundTitle')}
+      </h2>
       <p className="text-sm text-[var(--text-secondary)] mt-1">{t('docs.notFoundBody')}</p>
       <Link
         to={`/docs/${language}`}

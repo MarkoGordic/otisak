@@ -24,7 +24,7 @@ export interface ExamPrintStrings {
 }
 
 export const EXAM_PRINT_STRINGS: Record<ReportLocale, ExamPrintStrings> = {
-  'en': {
+  en: {
     name: 'Full name',
     index: 'Student ID',
     group: 'Group',
@@ -36,7 +36,8 @@ export const EXAM_PRINT_STRINGS: Record<ReportLocale, ExamPrintStrings> = {
     minutesShort: 'min',
     questions: 'Questions',
     totalPoints: 'Total points',
-    instructions: 'Read each question carefully and mark your answers clearly. Write legibly in blue or black ink.',
+    instructions:
+      'Read each question carefully and mark your answers clearly. Write legibly in blue or black ink.',
     pointsShort: 'pts',
     multiSelectHint: 'Select all correct answers',
     orderingHint: 'Write the order number (1, 2, 3, ...) in the box before each item.',
@@ -55,7 +56,8 @@ export const EXAM_PRINT_STRINGS: Record<ReportLocale, ExamPrintStrings> = {
     minutesShort: 'min',
     questions: 'Pitanja',
     totalPoints: 'Ukupno bodova',
-    instructions: 'Pažljivo pročitajte svako pitanje i jasno označite odgovore. Pišite čitko, plavom ili crnom hemijskom.',
+    instructions:
+      'Pažljivo pročitajte svako pitanje i jasno označite odgovore. Pišite čitko, plavom ili crnom hemijskom.',
     pointsShort: 'bod.',
     multiSelectHint: 'Označite sve tačne odgovore',
     orderingHint: 'Upišite redni broj (1, 2, 3, ...) u kvadratić ispred svake stavke.',
@@ -74,14 +76,15 @@ export const EXAM_PRINT_STRINGS: Record<ReportLocale, ExamPrintStrings> = {
     minutesShort: 'мин',
     questions: 'Питања',
     totalPoints: 'Укупно бодова',
-    instructions: 'Пажљиво прочитајте свако питање и јасно означите одговоре. Пишите читко, плавом или црном хемијском.',
+    instructions:
+      'Пажљиво прочитајте свако питање и јасно означите одговоре. Пишите читко, плавом или црном хемијском.',
     pointsShort: 'бод.',
     multiSelectHint: 'Означите све тачне одговоре',
     orderingHint: 'Упишите редни број (1, 2, 3, ...) у квадратић испред сваке ставке.',
     matchingHint: 'Упишите слово одговарајућег пара у квадратић.',
     page: 'Страна',
   },
-  'bs': {
+  bs: {
     name: 'Име и презиме',
     index: 'Број индекса',
     group: 'Група',
@@ -93,7 +96,8 @@ export const EXAM_PRINT_STRINGS: Record<ReportLocale, ExamPrintStrings> = {
     minutesShort: 'мин',
     questions: 'Питања',
     totalPoints: 'Укупно бодова',
-    instructions: 'Пажљиво прочитајте свако питање и јасно означите одговоре. Пишите читко, плавом или црном хемијском.',
+    instructions:
+      'Пажљиво прочитајте свако питање и јасно означите одговоре. Пишите читко, плавом или црном хемијском.',
     pointsShort: 'бод.',
     multiSelectHint: 'Означите све тачне одговоре',
     orderingHint: 'Упишите редни број (1, 2, 3, ...) у квадратић испред сваке ставке.',
@@ -103,7 +107,8 @@ export const EXAM_PRINT_STRINGS: Record<ReportLocale, ExamPrintStrings> = {
 };
 
 export function examPrintStrings(locale: string | undefined | null): ExamPrintStrings {
-  if (locale === 'en' || locale === 'sr-Latn' || locale === 'sr-Cyrl' || locale === 'bs') return EXAM_PRINT_STRINGS[locale];
+  if (locale === 'en' || locale === 'sr-Latn' || locale === 'sr-Cyrl' || locale === 'bs')
+    return EXAM_PRINT_STRINGS[locale];
   if (locale === 'sr') return EXAM_PRINT_STRINGS['sr-Latn'];
   return EXAM_PRINT_STRINGS['sr-Latn'];
 }

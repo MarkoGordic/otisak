@@ -71,7 +71,8 @@ const en = {
   'docs.home': 'Home',
   'docs.backToApp': 'Back to app',
   'docs.notFoundTitle': 'Page not found',
-  'docs.notFoundBody': "We couldn't find documentation for that path in this language. Try the index or switch languages.",
+  'docs.notFoundBody':
+    "We couldn't find documentation for that path in this language. Try the index or switch languages.",
   'docs.backToIndex': 'Open the index',
 
   // Dashboard
@@ -137,7 +138,8 @@ const en = {
   'subjects.save': 'Save',
   'subjects.cancel': 'Cancel',
   'subjects.create': 'Create',
-  'subjects.deleteConfirm': 'Delete this subject? All related exams and questions will lose their subject association.',
+  'subjects.deleteConfirm':
+    'Delete this subject? All related exams and questions will lose their subject association.',
   'subjects.saveSuccess': 'Subject saved.',
   'subjects.saveFailed': 'Failed to save subject.',
   'subjects.createSuccess': 'Subject created.',
@@ -224,7 +226,8 @@ const en = {
   'examEdit.tags': 'Tags',
   'examEdit.tagsPlaceholder': 'Type a tag and press Enter…',
   'examEdit.tagsHelp': 'Tags are normalised to lowercase. Use them to filter the manage list.',
-  'examEdit.rescoreNotice': 'This exam is closed. Editing points or answers automatically rescores every existing attempt.',
+  'examEdit.rescoreNotice':
+    'This exam is closed. Editing points or answers automatically rescores every existing attempt.',
   'examEdit.saveSettings': 'Save settings',
   'examEdit.saveFailed': 'Save failed.',
   'examEdit.saveSuccess': 'Settings saved.',
@@ -268,7 +271,8 @@ const en = {
   'manage.archive': 'Archive',
   'manage.reactivate': 'Reactivate',
   'manage.rerun': 'Run again',
-  'manage.rerunConfirm': 'Run this exam again? Previous answers and attempts will be deleted and the timer starts fresh.',
+  'manage.rerunConfirm':
+    'Run this exam again? Previous answers and attempts will be deleted and the timer starts fresh.',
   'manage.rerunFailed': 'Failed to start the exam.',
   'manage.room': 'Manage',
   'manage.create': 'Create',
@@ -279,24 +283,31 @@ const en = {
   'manage.statusChanged': 'Exam status updated.',
   'manage.statusFailed': 'Failed to update exam status.',
   'manage.importSuccess': 'Exam imported.',
-  'manage.demoLocked': 'The built-in demo exam is pinned. It cannot be finished, archived, or deleted.',
+  'manage.demoLocked':
+    'The built-in demo exam is pinned. It cannot be finished, archived, or deleted.',
   'manage.importJsonTitle': 'Import exam',
-  'manage.importJsonHelp': 'Pick a JSON file or a ZIP (JSON together with its images), and choose the subject for the new exam.',
+  'manage.importJsonHelp':
+    'Pick a JSON file or a ZIP (JSON together with its images), and choose the subject for the new exam.',
   'manage.importJsonFile': 'File (JSON or ZIP)',
   'manage.importJsonPick': 'Choose a file…',
-  'manage.importJsonSubjectHint': 'Subject is required. The exam is created under the subject you pick here, whatever the file says.',
+  'manage.importJsonSubjectHint':
+    'Subject is required. The exam is created under the subject you pick here, whatever the file says.',
   'manage.importJsonSubjectPlaceholder': 'Pick a subject…',
   'manage.subjectPlaceholder': 'Pick a subject…',
   'manage.importJsonFormatLink': 'File format reference',
   'manage.importModeIgnoredTitle': 'exam_mode was ignored',
-  'manage.importModeIgnoredReal': 'This file has an exam_mode field. It was ignored and the exam was created as a real exam.',
-  'manage.importModeIgnoredPractice': 'This file has an exam_mode field. It was ignored and the exam was created as a practice exam.',
-  'manage.importUnresolvedImages': 'Questions pointing at images that are not in the file: {count} ({list}). Import a ZIP with the images, or upload them in the exam editor.',
+  'manage.importModeIgnoredReal':
+    'This file has an exam_mode field. It was ignored and the exam was created as a real exam.',
+  'manage.importModeIgnoredPractice':
+    'This file has an exam_mode field. It was ignored and the exam was created as a practice exam.',
+  'manage.importUnresolvedImages':
+    'Questions pointing at images that are not in the file: {count} ({list}). Import a ZIP with the images, or upload them in the exam editor.',
   'manage.importUnresolvedImagesTitle': 'Images not imported',
   'manage.importInvalidJson': 'The JSON file is not valid.',
   'manage.importZipTooLarge': 'The ZIP is too large (max 100 MB, or 300 MB unpacked).',
   'manage.importZipInvalid': 'The file is not a valid ZIP.',
-  'manage.importZipManyJson': 'The ZIP has several JSON files ({list}). Keep one, or name it exam.json.',
+  'manage.importZipManyJson':
+    'The ZIP has several JSON files ({list}). Keep one, or name it exam.json.',
   'manage.importZipNoJson': 'The ZIP has no exam JSON file.',
   'manage.importBadImage': 'Image {list} is broken or its format is not supported.',
   'manage.importMissingImages': 'Images missing from the ZIP: {list}',
@@ -308,22 +319,26 @@ const en = {
   'practiceAdmin.createTitle': 'Create Practice Exam',
   'practiceAdmin.createSuccess': 'Practice exam created.',
   'practiceAdmin.importTitle': 'Import practice exam',
-  'practiceAdmin.importHelp': 'Pick a JSON file or a ZIP and choose the subject. The exam is always created as a practice exam.',
+  'practiceAdmin.importHelp':
+    'Pick a JSON file or a ZIP and choose the subject. The exam is always created as a practice exam.',
   'practiceAdmin.tab.published': 'Published',
   'practiceAdmin.tab.drafts': 'Drafts',
   'practiceAdmin.tab.archive': 'Archive',
   'practiceAdmin.count': 'practice exams',
   'practiceAdmin.publish': 'Publish',
   'practiceAdmin.empty': 'No practice exams yet',
-  'practiceAdmin.emptyDesc': 'Create a practice exam and publish it so students can take it any time.',
+  'practiceAdmin.emptyDesc':
+    'Create a practice exam and publish it so students can take it any time.',
   'practiceAdmin.public': 'Public',
   'practiceAdmin.enrolledOnly': 'Enrolled only',
   'practiceAdmin.hidden': 'Hidden from students',
-  'practiceAdmin.hiddenHint': 'This exam is not self-service, so it does not appear in the student practice list. Use Republish to fix it.',
+  'practiceAdmin.hiddenHint':
+    'This exam is not self-service, so it does not appear in the student practice list. Use Republish to fix it.',
   'practiceAdmin.republish': 'Republish',
   'practiceAdmin.republished': 'The practice exam is visible to students again.',
   'practiceAdmin.republishFailed': 'Failed to republish the practice exam.',
-  'practiceAdmin.subjectRequired': 'A practice exam must have a subject, otherwise students cannot start it.',
+  'practiceAdmin.subjectRequired':
+    'A practice exam must have a subject, otherwise students cannot start it.',
   'manage.createSuccess': 'Exam created.',
   'manage.createFailed': 'Failed to create exam.',
   'settings.saveSuccess': 'Settings saved.',
@@ -350,7 +365,8 @@ const en = {
   'room.running': 'Exam Running',
   'room.waiting': 'Waiting Room',
   'room.joinLink': 'Student Join Link',
-  'room.joinLinkDesc': 'Share this link with students. They can enter with just their index number.',
+  'room.joinLinkDesc':
+    'Share this link with students. They can enter with just their index number.',
   'room.copy': 'Copy',
   'room.copied': 'Copied',
   'room.joined': 'joined',
@@ -365,7 +381,8 @@ const en = {
   'room.ready': 'Ready',
   'room.examRunning': 'Exam is running',
   'room.startedAt': 'Started at {time}. Timer is active for all students.',
-  'room.startConfirm': 'Start the exam for {count} student(s)? The timer will begin immediately for everyone.',
+  'room.startConfirm':
+    'Start the exam for {count} student(s)? The timer will begin immediately for everyone.',
   'room.startFailed': 'Failed to start exam',
 
   // Questions
@@ -392,8 +409,10 @@ const en = {
   'questions.imageReadFailed': 'Failed to read image.',
   'questions.imageCompressed': 'Image resized and compressed: {from} to {to}.',
   'questions.imageUploadFailed': 'Image upload failed.',
-  'questions.imageUnsupported': 'This image format is not supported. Save it as JPG or PNG and try again.',
-  'questions.imageTooManyPixels': 'Image dimensions are too large (over 120 megapixels). Scale it down and try again.',
+  'questions.imageUnsupported':
+    'This image format is not supported. Save it as JPG or PNG and try again.',
+  'questions.imageTooManyPixels':
+    'Image dimensions are too large (over 120 megapixels). Scale it down and try again.',
   'questions.imageUploading': 'Uploading...',
   'questions.imageInvalidUrl': 'Invalid image URL.',
   'questions.multipleChoice': 'Multiple Choice',
@@ -402,7 +421,7 @@ const en = {
   'questions.openText': 'Open Text',
   'questions.searchPlaceholder': 'Search questions...',
   'questions.noQuestions': 'No questions yet',
-  'questions.noQuestionsDesc': 'Add questions to this subject\'s bank.',
+  'questions.noQuestionsDesc': "Add questions to this subject's bank.",
   'questions.addTitle': 'Add Question',
   'questions.type': 'Type',
   'questions.questionText': 'Question Text',
@@ -530,13 +549,17 @@ const en = {
   'exam.loggedInAs': 'Logged in as',
   'exam.student': 'Student',
   'exam.waitingForInstructor': 'Waiting for the assistant to start the exam...',
-  'exam.waitingDesc': 'Waiting for the assistant to start the exam. You will be automatically redirected once the timer begins.',
+  'exam.waitingDesc':
+    'Waiting for the assistant to start the exam. You will be automatically redirected once the timer begins.',
   'exam.back': 'Back',
   'exam.negativePoints': 'Negative Points',
-  'exam.negativePointsDesc': 'After {threshold} wrong answer(s), each additional wrong answer deducts {value} point(s).',
+  'exam.negativePointsDesc':
+    'After {threshold} wrong answer(s), each additional wrong answer deducts {value} point(s).',
   'exam.threshold': 'Threshold: {value}',
-  'exam.cheatingWarning': 'Any form of cheating, unauthorized communication, or use of external resources is strictly prohibited during this exam.',
-  'exam.disciplinaryWarning': 'Violations will result in immediate exam invalidation and disciplinary proceedings.',
+  'exam.cheatingWarning':
+    'Any form of cheating, unauthorized communication, or use of external resources is strictly prohibited during this exam.',
+  'exam.disciplinaryWarning':
+    'Violations will result in immediate exam invalidation and disciplinary proceedings.',
   'exam.question': 'Question {current} of {total}',
   'exam.point': 'point',
   'exam.points': 'points',
@@ -551,8 +574,10 @@ const en = {
   'exam.finishExam': 'Finish Exam',
   'exam.submitting': 'Submitting your exam...',
   'exam.finishConfirmTitle': 'Are you sure?',
-  'exam.finishConfirmBody': 'You will submit the exam and won’t be able to come back or change answers.',
-  'exam.finishConfirmWarning': 'This is permanent. Once submitted you cannot access the exam again.',
+  'exam.finishConfirmBody':
+    'You will submit the exam and won’t be able to come back or change answers.',
+  'exam.finishConfirmWarning':
+    'This is permanent. Once submitted you cannot access the exam again.',
   'exam.finishConfirmCancel': 'Cancel',
   'exam.finishConfirmYes': 'Yes, finish and submit',
   'exam.leaveWarning': 'The exam is in progress. Are you sure you want to leave?',
@@ -561,17 +586,21 @@ const en = {
   'exam.notesLabel': 'Notes',
   'exam.finishHeader': 'Finish exam',
   'room.readOnly.title': 'Exam closed',
-  'room.readOnly.desc': 'This exam is finished. The live room is locked; you can still export results and open per-student reports below.',
+  'room.readOnly.desc':
+    'This exam is finished. The live room is locked; you can still export results and open per-student reports below.',
   'room.readOnly.exportTitle': 'Export results',
   'room.readOnly.statsTitle': 'Exam statistics',
-  'room.readOnly.statsDesc': 'Per-question success rate, hardest / easiest, score distribution, answer picks.',
+  'room.readOnly.statsDesc':
+    'Per-question success rate, hardest / easiest, score distribution, answer picks.',
   'room.readOnly.openStats': 'Open statistics',
-  'room.readOnly.exportDesc': 'Download a ZIP with results.csv, results-table.pdf, and one PDF per student.',
+  'room.readOnly.exportDesc':
+    'Download a ZIP with results.csv, results-table.pdf, and one PDF per student.',
   'room.readOnly.downloadZip': 'Download ZIP',
   'room.readOnly.studentsTitle': 'Per-student reports',
   'room.readOnly.openReport': 'Open report',
   'room.readOnly.noStudents': 'No submissions recorded for this exam.',
-  'exam.scratchPlaceholder': 'Write your notes, calculations, or rough work here...\n\nThese notes are NOT submitted with your exam.',
+  'exam.scratchPlaceholder':
+    'Write your notes, calculations, or rough work here...\n\nThese notes are NOT submitted with your exam.',
   'exam.scratchFooter': 'Personal use only - Not submitted',
 
   // Results
@@ -586,7 +615,8 @@ const en = {
   'results.thresholdLabel': 'Threshold {value}%',
   'results.correct': 'correct',
   'results.aiGradingInProgress': 'Waiting for grading',
-  'results.aiGradingWait': 'Open-text answers are graded by the professor. Your score will update once they are graded.',
+  'results.aiGradingWait':
+    'Open-text answers are graded by the professor. Your score will update once they are graded.',
   'results.aiGradingPartial': 'Partial AI grading',
   'results.aiGradingPartialHint': 'Some answers could not be graded automatically.',
   'results.recap': 'Per-question recap',
@@ -630,7 +660,8 @@ const en = {
   'join.redirecting': 'Redirecting you now...',
   'join.loggedInAs': 'Logged in as',
   'join.waitingForInstructor': 'Waiting for the assistant to start the exam...',
-  'join.waitingDesc': 'You have successfully joined the exam. Please wait for the assistant to start the timer. Do not close this window.',
+  'join.waitingDesc':
+    'You have successfully joined the exam. Please wait for the assistant to start the timer. Do not close this window.',
   'join.examNotFound': 'Exam not found.',
   'join.examNotActive': 'This exam is not currently active.',
   'join.connectionError': 'Could not connect to exam server.',
@@ -640,7 +671,8 @@ const en = {
 
   // Awaiting approval (late join)
   'exam.awaitingApproval.title': 'Awaiting approval',
-  'exam.awaitingApproval.body': 'Your request has been sent to the assistant. You will be redirected as soon as it is approved.',
+  'exam.awaitingApproval.body':
+    'Your request has been sent to the assistant. You will be redirected as soon as it is approved.',
   'exam.awaitingApproval.pill': 'Pending request',
   'exam.awaitingApproval.dontClose': 'Do not close this window',
 
@@ -667,10 +699,12 @@ const en = {
   'room.toast.finishFailed': 'Failed to close the exam.',
   'room.finishAll': 'Finish for all',
   'room.finishAll.title': 'Finish exam for all students?',
-  'room.finishAll.body': 'This stops the timer and auto-submits every open attempt. Points are computed from already-saved answers.',
+  'room.finishAll.body':
+    'This stops the timer and auto-submits every open attempt. Points are computed from already-saved answers.',
   'room.finishAll.warning': 'This is permanent. A finished exam cannot be reopened.',
   'room.finishAll.redirectLabel': 'Send students back to the home page',
-  'room.finishAll.redirectHint': 'Students see a brief notice and get bounced back. Without this option they land on the results screen.',
+  'room.finishAll.redirectHint':
+    'Students see a brief notice and get bounced back. Without this option they land on the results screen.',
   'room.finishAll.confirm': 'Yes, finish for all',
   'exam.toast.timerAdded': 'Assistant added {minutes} min.',
   'exam.toast.timerRemoved': 'Assistant removed {minutes} min.',
@@ -678,7 +712,8 @@ const en = {
   'exam.toast.finishedRedirect': 'The assistant has finished the exam. Returning home...',
   'exam.toast.kicked': 'The assistant has removed you from this exam.',
   'room.kick': 'Remove from exam',
-  'room.kickConfirm': 'Remove {name} from this exam? Their attempt will be submitted with whatever they answered so far.',
+  'room.kickConfirm':
+    'Remove {name} from this exam? Their attempt will be submitted with whatever they answered so far.',
   'room.kickFailed': 'Could not remove the student.',
   'room.kickToast': '{name} has been removed from the exam.',
   'room.viewReport': 'Open report',
@@ -782,7 +817,7 @@ const en = {
   // Manual grading of open-text answers
   'grading.title': 'Grading',
   'grading.open': 'Grading',
-  'grading.forbidden': 'You are not assigned to this exam\'s subject.',
+  'grading.forbidden': "You are not assigned to this exam's subject.",
   'grading.notFound': 'Exam not found.',
   'grading.loadFailed': 'Could not load answers for grading.',
   'grading.progress': 'Graded {graded} of {total}',

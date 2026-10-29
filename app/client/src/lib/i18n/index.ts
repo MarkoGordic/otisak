@@ -7,10 +7,10 @@ export type Locale = 'en' | 'sr-Latn' | 'sr-Cyrl' | 'bs';
 export type { I18nKey };
 
 const translations: Record<Locale, Record<I18nKey, string>> = {
-  'en': en,
+  en: en,
   'sr-Latn': sr,
   'sr-Cyrl': srCyrl,
-  'bs': bs,
+  bs: bs,
 };
 
 export const LOCALES: Locale[] = ['en', 'sr-Latn', 'sr-Cyrl', 'bs'];
@@ -27,7 +27,11 @@ export function nextLocale(current: Locale): Locale {
   return LOCALES[(idx + 1) % LOCALES.length];
 }
 
-export function t(key: string, locale: Locale = 'sr-Latn', params?: Record<string, string | number>): string {
+export function t(
+  key: string,
+  locale: Locale = 'sr-Latn',
+  params?: Record<string, string | number>,
+): string {
   // Cast: callers historically pass plain strings, and runtime fallback to the
   // key itself is desirable when a key is missing. The strong typing happens
   // inside the locale files (Record<I18nKey, string>), which is what catches

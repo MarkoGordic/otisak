@@ -24,7 +24,11 @@ router.get('/', async (req: Request, res: Response) => {
       staffScope = { subjectIds: await getAssignedSubjectIds(user.id) };
     }
 
-    const exams = await getSelfServicePracticeExams(user.id, subject_id as string | undefined, staffScope);
+    const exams = await getSelfServicePracticeExams(
+      user.id,
+      subject_id as string | undefined,
+      staffScope,
+    );
 
     // When practice mode is globally disabled we still expose public
     // practice exams (the built-in demo, anything an admin chose to leave

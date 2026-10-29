@@ -118,8 +118,10 @@ async function processImage(input: Buffer): Promise<Encoded> {
   // Re-encoding would cost quality on every round trip and, with different
   // bytes, defeat the content-addressed dedupe.
   const fits = input.length <= TARGET_BYTES && Math.max(width, height) <= MAX_DIM;
-  if (fits && type === 'jpg' && jpegIsClean(input)) return { data: input, width, height, mime: 'image/jpeg' };
-  if (fits && type === 'png' && pngIsClean(input)) return { data: input, width, height, mime: 'image/png' };
+  if (fits && type === 'jpg' && jpegIsClean(input))
+    return { data: input, width, height, mime: 'image/jpeg' };
+  if (fits && type === 'png' && pngIsClean(input))
+    return { data: input, width, height, mime: 'image/png' };
 
   // Decoding applies the EXIF orientation; re-encoding drops all metadata.
   const image = await Jimp.read(input);
@@ -127,9 +129,10 @@ async function processImage(input: Buffer): Promise<Encoded> {
     if (Math.max(image.width, image.height) > dim) image.scaleToFit({ w: dim, h: dim });
   };
   const out = async (mime: 'image/jpeg' | 'image/png', quality?: number): Promise<Encoded> => {
-    const data = mime === 'image/jpeg'
-      ? await image.getBuffer('image/jpeg', { quality })
-      : await image.getBuffer('image/png');
+    const data =
+      mime === 'image/jpeg'
+        ? await image.getBuffer('image/jpeg', { quality })
+        : await image.getBuffer('image/png');
     return { data, width: image.width, height: image.height, mime };
   };
   fit(MAX_DIM);
@@ -188,7 +191,7 @@ export async function storeImage(input: Buffer, createdBy: string | null): Promi
      VALUES ($1, $7, $2, $3, $4, $5, $6)
      ON CONFLICT (sha256) DO UPDATE SET sha256 = EXCLUDED.sha256
      RETURNING id`,
-    [sha, enc.width, enc.height, enc.data.length, enc.data, createdBy, enc.mime]
+    [sha, enc.width, enc.height, enc.data.length, enc.data, createdBy, enc.mime],
   );
   const id = r.rows[0].id;
   return {
@@ -201,11 +204,13 @@ export async function storeImage(input: Buffer, createdBy: string | null): Promi
   };
 }
 
-export async function getImage(id: string): Promise<{ data: Buffer; mime: string; sha256: string } | null> {
+export async function getImage(
+  id: string,
+): Promise<{ data: Buffer; mime: string; sha256: string } | null> {
   if (!UUID_RE.test(id)) return null;
   const r = await query<{ data: Buffer; mime: string; sha256: string }>(
     'SELECT data, mime, sha256 FROM otisak_images WHERE id = $1',
-    [id]
+    [id],
   );
   return r.rows[0] ?? null;
 }
@@ -221,7 +226,10 @@ export function isStoredImageUrl(url: string): boolean {
 // data: URL from an older client or an exported file. Store it like an upload
 // and hand back the short URL, so the question row never holds image bytes.
 // Anything that is not a data: URL passes through untouched.
-export async function internDataUrl<T extends string | null | undefined>(value: T, createdBy: string | null): Promise<T | string> {
+export async function internDataUrl<T extends string | null | undefined>(
+  value: T,
+  createdBy: string | null,
+): Promise<T | string> {
   if (typeof value !== 'string') return value;
   const m = DATA_URL_RE.exec(value.trim());
   if (!m) return value;

@@ -73,7 +73,7 @@ export function startLiveStatsAggregator(): void {
         } catch (err) {
           reportError(err, { source: 'job', context: { job: 'liveStatsAggregator', examId } });
         }
-      })
+      }),
     );
   }, AGGREGATE_INTERVAL_MS);
 }

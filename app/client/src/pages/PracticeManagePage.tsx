@@ -1,8 +1,16 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2, Plus, Dumbbell, Play, Archive,
-  Download, Upload, Pencil, Printer, RotateCw,
+  Loader2,
+  Plus,
+  Dumbbell,
+  Play,
+  Archive,
+  Download,
+  Upload,
+  Pencil,
+  Printer,
+  RotateCw,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -45,7 +53,10 @@ export default function PracticeManagePage() {
   // No Unpublish (active -> draft). It is legal server-side, but the demo lock
   // only fires on completed/archived, so an Unpublish button would be an
   // unguarded way to hide the pinned demo with no way back except SQL.
-  const statusActions: Record<string, Array<{ label: string; status: string; icon: React.ReactNode }>> = {
+  const statusActions: Record<
+    string,
+    Array<{ label: string; status: string; icon: React.ReactNode }>
+  > = {
     draft: [{ label: t('practiceAdmin.publish'), status: 'active', icon: <Play size={14} /> }],
     scheduled: [{ label: t('practiceAdmin.publish'), status: 'active', icon: <Play size={14} /> }],
     active: [{ label: t('manage.archive'), status: 'archived', icon: <Archive size={14} /> }],
@@ -69,7 +80,12 @@ export default function PracticeManagePage() {
     (async () => {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
-      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor')) {
+      if (
+        !data.authenticated ||
+        (data.user?.role !== 'admin' &&
+          data.user?.role !== 'assistant' &&
+          data.user?.role !== 'professor')
+      ) {
         navigate('/dashboard', { replace: true });
         return;
       }
@@ -83,13 +99,24 @@ export default function PracticeManagePage() {
         fetch('/api/otisak/exams?exam_mode=practice', { credentials: 'include' }),
         fetch('/api/otisak/subjects', { credentials: 'include' }),
       ]);
-      if (examsRes.ok) { const d = await examsRes.json(); setExams(d.exams || []); }
-      if (subjectsRes.ok) { const d = await subjectsRes.json(); setSubjects(d.subjects || []); }
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      if (examsRes.ok) {
+        const d = await examsRes.json();
+        setExams(d.exams || []);
+      }
+      if (subjectsRes.ok) {
+        const d = await subjectsRes.json();
+        setSubjects(d.subjects || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { if (user) loadData(); }, [user, loadData]);
+  useEffect(() => {
+    if (user) loadData();
+  }, [user, loadData]);
 
   const handleStatusChange = useExamStatusChange(loadData);
 
@@ -108,7 +135,11 @@ export default function PracticeManagePage() {
         loadData();
       } else {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.error === 'DEMO_EXAM_LOCKED' ? t('manage.demoLocked') : (d.error || t('practiceAdmin.republishFailed')));
+        toast.error(
+          d.error === 'DEMO_EXAM_LOCKED'
+            ? t('manage.demoLocked')
+            : d.error || t('practiceAdmin.republishFailed'),
+        );
       }
     } catch {
       toast.error(t('practiceAdmin.republishFailed'));
@@ -130,12 +161,18 @@ export default function PracticeManagePage() {
     return true;
   });
 
-  const tagPool = Array.from(new Set(
-    exams.flatMap((e) => (Array.isArray(e.tags) ? e.tags : []).map((x) => x.toLowerCase()))
-  )).sort();
+  const tagPool = Array.from(
+    new Set(
+      exams.flatMap((e) => (Array.isArray(e.tags) ? e.tags : []).map((x) => x.toLowerCase())),
+    ),
+  ).sort();
 
   if (!user) {
-    return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
   }
 
   return (
@@ -153,15 +190,27 @@ export default function PracticeManagePage() {
                   <Dumbbell className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('practiceAdmin.title')}</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">{t('practiceAdmin.subtitle')}</p>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                    {t('practiceAdmin.title')}
+                  </h1>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {t('practiceAdmin.subtitle')}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="secondary" leftIcon={<Upload size={14} />} onClick={() => setShowImportModal(true)}>
+                <Button
+                  variant="secondary"
+                  leftIcon={<Upload size={14} />}
+                  onClick={() => setShowImportModal(true)}
+                >
                   {t('manage.importJson')}
                 </Button>
-                <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreateModal(true)}>
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={16} />}
+                  onClick={() => setShowCreateModal(true)}
+                >
                   {t('practiceAdmin.new')}
                 </Button>
               </div>
@@ -200,9 +249,15 @@ export default function PracticeManagePage() {
                       <button
                         key={tg}
                         type="button"
-                        onClick={() => setTagFilter((prev) => active ? prev.filter((x) => x !== tg) : [...prev, tg])}
+                        onClick={() =>
+                          setTagFilter((prev) =>
+                            active ? prev.filter((x) => x !== tg) : [...prev, tg],
+                          )
+                        }
                         className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
-                          active ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-accent-light hover:text-accent'
+                          active
+                            ? 'bg-accent text-white'
+                            : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-accent-light hover:text-accent'
                         }`}
                       >
                         {tg}
@@ -211,12 +266,16 @@ export default function PracticeManagePage() {
                   })}
                 </div>
               )}
-              <span className="text-xs text-[var(--text-muted)] ml-auto">{filteredExams.length} {t('practiceAdmin.count')}</span>
+              <span className="text-xs text-[var(--text-muted)] ml-auto">
+                {filteredExams.length} {t('practiceAdmin.count')}
+              </span>
             </div>
 
             {/* Practice list */}
             {loading ? (
-              <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              </div>
             ) : filteredExams.length > 0 ? (
               <div className="space-y-3">
                 {filteredExams.map((exam, idx) => (
@@ -228,11 +287,15 @@ export default function PracticeManagePage() {
                       exam.self_service === false ? (
                         // Badge takes no title prop, so wrap it for the tooltip.
                         <span title={t('practiceAdmin.hiddenHint')}>
-                          <Badge variant="danger" size="sm">{t('practiceAdmin.hidden')}</Badge>
+                          <Badge variant="danger" size="sm">
+                            {t('practiceAdmin.hidden')}
+                          </Badge>
                         </span>
                       ) : (
                         <Badge variant={exam.is_public ? 'success' : 'neutral'} size="sm">
-                          {exam.is_public ? t('practiceAdmin.public') : t('practiceAdmin.enrolledOnly')}
+                          {exam.is_public
+                            ? t('practiceAdmin.public')
+                            : t('practiceAdmin.enrolledOnly')}
                         </Badge>
                       )
                     }
@@ -241,7 +304,12 @@ export default function PracticeManagePage() {
                         {/* No Soba (a template has no roster), no Statistika or
                             Export rezultata (attempts hang off the per-student
                             child exams, so both are always empty here). */}
-                        <Button variant="secondary" size="sm" leftIcon={<Pencil size={14} />} onClick={() => navigate(`/manage/${exam.id}/edit`)}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          leftIcon={<Pencil size={14} />}
+                          onClick={() => navigate(`/manage/${exam.id}/edit`)}
+                        >
                           {t('manage.edit')}
                         </Button>
                         <a
@@ -261,12 +329,23 @@ export default function PracticeManagePage() {
                           <Printer size={14} />
                         </a>
                         {exam.self_service === false && (
-                          <Button variant="secondary" size="sm" leftIcon={<RotateCw size={14} />} onClick={() => handleRepublish(exam.id)}>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            leftIcon={<RotateCw size={14} />}
+                            onClick={() => handleRepublish(exam.id)}
+                          >
                             {t('practiceAdmin.republish')}
                           </Button>
                         )}
                         {statusActions[exam.status]?.map((action) => (
-                          <Button key={action.status} variant="secondary" size="sm" leftIcon={action.icon} onClick={() => handleStatusChange(exam.id, action.status)}>
+                          <Button
+                            key={action.status}
+                            variant="secondary"
+                            size="sm"
+                            leftIcon={action.icon}
+                            onClick={() => handleStatusChange(exam.id, action.status)}
+                          >
                             {action.label}
                           </Button>
                         ))}
@@ -285,7 +364,9 @@ export default function PracticeManagePage() {
               />
             )}
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
+          <div className="px-4 pb-6 pt-2 flex justify-center">
+            <AppCopyright />
+          </div>
         </main>
       </div>
 

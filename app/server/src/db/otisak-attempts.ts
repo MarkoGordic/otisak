@@ -29,33 +29,38 @@ export async function startExamAttempt(
   examId: string,
   userId: string,
   meta?: { ip_address?: string; user_agent?: string },
-  isPractice?: boolean
+  isPractice?: boolean,
 ): Promise<OtisakAttempt> {
   const shuffleSeed = Math.floor(Math.random() * 2147483647);
   const result = await query<OtisakAttempt>(
     `INSERT INTO otisak_attempts (exam_id, user_id, ip_address, user_agent, is_practice, shuffle_seed)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [examId, userId, meta?.ip_address || null, meta?.user_agent || null, isPractice ?? false, shuffleSeed]
+    [
+      examId,
+      userId,
+      meta?.ip_address || null,
+      meta?.user_agent || null,
+      isPractice ?? false,
+      shuffleSeed,
+    ],
   );
   return result.rows[0];
 }
 
 export async function getActiveAttempt(
   examId: string,
-  userId: string
+  userId: string,
 ): Promise<OtisakAttempt | null> {
   const result = await query<OtisakAttempt>(
     `SELECT * FROM otisak_attempts
      WHERE exam_id = $1 AND user_id = $2 AND submitted = FALSE
      ORDER BY started_at DESC LIMIT 1`,
-    [examId, userId]
+    [examId, userId],
   );
   return result.rows[0] || null;
 }
 
-export async function autoFinishIfExpired(
-  attempt: OtisakAttempt
-): Promise<OtisakAttempt | null> {
+export async function autoFinishIfExpired(attempt: OtisakAttempt): Promise<OtisakAttempt | null> {
   if (attempt.submitted) return null;
   const exam = await getOtisakExamById(attempt.exam_id);
   if (!exam) return null;
@@ -79,11 +84,18 @@ export async function autoFinishIfExpired(
 }
 
 export async function getSavedAnswers(
-  attemptId: string
-): Promise<Array<{ question_id: string; selected_answer_ids: string[]; text_answer: string | null }>> {
-  const result = await query<{ question_id: string; selected_answer_id: string | null; selected_answer_ids: string[] | null; text_answer: string | null }>(
+  attemptId: string,
+): Promise<
+  Array<{ question_id: string; selected_answer_ids: string[]; text_answer: string | null }>
+> {
+  const result = await query<{
+    question_id: string;
+    selected_answer_id: string | null;
+    selected_answer_ids: string[] | null;
+    text_answer: string | null;
+  }>(
     'SELECT question_id, selected_answer_id, selected_answer_ids, text_answer FROM otisak_attempt_answers WHERE attempt_id = $1',
-    [attemptId]
+    [attemptId],
   );
   return result.rows.map((row) => ({
     question_id: row.question_id,
@@ -98,14 +110,14 @@ export async function getSavedAnswers(
 
 export async function submitAttemptAnswers(
   attemptId: string,
-  answers: SubmitAttemptAnswerInput[]
+  answers: SubmitAttemptAnswerInput[],
 ): Promise<void> {
   const examCheck = await query<{ partial_scoring: boolean; exam_id: string }>(
     `SELECT e.partial_scoring, a.exam_id
      FROM otisak_attempts a
      JOIN otisak_exams e ON e.id = a.exam_id
      WHERE a.id = $1`,
-    [attemptId]
+    [attemptId],
   );
   const partialScoring = examCheck.rows[0]?.partial_scoring ?? false;
   const attemptExamId = examCheck.rows[0]?.exam_id;
@@ -121,7 +133,12 @@ export async function submitAttemptAnswers(
   if (answers.length > 0) {
     const ids = answers.map((a) => a.question_id).filter(Boolean);
     if (ids.length > 0) {
-      const valid = await query<{ id: string; type: string; content: string | null; points: number }>(
+      const valid = await query<{
+        id: string;
+        type: string;
+        content: string | null;
+        points: number;
+      }>(
         `SELECT id, type, content, points FROM otisak_questions WHERE exam_id = $1 AND id = ANY($2::uuid[])`,
         [attemptExamId, ids],
       );
@@ -163,7 +180,7 @@ export async function submitAttemptAnswers(
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (attempt_id, question_id)
            DO UPDATE SET text_answer = $3, points_awarded = $4, answered_at = NOW()`,
-          [attemptId, ans.question_id, ans.text_answer, pointsAwarded]
+          [attemptId, ans.question_id, ans.text_answer, pointsAwarded],
         );
         continue;
       }
@@ -175,7 +192,7 @@ export async function submitAttemptAnswers(
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (attempt_id, question_id)
            DO UPDATE SET text_answer = $3, points_awarded = $4, answered_at = NOW()`,
-          [attemptId, ans.question_id, ans.text_answer, pointsAwarded]
+          [attemptId, ans.question_id, ans.text_answer, pointsAwarded],
         );
         continue;
       }
@@ -187,7 +204,7 @@ export async function submitAttemptAnswers(
            VALUES ($1, $2, $3, $4)
            ON CONFLICT (attempt_id, question_id)
            DO UPDATE SET text_answer = $3, points_awarded = $4, answered_at = NOW()`,
-          [attemptId, ans.question_id, ans.text_answer, pointsAwarded]
+          [attemptId, ans.question_id, ans.text_answer, pointsAwarded],
         );
         continue;
       }
@@ -201,7 +218,7 @@ export async function submitAttemptAnswers(
            VALUES ($1, $2, NULL, 0, NULL)
            ON CONFLICT (attempt_id, question_id)
            DO UPDATE SET text_answer = NULL, points_awarded = 0, ai_grading_status = NULL, answered_at = NOW()`,
-          [attemptId, ans.question_id]
+          [attemptId, ans.question_id],
         );
         continue;
       }
@@ -210,16 +227,17 @@ export async function submitAttemptAnswers(
          VALUES ($1, $2, $3, 0, 'pending')
          ON CONFLICT (attempt_id, question_id)
          DO UPDATE SET text_answer = $3, points_awarded = 0, ai_grading_status = 'pending', answered_at = NOW()`,
-        [attemptId, ans.question_id, ans.text_answer]
+        [attemptId, ans.question_id, ans.text_answer],
       );
       continue;
     }
 
-    const selectedIds: string[] = ans.selected_answer_ids && ans.selected_answer_ids.length > 0
-      ? ans.selected_answer_ids
-      : ans.selected_answer_id
-        ? [ans.selected_answer_id]
-        : [];
+    const selectedIds: string[] =
+      ans.selected_answer_ids && ans.selected_answer_ids.length > 0
+        ? ans.selected_answer_ids
+        : ans.selected_answer_id
+          ? [ans.selected_answer_id]
+          : [];
 
     const allAnswers = answersByQuestion.get(ans.question_id) ?? [];
     const pointsAwarded = scoreMultiChoice(
@@ -236,7 +254,7 @@ export async function submitAttemptAnswers(
        VALUES ($1, $2, $3, $4, $5)
        ON CONFLICT (attempt_id, question_id)
        DO UPDATE SET selected_answer_id = $3, selected_answer_ids = $4, points_awarded = $5, answered_at = NOW()`,
-      [attemptId, ans.question_id, primarySelectedId, selectedIds, pointsAwarded]
+      [attemptId, ans.question_id, primarySelectedId, selectedIds, pointsAwarded],
     );
   }
 }
@@ -269,7 +287,7 @@ async function countWrongAnsweredQuestions(client: PoolClient, attemptId: string
             OR array_length(aa.selected_answer_ids, 1) > 0
             OR (aa.text_answer IS NOT NULL
                 AND (aa.ai_grading_status IS NULL OR aa.ai_grading_status = 'graded')))`,
-    [attemptId]
+    [attemptId],
   );
   return result.rows[0]?.wrong_count ?? 0;
 }
@@ -286,7 +304,7 @@ export async function rescoreExam(examId: string): Promise<number> {
       `SELECT partial_scoring, negative_points_enabled,
               negative_points_value, negative_points_threshold
        FROM otisak_exams WHERE id = $1`,
-      [examId]
+      [examId],
     );
     const exam = examRes.rows[0];
     if (!exam) return 0;
@@ -294,10 +312,12 @@ export async function rescoreExam(examId: string): Promise<number> {
 
     // Snapshot of all questions for this exam plus their canonical answer rows.
     // Keyed for O(1) lookup inside the per-attempt loop.
-    const qRows = await client.query<{ id: string; type: string; content: string | null; points: number }>(
-      `SELECT id, type, content, points FROM otisak_questions WHERE exam_id = $1`,
-      [examId]
-    );
+    const qRows = await client.query<{
+      id: string;
+      type: string;
+      content: string | null;
+      points: number;
+    }>(`SELECT id, type, content, points FROM otisak_questions WHERE exam_id = $1`, [examId]);
     const questions = new Map(qRows.rows.map((q) => [q.id, q] as const));
     const maxPoints = qRows.rows.reduce((s, q) => s + Number(q.points || 0), 0);
 
@@ -306,7 +326,7 @@ export async function rescoreExam(examId: string): Promise<number> {
        FROM otisak_answers a
        JOIN otisak_questions q ON q.id = a.question_id
        WHERE q.exam_id = $1`,
-      [examId]
+      [examId],
     );
     const answersByQuestion = new Map<string, Array<{ id: string; is_correct: boolean }>>();
     for (const a of aRows.rows) {
@@ -320,7 +340,7 @@ export async function rescoreExam(examId: string): Promise<number> {
     // be re-scored normally at submit.
     const attemptRes = await client.query<{ id: string }>(
       `SELECT id FROM otisak_attempts WHERE exam_id = $1 AND submitted = TRUE`,
-      [examId]
+      [examId],
     );
 
     let rescored = 0;
@@ -336,7 +356,7 @@ export async function rescoreExam(examId: string): Promise<number> {
         `SELECT question_id, selected_answer_id, selected_answer_ids, text_answer,
                 points_awarded, ai_grading_status
          FROM otisak_attempt_answers WHERE attempt_id = $1`,
-        [attemptId]
+        [attemptId],
       );
 
       for (const aa of aaRes.rows) {
@@ -359,17 +379,25 @@ export async function rescoreExam(examId: string): Promise<number> {
           // Multi-choice (text/code/image). Same rules as submitAttemptAnswers:
           // any wrong pick -> 0. All correct -> full. Subset of correct with no
           // wrong -> proportional iff partial_scoring.
-          const selectedIds = (aa.selected_answer_ids && aa.selected_answer_ids.length > 0)
-            ? aa.selected_answer_ids
-            : (aa.selected_answer_id ? [aa.selected_answer_id] : []);
+          const selectedIds =
+            aa.selected_answer_ids && aa.selected_answer_ids.length > 0
+              ? aa.selected_answer_ids
+              : aa.selected_answer_id
+                ? [aa.selected_answer_id]
+                : [];
           const allAnswers = answersByQuestion.get(q.id) ?? [];
-          pointsAwarded = scoreMultiChoice(selectedIds, allAnswers, Number(q.points || 0), partialScoring);
+          pointsAwarded = scoreMultiChoice(
+            selectedIds,
+            allAnswers,
+            Number(q.points || 0),
+            partialScoring,
+          );
         }
 
         await client.query(
           `UPDATE otisak_attempt_answers SET points_awarded = $3
            WHERE attempt_id = $1 AND question_id = $2`,
-          [attemptId, aa.question_id, pointsAwarded]
+          [attemptId, aa.question_id, pointsAwarded],
         );
       }
 
@@ -377,7 +405,7 @@ export async function rescoreExam(examId: string): Promise<number> {
       const totalRes = await client.query<{ total: number }>(
         `SELECT COALESCE(SUM(points_awarded), 0)::numeric AS total
          FROM otisak_attempt_answers WHERE attempt_id = $1`,
-        [attemptId]
+        [attemptId],
       );
       let total = Number(totalRes.rows[0]?.total ?? 0);
       if (exam.negative_points_enabled && Number(exam.negative_points_value) > 0) {
@@ -390,7 +418,7 @@ export async function rescoreExam(examId: string): Promise<number> {
 
       await client.query(
         `UPDATE otisak_attempts SET total_points = $2, max_points = $3 WHERE id = $1`,
-        [attemptId, total, maxPoints]
+        [attemptId, total, maxPoints],
       );
       rescored++;
     }
@@ -404,7 +432,7 @@ export async function rescoreExam(examId: string): Promise<number> {
 // grading so a graded attempt ends up with exactly the total a submit would give.
 export async function computeAttemptTotal(
   client: PoolClient,
-  attemptId: string
+  attemptId: string,
 ): Promise<{ total: number; max: number }> {
   const totalResult = await client.query<{ total: number; max: number }>(
     `SELECT
@@ -415,7 +443,7 @@ export async function computeAttemptTotal(
      LEFT JOIN otisak_attempt_answers aa ON aa.attempt_id = a.id
      WHERE a.id = $1
      GROUP BY a.exam_id`,
-    [attemptId]
+    [attemptId],
   );
 
   let total = Number(totalResult.rows[0]?.total ?? 0);
@@ -430,7 +458,7 @@ export async function computeAttemptTotal(
      FROM otisak_attempts a
      JOIN otisak_exams e ON e.id = a.exam_id
      WHERE a.id = $1`,
-    [attemptId]
+    [attemptId],
   );
 
   if (negCheck.rows[0]?.negative_points_enabled && negCheck.rows[0]?.negative_points_value > 0) {
@@ -448,7 +476,7 @@ export async function computeAttemptTotal(
 
 export async function finishAttempt(
   attemptId: string,
-  timeSpentSeconds: number
+  timeSpentSeconds: number,
 ): Promise<OtisakAttempt> {
   // Atomic finish. Race conditions we are guarding against:
   //   (1) Manual submit + timer expiry firing within the same tick.
@@ -465,7 +493,7 @@ export async function finishAttempt(
   return transaction(async (client) => {
     const lock = await client.query<{ id: string; submitted: boolean }>(
       `SELECT id, submitted FROM otisak_attempts WHERE id = $1 FOR UPDATE`,
-      [attemptId]
+      [attemptId],
     );
     const row = lock.rows[0];
     if (!row) {
@@ -476,7 +504,7 @@ export async function finishAttempt(
     if (row.submitted) {
       const existing = await client.query<OtisakAttempt>(
         'SELECT * FROM otisak_attempts WHERE id = $1',
-        [attemptId]
+        [attemptId],
       );
       return existing.rows[0];
     }
@@ -486,7 +514,7 @@ export async function finishAttempt(
     const pendingAiCheck = await client.query<{ pending_count: number }>(
       `SELECT COUNT(*)::int as pending_count FROM otisak_attempt_answers
        WHERE attempt_id = $1 AND ai_grading_status = 'pending'`,
-      [attemptId]
+      [attemptId],
     );
     const hasAiPending = (pendingAiCheck.rows[0]?.pending_count ?? 0) > 0;
 
@@ -496,7 +524,7 @@ export async function finishAttempt(
            total_points = $2, max_points = $3, time_spent_seconds = $4, xp_earned = 0,
            ai_grading_status = $5
        WHERE id = $1 RETURNING *`,
-      [attemptId, total, max, timeSpentSeconds, hasAiPending ? 'pending' : null]
+      [attemptId, total, max, timeSpentSeconds, hasAiPending ? 'pending' : null],
     );
     return result.rows[0];
   });
@@ -505,10 +533,12 @@ export async function finishAttempt(
 export async function forceFinishAttemptById(attemptId: string): Promise<OtisakAttempt | null> {
   const attemptCheck = await query<OtisakAttempt>(
     'SELECT * FROM otisak_attempts WHERE id = $1 AND submitted = FALSE',
-    [attemptId]
+    [attemptId],
   );
   if (!attemptCheck.rows[0]) return null;
-  const timeSpent = Math.floor((Date.now() - new Date(attemptCheck.rows[0].started_at).getTime()) / 1000);
+  const timeSpent = Math.floor(
+    (Date.now() - new Date(attemptCheck.rows[0].started_at).getTime()) / 1000,
+  );
   return finishAttempt(attemptId, timeSpent);
 }
 
@@ -538,17 +568,15 @@ export function shuffleArray<T>(arr: T[], seed: number): T[] {
 }
 
 export async function getAttemptResults(attemptId: string): Promise<OtisakExamResults | null> {
-  const attemptResult = await query<OtisakAttempt>(
-    'SELECT * FROM otisak_attempts WHERE id = $1',
-    [attemptId]
-  );
+  const attemptResult = await query<OtisakAttempt>('SELECT * FROM otisak_attempts WHERE id = $1', [
+    attemptId,
+  ]);
   if (!attemptResult.rows[0]) return null;
   const attempt = attemptResult.rows[0];
 
-  const examResult = await query<OtisakExam>(
-    'SELECT * FROM otisak_exams WHERE id = $1',
-    [attempt.exam_id]
-  );
+  const examResult = await query<OtisakExam>('SELECT * FROM otisak_exams WHERE id = $1', [
+    attempt.exam_id,
+  ]);
   if (!examResult.rows[0]) return null;
   const exam = examResult.rows[0];
 
@@ -572,7 +600,7 @@ export async function getAttemptResults(attemptId: string): Promise<OtisakExamRe
 
   const attemptAnswersResult = await query<OtisakAttemptAnswer>(
     'SELECT * FROM otisak_attempt_answers WHERE attempt_id = $1',
-    [attemptId]
+    [attemptId],
   );
   const attemptAnswersMap = new Map<string, OtisakAttemptAnswer>();
   for (const aa of attemptAnswersResult.rows) {
@@ -607,7 +635,10 @@ export async function getAttemptResults(attemptId: string): Promise<OtisakExamRe
   };
 }
 
-export async function getUserAttempts(userId: string, mode?: string | null): Promise<OtisakAttemptWithExam[]> {
+export async function getUserAttempts(
+  userId: string,
+  mode?: string | null,
+): Promise<OtisakAttemptWithExam[]> {
   let sql = `SELECT a.*, e.title as exam_title, e.pass_threshold, e.has_pass_threshold, s.name as subject_name
      FROM otisak_attempts a
      JOIN otisak_exams e ON a.exam_id = e.id

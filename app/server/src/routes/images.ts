@@ -28,7 +28,10 @@ router.post(
   express.raw({ type: 'image/*', limit: MAX_UPLOAD_BYTES }),
   async (req: Request, res: Response) => {
     if (!Buffer.isBuffer(req.body) || req.body.length === 0) {
-      return res.status(400).json({ error: 'Send the image file as the request body with an image/* Content-Type', code: 'EMPTY_IMAGE' });
+      return res.status(400).json({
+        error: 'Send the image file as the request body with an image/* Content-Type',
+        code: 'EMPTY_IMAGE',
+      });
     }
     try {
       const stored = await storeImage(req.body, req.user!.id);
@@ -41,7 +44,7 @@ router.post(
       console.error('Image upload error:', err);
       return res.status(500).json({ error: 'Internal server error' });
     }
-  }
+  },
 );
 
 // GET /images/:id - any signed-in user (students see them during the exam).

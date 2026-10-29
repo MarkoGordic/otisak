@@ -7,17 +7,31 @@ export function OtisakBackground() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   return (
-    <div className={`fixed inset-0 pointer-events-none transition-colors ${isDark ? 'bg-[#070b14]' : 'bg-[#F8FAFC]'}`}>
+    <div
+      className={`fixed inset-0 pointer-events-none transition-colors ${isDark ? 'bg-[#070b14]' : 'bg-[#F8FAFC]'}`}
+    >
       {/* Grid pattern */}
-      <div className={`absolute inset-0 ${isDark ? 'opacity-[0.03]' : 'opacity-[0.06]'}`} style={{
-        backgroundImage: 'linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)',
-        backgroundSize: '60px 60px',
-      }} />
+      <div
+        className={`absolute inset-0 ${isDark ? 'opacity-[0.03]' : 'opacity-[0.06]'}`}
+        style={{
+          backgroundImage:
+            'linear-gradient(rgba(59,130,246,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(59,130,246,0.5) 1px, transparent 1px)',
+          backgroundSize: '60px 60px',
+        }}
+      />
 
       {/* Animated gradient orbs */}
-      <div className={`absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/15' : 'bg-blue-400/30'}`} />
-      <div className={`absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-indigo-600/10' : 'bg-indigo-300/30'}`} style={{ animationDelay: '2s' }} />
-      <div className={`absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full blur-[120px] animate-pulse ${isDark ? 'bg-cyan-600/8' : 'bg-cyan-300/25'}`} style={{ animationDelay: '4s' }} />
+      <div
+        className={`absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-blue-600/15' : 'bg-blue-400/30'}`}
+      />
+      <div
+        className={`absolute bottom-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full blur-[150px] animate-pulse ${isDark ? 'bg-indigo-600/10' : 'bg-indigo-300/30'}`}
+        style={{ animationDelay: '2s' }}
+      />
+      <div
+        className={`absolute top-[40%] right-[20%] w-[300px] h-[300px] rounded-full blur-[120px] animate-pulse ${isDark ? 'bg-cyan-600/8' : 'bg-cyan-300/25'}`}
+        style={{ animationDelay: '4s' }}
+      />
 
       {/* Floating particles */}
       <div className="absolute inset-0 overflow-hidden">

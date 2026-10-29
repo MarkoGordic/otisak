@@ -3,7 +3,14 @@ import { unzipSync, zipSync, strToU8, type Zippable } from 'fflate';
 import { getOtisakQuestions } from '../db/otisak-questions';
 import type { OtisakExamWithSubject } from '../db/otisak-types';
 import type { ExamImportInput } from './importExam';
-import { storeImage, getImage, isStoredImageUrl, inlineStoredImage, IMAGE_URL_PREFIX, ImageError } from './images';
+import {
+  storeImage,
+  getImage,
+  isStoredImageUrl,
+  inlineStoredImage,
+  IMAGE_URL_PREFIX,
+  ImageError,
+} from './images';
 
 // Exam export/import as a file. Two shapes:
 //
@@ -26,7 +33,10 @@ const MAX_UNZIPPED_BYTES = 300 * 1024 * 1024;
 const MAX_ENTRIES = 2000;
 
 export class ExamArchiveError extends Error {
-  constructor(code: string, readonly details?: string[]) {
+  constructor(
+    code: string,
+    readonly details?: string[],
+  ) {
     super(code);
   }
 }
@@ -86,14 +96,18 @@ export async function buildExportPayload(exam: OtisakExamWithSubject): Promise<E
 }
 
 export function hasUploadedImages(payload: ExportPayload): boolean {
-  return payload.questions.some((q) => q.type === 'image' && !!q.content && isStoredImageUrl(q.content));
+  return payload.questions.some(
+    (q) => q.type === 'image' && !!q.content && isStoredImageUrl(q.content),
+  );
 }
 
 // Single-file flavour: uploaded images inlined as data: URLs.
 export async function inlinePayloadImages(payload: ExportPayload): Promise<ExportPayload> {
-  const questions = await Promise.all(payload.questions.map(async (q) => (
-    q.type === 'image' ? { ...q, content: await inlineStoredImage(q.content) } : q
-  )));
+  const questions = await Promise.all(
+    payload.questions.map(async (q) =>
+      q.type === 'image' ? { ...q, content: await inlineStoredImage(q.content) } : q,
+    ),
+  );
   return { ...payload, questions };
 }
 
@@ -112,7 +126,10 @@ export async function buildExamZip(payload: ExportPayload): Promise<Uint8Array> 
     let name = byId.get(id);
     if (!name) {
       const img = await getImage(id);
-      if (!img) { questions.push(q); continue; }
+      if (!img) {
+        questions.push(q);
+        continue;
+      }
       const ext = img.mime.split('/')[1] || 'bin';
       name = `images/${String(byId.size + 1).padStart(2, '0')}.${ext}`;
       byId.set(id, name);
@@ -126,7 +143,9 @@ export async function buildExamZip(payload: ExportPayload): Promise<Uint8Array> 
 }
 
 function isJunk(name: string): boolean {
-  return name.endsWith('/') || name.startsWith('__MACOSX/') || path.posix.basename(name).startsWith('.');
+  return (
+    name.endsWith('/') || name.startsWith('__MACOSX/') || path.posix.basename(name).startsWith('.')
+  );
 }
 
 type ReadArchive = { body: ExamImportInput; files: Map<string, Uint8Array>; baseDir: string };
@@ -157,7 +176,8 @@ export function readExamZip(buf: Buffer): ReadArchive {
   const jsons = [...files.keys()].filter((n) => n.toLowerCase().endsWith('.json'));
   const named = jsons.filter((n) => path.posix.basename(n).toLowerCase() === 'exam.json');
   const jsonName = jsons.length === 1 ? jsons[0] : named.length === 1 ? named[0] : null;
-  if (!jsonName) throw new ExamArchiveError(jsons.length === 0 ? 'ZIP_NO_JSON' : 'ZIP_MANY_JSON', jsons);
+  if (!jsonName)
+    throw new ExamArchiveError(jsons.length === 0 ? 'ZIP_NO_JSON' : 'ZIP_MANY_JSON', jsons);
 
   let body: ExamImportInput;
   try {
@@ -172,8 +192,12 @@ export function readExamZip(buf: Buffer): ReadArchive {
 // A question's image `content` that is neither a URL nor inline data is a
 // file path, meant to be resolved against a zip.
 export function isImagePath(content: unknown): content is string {
-  return typeof content === 'string' && content.trim() !== ''
-    && !/^(https?:|data:)/i.test(content.trim()) && !isStoredImageUrl(content.trim());
+  return (
+    typeof content === 'string' &&
+    content.trim() !== '' &&
+    !/^(https?:|data:)/i.test(content.trim()) &&
+    !isStoredImageUrl(content.trim())
+  );
 }
 
 export function unresolvedImagePaths(body: ExamImportInput): string[] {
@@ -186,7 +210,10 @@ export function unresolvedImagePaths(body: ExamImportInput): string[] {
 // paths are looked up before anything is stored, so a zip with a missing or
 // broken picture fails as a whole, listing every bad name, instead of leaving
 // half an import behind.
-export async function resolveArchiveImages(archive: ReadArchive, createdBy: string): Promise<ExamImportInput> {
+export async function resolveArchiveImages(
+  archive: ReadArchive,
+  createdBy: string,
+): Promise<ExamImportInput> {
   const { body, files, baseDir } = archive;
   // Lookups, most to least exact: as written, ignoring case, then ignoring
   // the extension too (the JSON says 01.png, the person saved 01.jpg). The
@@ -233,10 +260,10 @@ export async function resolveArchiveImages(archive: ReadArchive, createdBy: stri
 
   return {
     ...body,
-    questions: questions.map((q) => (
+    questions: questions.map((q) =>
       q && q.type === 'image' && typeof q.content === 'string' && resolved.has(q.content)
         ? { ...q, content: urls.get(resolved.get(q.content)!) }
-        : q
-    )),
+        : q,
+    ),
   };
 }

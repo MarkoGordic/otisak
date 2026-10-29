@@ -9,7 +9,7 @@ import { lookupLdapStudent, LdapUnavailableError } from '../lib/ldap';
 export async function findUserByEmail(email: string): Promise<User | null> {
   const result = await query<User>(
     'SELECT * FROM users WHERE LOWER(email) = LOWER($1) AND is_active = TRUE LIMIT 1',
-    [email]
+    [email],
   );
   return result.rows[0] || null;
 }
@@ -17,7 +17,7 @@ export async function findUserByEmail(email: string): Promise<User | null> {
 export async function findUserById(id: string): Promise<User | null> {
   const result = await query<User>(
     'SELECT * FROM users WHERE id = $1 AND is_active = TRUE LIMIT 1',
-    [id]
+    [id],
   );
   return result.rows[0] || null;
 }
@@ -33,8 +33,8 @@ export async function findUserByIndexNumber(indexNumber: string): Promise<User |
   const normalized = normalizeIndexNumber(indexNumber);
   if (!normalized) return null;
   const result = await query<User>(
-    'SELECT * FROM users WHERE LOWER(REPLACE(index_number, \' \', \'\')) = $1 AND is_active = TRUE LIMIT 1',
-    [normalized]
+    "SELECT * FROM users WHERE LOWER(REPLACE(index_number, ' ', '')) = $1 AND is_active = TRUE LIMIT 1",
+    [normalized],
   );
   return result.rows[0] || null;
 }
@@ -48,7 +48,7 @@ export async function findUserByElpisId(sub: string): Promise<User | null> {
   if (!sub) return null;
   const result = await query<User>(
     'SELECT * FROM users WHERE elpis_id = $1 AND is_active = TRUE LIMIT 1',
-    [sub]
+    [sub],
   );
   return result.rows[0] || null;
 }
@@ -57,10 +57,9 @@ export async function findUserByElpisId(sub: string): Promise<User | null> {
 // state — used to reject linking a `sub` that is already taken by someone else.
 export async function findUserIdByElpisId(sub: string): Promise<string | null> {
   if (!sub) return null;
-  const result = await query<{ id: string }>(
-    'SELECT id FROM users WHERE elpis_id = $1 LIMIT 1',
-    [sub]
-  );
+  const result = await query<{ id: string }>('SELECT id FROM users WHERE elpis_id = $1 LIMIT 1', [
+    sub,
+  ]);
   return result.rows[0]?.id ?? null;
 }
 
@@ -184,7 +183,7 @@ export async function createUser(data: {
       data.index_number || null,
       data.elpis_id || null,
       data.ldap_uid || null,
-    ]
+    ],
   );
   return result.rows[0];
 }
@@ -196,7 +195,7 @@ export async function createUser(data: {
 export async function findUserByLdapUid(uid: string): Promise<User | null> {
   const result = await query<User>(
     'SELECT * FROM users WHERE ldap_uid = $1 AND is_active = TRUE LIMIT 1',
-    [uid]
+    [uid],
   );
   return result.rows[0] || null;
 }
@@ -217,7 +216,7 @@ export async function findOrCreateLdapUser(p: {
     await query<User>(
       `SELECT * FROM users WHERE ldap_uid = $1 OR LOWER(email) = LOWER($2)
        ORDER BY (ldap_uid = $1) DESC LIMIT 1`,
-      [p.uid, p.email]
+      [p.uid, p.email],
     )
   ).rows[0];
 
@@ -231,7 +230,7 @@ export async function findOrCreateLdapUser(p: {
               role = CASE WHEN role = 'admin' THEN role ELSE $5 END,
               updated_at = NOW()
        WHERE id = $1`,
-      [existing.id, p.uid, p.name, p.indexNumber, p.role]
+      [existing.id, p.uid, p.name, p.indexNumber, p.role],
     );
     return (await findUserById(existing.id)) as User;
   }
@@ -252,7 +251,7 @@ export async function findOrCreateLdapUser(p: {
 // to OTISAK, an account created from the directory entry (FreeIPA login = index number). Never
 // reactivates a deactivated account.
 export async function findOrProvisionStudentByIndex(
-  indexNumber: string
+  indexNumber: string,
 ): Promise<{ user: User | null; error?: string }> {
   const local = await findUserByIndexNumber(indexNumber);
   if (local) return { user: local };
@@ -262,7 +261,10 @@ export async function findOrProvisionStudentByIndex(
     profile = await lookupLdapStudent(indexNumber);
   } catch (err) {
     if (err instanceof LdapUnavailableError) {
-      return { user: null, error: 'Directory service unavailable. Try again or contact your administrator.' };
+      return {
+        user: null,
+        error: 'Directory service unavailable. Try again or contact your administrator.',
+      };
     }
     throw err;
   }
@@ -276,17 +278,18 @@ export async function findOrProvisionStudentByIndex(
     await query<User>(
       `SELECT * FROM users WHERE ldap_uid = $1 OR LOWER(email) = LOWER($2)
        ORDER BY (ldap_uid = $1) DESC LIMIT 1`,
-      [profile.uid, profile.email]
+      [profile.uid, profile.email],
     )
   ).rows[0];
   if (existing) {
-    if (!existing.is_active) return { user: null, error: 'This account is disabled. Contact your administrator.' };
+    if (!existing.is_active)
+      return { user: null, error: 'This account is disabled. Contact your administrator.' };
     if (existing.role !== 'student') return notFound;
     await query(
       `UPDATE users SET ldap_uid = COALESCE(ldap_uid, $2), index_number = COALESCE(index_number, $3),
               updated_at = NOW()
        WHERE id = $1`,
-      [existing.id, profile.uid, profile.indexNumber]
+      [existing.id, profile.uid, profile.indexNumber],
     );
     return { user: await findUserById(existing.id) };
   }
@@ -299,23 +302,47 @@ export async function findOrProvisionStudentByIndex(
     index_number: profile.indexNumber || undefined,
     ldap_uid: profile.uid,
   });
-  logger.info({ uid: profile.uid, userId: user.id }, 'student account created from the directory at exam join');
+  logger.info(
+    { uid: profile.uid, userId: user.id },
+    'student account created from the directory at exam join',
+  );
   return { user };
 }
 
 export async function updateUser(
   userId: string,
-  data: { name?: string | null; email?: string; role?: string; index_number?: string | null; is_active?: boolean }
+  data: {
+    name?: string | null;
+    email?: string;
+    role?: string;
+    index_number?: string | null;
+    is_active?: boolean;
+  },
 ): Promise<User | null> {
   const fields: string[] = [];
   const values: unknown[] = [];
   let idx = 1;
 
-  if (data.name !== undefined) { fields.push(`name = $${idx++}`); values.push(data.name); }
-  if (data.email !== undefined) { fields.push(`email = $${idx++}`); values.push(data.email); }
-  if (data.role !== undefined) { fields.push(`role = $${idx++}`); values.push(data.role); }
-  if (data.index_number !== undefined) { fields.push(`index_number = $${idx++}`); values.push(data.index_number); }
-  if (data.is_active !== undefined) { fields.push(`is_active = $${idx++}`); values.push(data.is_active); }
+  if (data.name !== undefined) {
+    fields.push(`name = $${idx++}`);
+    values.push(data.name);
+  }
+  if (data.email !== undefined) {
+    fields.push(`email = $${idx++}`);
+    values.push(data.email);
+  }
+  if (data.role !== undefined) {
+    fields.push(`role = $${idx++}`);
+    values.push(data.role);
+  }
+  if (data.index_number !== undefined) {
+    fields.push(`index_number = $${idx++}`);
+    values.push(data.index_number);
+  }
+  if (data.is_active !== undefined) {
+    fields.push(`is_active = $${idx++}`);
+    values.push(data.is_active);
+  }
 
   if (fields.length === 0) return null;
   fields.push('updated_at = NOW()');
@@ -323,15 +350,18 @@ export async function updateUser(
 
   const result = await query<User>(
     `UPDATE users SET ${fields.join(', ')} WHERE id = $${idx} RETURNING *`,
-    values
+    values,
   );
   return result.rows[0] || null;
 }
 
-export async function updateUserPasswordHash(userId: string, passwordHash: string): Promise<boolean> {
+export async function updateUserPasswordHash(
+  userId: string,
+  passwordHash: string,
+): Promise<boolean> {
   const result = await query(
     'UPDATE users SET password_hash = $1, updated_at = NOW() WHERE id = $2',
-    [passwordHash, userId]
+    [passwordHash, userId],
   );
   return (result.rowCount ?? 0) > 0;
 }

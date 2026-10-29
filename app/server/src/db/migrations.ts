@@ -19,19 +19,24 @@ import { logger } from '../lib/logger';
 type Step = readonly [id: string, fn: () => Promise<void>];
 
 const steps: readonly Step[] = [
-  ['001_multi_answer_column', async () => {
-    // The column was added retroactively. Existing rows infer their value from
-    // the count of is_correct=true answers via step 002.
-    await query(`
+  [
+    '001_multi_answer_column',
+    async () => {
+      // The column was added retroactively. Existing rows infer their value from
+      // the count of is_correct=true answers via step 002.
+      await query(`
       ALTER TABLE otisak_questions
       ADD COLUMN IF NOT EXISTS multi_answer BOOLEAN NOT NULL DEFAULT FALSE
     `);
-  }],
-  ['002_multi_answer_backfill', async () => {
-    // Any question that currently has 2+ correct answers but multi_answer = FALSE
-    // was misclassified by old imports. The WHERE NOT multi_answer guard makes
-    // this a no-op on every subsequent boot.
-    await query(`
+    },
+  ],
+  [
+    '002_multi_answer_backfill',
+    async () => {
+      // Any question that currently has 2+ correct answers but multi_answer = FALSE
+      // was misclassified by old imports. The WHERE NOT multi_answer guard makes
+      // this a no-op on every subsequent boot.
+      await query(`
       UPDATE otisak_questions q
          SET multi_answer = TRUE
        WHERE NOT q.multi_answer
@@ -40,30 +45,39 @@ const steps: readonly Step[] = [
             WHERE a.question_id = q.id AND a.is_correct
          ) > 1
     `);
-  }],
-  ['003_idx_attempts_exam_started', async () => {
-    // Many admin queries fetch attempts for an exam in chronological order
-    // (live stats, results page, report exports). Composite index lets the
-    // planner skip a sort and avoid the table scan for completed exams.
-    await query(`
+    },
+  ],
+  [
+    '003_idx_attempts_exam_started',
+    async () => {
+      // Many admin queries fetch attempts for an exam in chronological order
+      // (live stats, results page, report exports). Composite index lets the
+      // planner skip a sort and avoid the table scan for completed exams.
+      await query(`
       CREATE INDEX IF NOT EXISTS idx_otisak_attempts_exam_started
         ON otisak_attempts (exam_id, started_at DESC)
     `);
-  }],
-  ['004_idx_exam_tag_rules_exam', async () => {
-    // otisak_exam_tag_rules had no index at all on exam_id; question bank
-    // generation joins on it once per exam.
-    await query(`
+    },
+  ],
+  [
+    '004_idx_exam_tag_rules_exam',
+    async () => {
+      // otisak_exam_tag_rules had no index at all on exam_id; question bank
+      // generation joins on it once per exam.
+      await query(`
       CREATE INDEX IF NOT EXISTS idx_otisak_exam_tag_rules_exam
         ON otisak_exam_tag_rules (exam_id)
     `);
-  }],
-  ['005_check_negative_points_value', async () => {
-    // NOT VALID lets us add the constraint to future writes without forcing a
-    // full-table re-validation of existing rows. If any historic row violates
-    // (extremely unlikely - there's no UI path to a negative value), the
-    // constraint still rejects new violations.
-    await query(`
+    },
+  ],
+  [
+    '005_check_negative_points_value',
+    async () => {
+      // NOT VALID lets us add the constraint to future writes without forcing a
+      // full-table re-validation of existing rows. If any historic row violates
+      // (extremely unlikely - there's no UI path to a negative value), the
+      // constraint still rejects new violations.
+      await query(`
       DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_negative_points_value') THEN
           ALTER TABLE otisak_exams
@@ -72,9 +86,12 @@ const steps: readonly Step[] = [
         END IF;
       END $$
     `);
-  }],
-  ['006_check_negative_points_threshold', async () => {
-    await query(`
+    },
+  ],
+  [
+    '006_check_negative_points_threshold',
+    async () => {
+      await query(`
       DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_negative_points_threshold') THEN
           ALTER TABLE otisak_exams
@@ -83,9 +100,12 @@ const steps: readonly Step[] = [
         END IF;
       END $$
     `);
-  }],
-  ['007_check_question_points_nonneg', async () => {
-    await query(`
+    },
+  ],
+  [
+    '007_check_question_points_nonneg',
+    async () => {
+      await query(`
       DO $$ BEGIN
         IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'chk_question_points_nonneg') THEN
           ALTER TABLE otisak_questions
@@ -94,37 +114,49 @@ const steps: readonly Step[] = [
         END IF;
       END $$
     `);
-  }],
-  ['008_exam_tags_column', async () => {
-    // Free-form tags on exams. Mirrors otisak_question_bank.tags so the same
-    // GIN-indexed array-overlap pattern can be reused for the manage-page
-    // filter. Existing rows backfill to '{}' via DEFAULT.
-    await query(`
+    },
+  ],
+  [
+    '008_exam_tags_column',
+    async () => {
+      // Free-form tags on exams. Mirrors otisak_question_bank.tags so the same
+      // GIN-indexed array-overlap pattern can be reused for the manage-page
+      // filter. Existing rows backfill to '{}' via DEFAULT.
+      await query(`
       ALTER TABLE otisak_exams
       ADD COLUMN IF NOT EXISTS tags TEXT[] NOT NULL DEFAULT '{}'
     `);
-  }],
-  ['009_idx_exam_tags', async () => {
-    await query(`
+    },
+  ],
+  [
+    '009_idx_exam_tags',
+    async () => {
+      await query(`
       CREATE INDEX IF NOT EXISTS idx_otisak_exams_tags
         ON otisak_exams USING GIN (tags)
     `);
-  }],
-  ['010_exam_has_pass_threshold', async () => {
-    // Opt-in pass/fail verdict. Default TRUE so every existing exam keeps
-    // the historical "Položeno / Nije položeno" rendering - admins flip it
-    // off per exam to make results show score-only.
-    await query(`
+    },
+  ],
+  [
+    '010_exam_has_pass_threshold',
+    async () => {
+      // Opt-in pass/fail verdict. Default TRUE so every existing exam keeps
+      // the historical "Položeno / Nije položeno" rendering - admins flip it
+      // off per exam to make results show score-only.
+      await query(`
       ALTER TABLE otisak_exams
       ADD COLUMN IF NOT EXISTS has_pass_threshold BOOLEAN NOT NULL DEFAULT TRUE
     `);
-  }],
-  ['011_app_error_log', async () => {
-    // Persistent error store for the observability layer. Server 5xx, job/ws
-    // failures, and client-reported errors land here and are surfaced in the
-    // admin error viewer. Kept in the same DB so there is no extra infra and no
-    // data leaves the server.
-    await query(`
+    },
+  ],
+  [
+    '011_app_error_log',
+    async () => {
+      // Persistent error store for the observability layer. Server 5xx, job/ws
+      // failures, and client-reported errors land here and are surfaced in the
+      // admin error viewer. Kept in the same DB so there is no extra infra and no
+      // data leaves the server.
+      await query(`
       CREATE TABLE IF NOT EXISTS app_error_log (
         id          UUID PRIMARY KEY,
         request_id  TEXT,
@@ -140,93 +172,111 @@ const steps: readonly Step[] = [
         created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
-    await query(`
+      await query(`
       CREATE INDEX IF NOT EXISTS idx_app_error_log_created
         ON app_error_log (created_at DESC)
     `);
-    await query(`
+      await query(`
       CREATE INDEX IF NOT EXISTS idx_app_error_log_request
         ON app_error_log (request_id)
     `);
-  }],
-  ['012_exam_notes_calculator', async () => {
-    // Per-exam tool toggles. Notes default TRUE so existing exams keep the
-    // always-available scratchpad; the calculator is opt-in (FALSE).
-    await query(`
+    },
+  ],
+  [
+    '012_exam_notes_calculator',
+    async () => {
+      // Per-exam tool toggles. Notes default TRUE so existing exams keep the
+      // always-available scratchpad; the calculator is opt-in (FALSE).
+      await query(`
       ALTER TABLE otisak_exams
       ADD COLUMN IF NOT EXISTS allow_notes BOOLEAN NOT NULL DEFAULT TRUE
     `);
-    await query(`
+      await query(`
       ALTER TABLE otisak_exams
       ADD COLUMN IF NOT EXISTS allow_calculator BOOLEAN NOT NULL DEFAULT FALSE
     `);
-  }],
-  ['013_users_elpis_id', async () => {
-    // Optional ELPIS ID (OAuth/OIDC) account link. Nullable, so every existing
-    // row is untouched; UNIQUE so one ELPIS ID account (the OIDC `sub`) maps to
-    // at most one otisak user. NULLs don't collide under a UNIQUE constraint, so
-    // local-only accounts coexist fine. Login is link-only: a `sub` with no row
-    // here is refused, never auto-provisioned.
-    await query(`
+    },
+  ],
+  [
+    '013_users_elpis_id',
+    async () => {
+      // Optional ELPIS ID (OAuth/OIDC) account link. Nullable, so every existing
+      // row is untouched; UNIQUE so one ELPIS ID account (the OIDC `sub`) maps to
+      // at most one otisak user. NULLs don't collide under a UNIQUE constraint, so
+      // local-only accounts coexist fine. Login is link-only: a `sub` with no row
+      // here is refused, never auto-provisioned.
+      await query(`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS elpis_id TEXT UNIQUE
     `);
-  }],
-  ['014_settings_elpis_login', async () => {
-    // Soft admin toggle for the ELPIS ID login button. Seeded 'true' so that
-    // once an operator configures the ELPIS_ID_* env the button is live; an
-    // admin can flip it off in Settings without a redeploy. Only ever consulted
-    // when the env is actually configured (see elpisLoginEnabled()).
-    await query(`
+    },
+  ],
+  [
+    '014_settings_elpis_login',
+    async () => {
+      // Soft admin toggle for the ELPIS ID login button. Seeded 'true' so that
+      // once an operator configures the ELPIS_ID_* env the button is live; an
+      // admin can flip it off in Settings without a redeploy. Only ever consulted
+      // when the env is actually configured (see elpisLoginEnabled()).
+      await query(`
       INSERT INTO app_settings (key, value)
       VALUES ('elpis_id_login_enabled', 'true')
       ON CONFLICT (key) DO NOTHING
     `);
-  }],
-  ['015_users_sessions_revoked_at', async () => {
-    // Per-user session cutoff. Sessions are stateless signed cookies, so the
-    // only way to revoke them remotely (ELPIS ID "log out everywhere", user
-    // disabled, app access blocked) is a timestamp: requireAuth refuses any
-    // cookie whose createdAt predates this value. NULL = nothing ever revoked.
-    await query(`
+    },
+  ],
+  [
+    '015_users_sessions_revoked_at',
+    async () => {
+      // Per-user session cutoff. Sessions are stateless signed cookies, so the
+      // only way to revoke them remotely (ELPIS ID "log out everywhere", user
+      // disabled, app access blocked) is a timestamp: requireAuth refuses any
+      // cookie whose createdAt predates this value. NULL = nothing ever revoked.
+      await query(`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS sessions_revoked_at TIMESTAMPTZ
     `);
-  }],
+    },
+  ],
 
-  ['016_users_ldap_uid', async () => {
-    // FreeIPA/LDAP account link: the IPA login (uid). UNIQUE so one directory account maps to at
-    // most one OTISAK account. NULL for accounts that never signed in via LDAP. See lib/ldap.ts.
-    await query(`
+  [
+    '016_users_ldap_uid',
+    async () => {
+      // FreeIPA/LDAP account link: the IPA login (uid). UNIQUE so one directory account maps to at
+      // most one OTISAK account. NULL for accounts that never signed in via LDAP. See lib/ldap.ts.
+      await query(`
       ALTER TABLE users
       ADD COLUMN IF NOT EXISTS ldap_uid TEXT UNIQUE
     `);
-  }],
+    },
+  ],
 
-  ['017_manual_open_text_grading', async () => {
-    // Open-text answers are graded by the subject's staff. graded_by records who
-    // scored the answer (NULL = not graded by a person); the grade itself reuses
-    // points_awarded / ai_grading_status / ai_feedback / ai_graded_at.
-    await query(`
+  [
+    '017_manual_open_text_grading',
+    async () => {
+      // Open-text answers are graded by the subject's staff. graded_by records who
+      // scored the answer (NULL = not graded by a person); the grade itself reuses
+      // points_awarded / ai_grading_status / ai_feedback / ai_graded_at.
+      await query(`
       ALTER TABLE otisak_attempt_answers
       ADD COLUMN IF NOT EXISTS graded_by UUID REFERENCES users(id) ON DELETE SET NULL
     `);
-    // The grading queue only ever looks for pending rows.
-    await query(`
+      // The grading queue only ever looks for pending rows.
+      await query(`
       CREATE INDEX IF NOT EXISTS idx_otisak_attempt_answers_pending
         ON otisak_attempt_answers (attempt_id)
         WHERE ai_grading_status = 'pending'
     `);
-    // A blank open-text answer has nothing to grade: store it as unanswered so
-    // it neither waits in the queue nor counts as a wrong answer.
-    await query(`
+      // A blank open-text answer has nothing to grade: store it as unanswered so
+      // it neither waits in the queue nor counts as a wrong answer.
+      await query(`
       UPDATE otisak_attempt_answers
          SET text_answer = NULL, ai_grading_status = NULL, points_awarded = 0
        WHERE ai_grading_status = 'pending'
          AND (text_answer IS NULL OR btrim(text_answer) = '')
     `);
-    // Attempts left marked pending with nothing pending any more are done.
-    await query(`
+      // Attempts left marked pending with nothing pending any more are done.
+      await query(`
       UPDATE otisak_attempts a
          SET ai_grading_status = 'graded'
        WHERE a.ai_grading_status = 'pending'
@@ -235,21 +285,27 @@ const steps: readonly Step[] = [
             WHERE aa.attempt_id = a.id AND aa.ai_grading_status = 'pending'
          )
     `);
-  }],
+    },
+  ],
 
-  ['018_user_role_professor', async () => {
-    // The professor role shipped in code without extending the enum, so any
-    // write of role = 'professor' (LDAP professors group, admin role change)
-    // failed. Runs outside a transaction, as ALTER TYPE ... ADD VALUE requires
-    // before the new value can be used.
-    await query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'professor'`);
-  }],
+  [
+    '018_user_role_professor',
+    async () => {
+      // The professor role shipped in code without extending the enum, so any
+      // write of role = 'professor' (LDAP professors group, admin role change)
+      // failed. Runs outside a transaction, as ALTER TYPE ... ADD VALUE requires
+      // before the new value can be used.
+      await query(`ALTER TYPE user_role ADD VALUE IF NOT EXISTS 'professor'`);
+    },
+  ],
 
-  ['019_images_table', async () => {
-    // Uploaded question images move out of the question row (data: URLs hit
-    // the 16000-char content cap and the 1 MB body limit) into their own
-    // table. See lib/images.ts.
-    await query(`
+  [
+    '019_images_table',
+    async () => {
+      // Uploaded question images move out of the question row (data: URLs hit
+      // the 16000-char content cap and the 1 MB body limit) into their own
+      // table. See lib/images.ts.
+      await query(`
       CREATE TABLE IF NOT EXISTS otisak_images (
         id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
         sha256 TEXT NOT NULL UNIQUE,
@@ -262,7 +318,8 @@ const steps: readonly Step[] = [
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       )
     `);
-  }],
+    },
+  ],
 ];
 
 export async function runMigrations(): Promise<void> {
@@ -278,10 +335,7 @@ export async function runMigrations(): Promise<void> {
     // Record the migration as applied. ON CONFLICT DO NOTHING preserves the
     // original applied_at timestamp on subsequent boots (the step itself is a
     // no-op the second time around, so this matches what actually happened).
-    await query(
-      `INSERT INTO migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`,
-      [id]
-    );
+    await query(`INSERT INTO migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING`, [id]);
   }
 
   logger.info('migrations: schema up to date');

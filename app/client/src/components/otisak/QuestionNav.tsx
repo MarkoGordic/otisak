@@ -1,4 +1,3 @@
-
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface QuestionNavProps {
@@ -41,11 +40,12 @@ export function QuestionNav({
               onClick={() => onSelect(idx)}
               className={`
                 w-7 h-7 sm:w-8 sm:h-8 rounded text-xs sm:text-sm font-medium transition-all duration-200 relative
-                ${isCurrent
-                  ? 'bg-blue-600 text-white scale-110'
-                  : isAnswered
-                    ? 'bg-blue-900/40 text-blue-300 border border-blue-500/30'
-                    : 'bg-[#2a2d3d] text-gray-400 hover:bg-[#35394b] hover:text-white'
+                ${
+                  isCurrent
+                    ? 'bg-blue-600 text-white scale-110'
+                    : isAnswered
+                      ? 'bg-blue-900/40 text-blue-300 border border-blue-500/30'
+                      : 'bg-[#2a2d3d] text-gray-400 hover:bg-[#35394b] hover:text-white'
                 }
               `}
             >

@@ -35,8 +35,9 @@ export default function HomePage() {
         const data = await res.json();
         setExams(data.exams || []);
       }
-    } catch { /* silent */ }
-    finally {
+    } catch {
+      /* silent */
+    } finally {
       setLoading(false);
       setRefreshing(false);
     }
@@ -51,14 +52,22 @@ export default function HomePage() {
         if (!res.ok) return;
         const data = await res.json();
         if (!mounted || !data.authenticated) return;
-        if (data.user?.role === 'admin' || data.user?.role === 'assistant' || data.user?.role === 'professor') {
+        if (
+          data.user?.role === 'admin' ||
+          data.user?.role === 'assistant' ||
+          data.user?.role === 'professor'
+        ) {
           navigate('/admin/home', { replace: true });
         } else {
           setStudentSignedIn(true);
         }
-      } catch { /* student or unauthenticated - stay on the picker */ }
+      } catch {
+        /* student or unauthenticated - stay on the picker */
+      }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [navigate]);
 
   useEffect(() => {
@@ -108,17 +117,37 @@ export default function HomePage() {
 
       <div className="z-10 w-full max-w-3xl px-4 sm:px-6 pt-16 sm:pt-24 pb-12 flex flex-col items-center text-center">
         {/* Logo */}
-        <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.8 }}
+        >
           <OtisakLogo className="w-16 h-16 sm:w-20 sm:h-20 drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] mb-6" />
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, delay: 0.2 }} className="mb-10">
-          <h1 className={`text-3xl sm:text-4xl font-light mb-2 tracking-[0.2em] ${titleClass}`}>OTISAK</h1>
-          <span className={`text-xs tracking-[0.4em] uppercase font-medium ${versionClass}`}>v 2.0</span>
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="mb-10"
+        >
+          <h1 className={`text-3xl sm:text-4xl font-light mb-2 tracking-[0.2em] ${titleClass}`}>
+            OTISAK
+          </h1>
+          <span className={`text-xs tracking-[0.4em] uppercase font-medium ${versionClass}`}>
+            v 2.0
+          </span>
         </motion.div>
 
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }} className="mb-8">
-          <h2 className={`text-xl sm:text-2xl font-light tracking-wide mb-2 ${sectionTitleClass}`}>{t('home.title')}</h2>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="mb-8"
+        >
+          <h2 className={`text-xl sm:text-2xl font-light tracking-wide mb-2 ${sectionTitleClass}`}>
+            {t('home.title')}
+          </h2>
           <p className={`text-sm ${subtitleClass}`}>{t('home.subtitle')}</p>
         </motion.div>
 
@@ -135,7 +164,9 @@ export default function HomePage() {
 
         {loading ? (
           <div className="w-full py-20 flex justify-center">
-            <Loader2 className={`w-8 h-8 animate-spin ${isDark ? 'text-blue-400' : 'text-blue-600'}`} />
+            <Loader2
+              className={`w-8 h-8 animate-spin ${isDark ? 'text-blue-400' : 'text-blue-600'}`}
+            />
           </div>
         ) : exams.length === 0 ? (
           <motion.div
@@ -175,15 +206,21 @@ export default function HomePage() {
                         {started ? t('home.inProgress') : t('home.waiting')}
                       </span>
                       {exam.subject_name && (
-                        <span className={`text-[10px] uppercase tracking-widest ${subjectChipClass}`}>
+                        <span
+                          className={`text-[10px] uppercase tracking-widest ${subjectChipClass}`}
+                        >
                           {exam.subject_name}
                         </span>
                       )}
                     </div>
-                    <div className={`text-base sm:text-lg font-light truncate ${examTitleClass}`}>{exam.title}</div>
+                    <div className={`text-base sm:text-lg font-light truncate ${examTitleClass}`}>
+                      {exam.title}
+                    </div>
                     <div className={`flex items-center gap-1.5 mt-1.5 text-xs ${examMetaClass}`}>
                       <Clock size={12} />
-                      <span>{exam.duration_minutes} {t('home.minutes')}</span>
+                      <span>
+                        {exam.duration_minutes} {t('home.minutes')}
+                      </span>
                     </div>
                   </div>
                   <ArrowRight
@@ -197,7 +234,9 @@ export default function HomePage() {
         )}
       </div>
 
-      <div className="absolute bottom-0 w-full z-10"><OtisakFooter /></div>
+      <div className="absolute bottom-0 w-full z-10">
+        <OtisakFooter />
+      </div>
     </div>
   );
 }

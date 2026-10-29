@@ -21,7 +21,10 @@ export type GradingExamSummary = {
 
 // Exams with open-text answers still waiting for a grade, most work first.
 // Admins see every exam; everyone else only exams of their assigned subjects.
-export async function getGradingSummary(userId: string, isAdmin: boolean): Promise<GradingExamSummary[]> {
+export async function getGradingSummary(
+  userId: string,
+  isAdmin: boolean,
+): Promise<GradingExamSummary[]> {
   const result = await query<GradingExamSummary>(
     `SELECT e.id AS exam_id, e.title, e.status, s.name AS subject_name,
             COUNT(*) FILTER (WHERE aa.ai_grading_status = 'pending')::int AS pending,
@@ -37,7 +40,7 @@ export async function getGradingSummary(userId: string, isAdmin: boolean): Promi
       GROUP BY e.id, s.name
      HAVING COUNT(*) FILTER (WHERE aa.ai_grading_status = 'pending') > 0
       ORDER BY pending DESC, e.title`,
-    [userId, isAdmin]
+    [userId, isAdmin],
   );
   return result.rows;
 }
@@ -82,7 +85,7 @@ export async function getExamGradingItems(examId: string): Promise<GradingItem[]
       WHERE a.exam_id = $1
         AND aa.ai_grading_status IN ('pending', 'graded')
       ORDER BY q.position, q.id, u.name NULLS LAST, u.email`,
-    [examId]
+    [examId],
   );
   return result.rows;
 }
@@ -105,15 +108,16 @@ export async function gradeOpenTextAnswer(input: {
     // once can't compute the total from each other's half-written state.
     const attemptRes = await client.query<{ submitted: boolean }>(
       `SELECT submitted FROM otisak_attempts WHERE id = $1 AND exam_id = $2 FOR UPDATE`,
-      [input.attemptId, input.examId]
+      [input.attemptId, input.examId],
     );
     const attempt = attemptRes.rows[0];
     if (!attempt) return { ok: false, status: 404, error: 'Attempt not found' };
-    if (!attempt.submitted) return { ok: false, status: 409, error: 'Attempt is not submitted yet' };
+    if (!attempt.submitted)
+      return { ok: false, status: 409, error: 'Attempt is not submitted yet' };
 
     const questionRes = await client.query<{ type: string; points: number }>(
       `SELECT type, points FROM otisak_questions WHERE id = $1 AND exam_id = $2`,
-      [input.questionId, input.examId]
+      [input.questionId, input.examId],
     );
     const question = questionRes.rows[0];
     if (!question) return { ok: false, status: 404, error: 'Question not found' };
@@ -132,7 +136,14 @@ export async function gradeOpenTextAnswer(input: {
               ai_graded_at = NOW(), graded_by = $5
         WHERE attempt_id = $1 AND question_id = $2
           AND ai_grading_status IN ('pending', 'graded')`,
-      [input.attemptId, input.questionId, input.points, input.feedback ?? null, input.graderId, input.feedback !== undefined]
+      [
+        input.attemptId,
+        input.questionId,
+        input.points,
+        input.feedback ?? null,
+        input.graderId,
+        input.feedback !== undefined,
+      ],
     );
     if ((updated.rowCount ?? 0) === 0) {
       return { ok: false, status: 404, error: 'No gradable answer for this question' };
@@ -142,12 +153,12 @@ export async function gradeOpenTextAnswer(input: {
     const pendingRes = await client.query<{ n: number }>(
       `SELECT COUNT(*)::int AS n FROM otisak_attempt_answers
         WHERE attempt_id = $1 AND ai_grading_status = 'pending'`,
-      [input.attemptId]
+      [input.attemptId],
     );
     const attemptPending = (pendingRes.rows[0]?.n ?? 0) > 0;
     await client.query(
       `UPDATE otisak_attempts SET total_points = $2, max_points = $3, ai_grading_status = $4 WHERE id = $1`,
-      [input.attemptId, total, max, attemptPending ? 'pending' : 'graded']
+      [input.attemptId, total, max, attemptPending ? 'pending' : 'graded'],
     );
 
     return { ok: true, total_points: total, max_points: max, attempt_pending: attemptPending };

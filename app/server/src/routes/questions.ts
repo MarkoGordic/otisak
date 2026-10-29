@@ -67,10 +67,14 @@ router.post('/', async (req: Request, res: Response) => {
 // vbscript:, etc.) gets rejected.
 function validateImageUrl(url: string): { ok: true } | { ok: false; error: string } {
   if (isStoredImageUrl(url)) return { ok: true };
-  if (url.length > 800 * 1024) return { ok: false, error: 'Image URL too large (max ~600KB base64)' };
+  if (url.length > 800 * 1024)
+    return { ok: false, error: 'Image URL too large (max ~600KB base64)' };
   if (/^https?:\/\//i.test(url)) return { ok: true };
-  const dataUrlMatch = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/i.exec(url);
-  if (!dataUrlMatch) return { ok: false, error: 'image_url must be a http(s) URL or a data:image/* base64 payload' };
+  const dataUrlMatch = /^data:image\/(png|jpe?g|gif|webp|svg\+xml);base64,([A-Za-z0-9+/=]+)$/i.exec(
+    url,
+  );
+  if (!dataUrlMatch)
+    return { ok: false, error: 'image_url must be a http(s) URL or a data:image/* base64 payload' };
   return { ok: true };
 }
 
@@ -89,7 +93,7 @@ router.delete('/', async (req: Request, res: Response) => {
     // (which would be trivially spoofable).
     const owning = await query<{ subject_id: string }>(
       'SELECT subject_id FROM otisak_question_bank WHERE id = $1 LIMIT 1',
-      [id]
+      [id],
     );
     if (!owning.rows[0]) {
       return res.status(404).json({ error: 'Question not found' });

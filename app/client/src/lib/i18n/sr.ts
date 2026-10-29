@@ -75,7 +75,8 @@ const sr: Record<I18nKey, string> = {
   'docs.home': 'Početna',
   'docs.backToApp': 'Nazad u aplikaciju',
   'docs.notFoundTitle': 'Stranica nije pronađena',
-  'docs.notFoundBody': 'Ne možemo da pronađemo dokumentaciju za tu putanju na ovom jeziku. Probaj početnu ili promeni jezik.',
+  'docs.notFoundBody':
+    'Ne možemo da pronađemo dokumentaciju za tu putanju na ovom jeziku. Probaj početnu ili promeni jezik.',
   'docs.backToIndex': 'Otvori početnu',
 
   // Dashboard
@@ -141,7 +142,8 @@ const sr: Record<I18nKey, string> = {
   'subjects.save': 'Sačuvaj',
   'subjects.cancel': 'Otkaži',
   'subjects.create': 'Napravi',
-  'subjects.deleteConfirm': 'Obrisati predmet? Svi povezani ispiti i pitanja će izgubiti vezu sa predmetom.',
+  'subjects.deleteConfirm':
+    'Obrisati predmet? Svi povezani ispiti i pitanja će izgubiti vezu sa predmetom.',
   'subjects.saveSuccess': 'Predmet je sačuvan.',
   'subjects.saveFailed': 'Čuvanje predmeta nije uspelo.',
   'subjects.createSuccess': 'Predmet je napravljen.',
@@ -227,8 +229,10 @@ const sr: Record<I18nKey, string> = {
   'examEdit.partialScoring': 'Delimično bodovanje',
   'examEdit.tags': 'Oznake',
   'examEdit.tagsPlaceholder': 'Ukucaj oznaku i pritisni Enter…',
-  'examEdit.tagsHelp': 'Oznake se čuvaju malim slovima. Koriste se za filter na ekranu upravljanja.',
-  'examEdit.rescoreNotice': 'Ispit je zatvoren. Izmene bodova ili odgovora automatski rekalkulišu sve postojeće pokušaje.',
+  'examEdit.tagsHelp':
+    'Oznake se čuvaju malim slovima. Koriste se za filter na ekranu upravljanja.',
+  'examEdit.rescoreNotice':
+    'Ispit je zatvoren. Izmene bodova ili odgovora automatski rekalkulišu sve postojeće pokušaje.',
   'examEdit.saveSettings': 'Sačuvaj podešavanja',
   'examEdit.saveFailed': 'Čuvanje nije uspelo.',
   'examEdit.saveSuccess': 'Podešavanja sačuvana.',
@@ -272,7 +276,8 @@ const sr: Record<I18nKey, string> = {
   'manage.archive': 'Arhiviraj',
   'manage.reactivate': 'Ponovo aktiviraj',
   'manage.rerun': 'Pokreni ponovo',
-  'manage.rerunConfirm': 'Pokrenuti ispit ponovo? Prethodni odgovori i pokušaji biće obrisani, a vreme kreće od početka.',
+  'manage.rerunConfirm':
+    'Pokrenuti ispit ponovo? Prethodni odgovori i pokušaji biće obrisani, a vreme kreće od početka.',
   'manage.rerunFailed': 'Pokretanje ispita nije uspelo.',
   'manage.room': 'Upravljaj',
   'manage.create': 'Napravi',
@@ -283,22 +288,29 @@ const sr: Record<I18nKey, string> = {
   'manage.statusChanged': 'Status ispita je ažuriran.',
   'manage.statusFailed': 'Promena statusa nije uspela.',
   'manage.importSuccess': 'Ispit je uvezen.',
-  'manage.demoLocked': 'Ugrađeni demo ispit je zaključan. Ne može da se završi, arhivira ni obriše.',
+  'manage.demoLocked':
+    'Ugrađeni demo ispit je zaključan. Ne može da se završi, arhivira ni obriše.',
   'manage.importJsonTitle': 'Uvoz ispita',
-  'manage.importJsonHelp': 'Izaberi JSON fajl ili ZIP (JSON zajedno sa slikama) i predmet pod koji ide novi ispit.',
+  'manage.importJsonHelp':
+    'Izaberi JSON fajl ili ZIP (JSON zajedno sa slikama) i predmet pod koji ide novi ispit.',
   'manage.importJsonFile': 'Fajl (JSON ili ZIP)',
   'manage.importJsonPick': 'Izaberi fajl…',
-  'manage.importJsonSubjectHint': 'Predmet je obavezan. Ispit se pravi pod predmetom koji ovde izabereš, bez obzira na to šta piše u fajlu.',
+  'manage.importJsonSubjectHint':
+    'Predmet je obavezan. Ispit se pravi pod predmetom koji ovde izabereš, bez obzira na to šta piše u fajlu.',
   'manage.importJsonFormatLink': 'Opis formata fajla',
   'manage.importModeIgnoredTitle': 'Polje exam_mode je zanemareno',
-  'manage.importModeIgnoredReal': 'Ovaj fajl ima polje exam_mode. Zanemareno je i ispit je napravljen kao pravi ispit.',
-  'manage.importModeIgnoredPractice': 'Ovaj fajl ima polje exam_mode. Zanemareno je i ispit je napravljen kao vežba.',
-  'manage.importUnresolvedImages': 'Broj pitanja koja pokazuju na slike kojih nema u fajlu: {count} ({list}). Uvezi ZIP sa slikama ili ih otpremi u editoru ispita.',
+  'manage.importModeIgnoredReal':
+    'Ovaj fajl ima polje exam_mode. Zanemareno je i ispit je napravljen kao pravi ispit.',
+  'manage.importModeIgnoredPractice':
+    'Ovaj fajl ima polje exam_mode. Zanemareno je i ispit je napravljen kao vežba.',
+  'manage.importUnresolvedImages':
+    'Broj pitanja koja pokazuju na slike kojih nema u fajlu: {count} ({list}). Uvezi ZIP sa slikama ili ih otpremi u editoru ispita.',
   'manage.importUnresolvedImagesTitle': 'Slike nisu uvezene',
   'manage.importInvalidJson': 'JSON fajl nije ispravan.',
   'manage.importZipTooLarge': 'ZIP je prevelik (maks. 100 MB, odnosno 300 MB raspakovan).',
   'manage.importZipInvalid': 'Fajl nije ispravan ZIP.',
-  'manage.importZipManyJson': 'ZIP sadrži više JSON fajlova ({list}). Ostavi jedan ili ga nazovi exam.json.',
+  'manage.importZipManyJson':
+    'ZIP sadrži više JSON fajlova ({list}). Ostavi jedan ili ga nazovi exam.json.',
   'manage.importZipNoJson': 'ZIP ne sadrži JSON fajl sa ispitom.',
   'manage.importBadImage': 'Slika {list} nije ispravna ili njen format nije podržan.',
   'manage.importMissingImages': 'U ZIP-u nedostaju slike: {list}',
@@ -317,15 +329,18 @@ const sr: Record<I18nKey, string> = {
   'practiceAdmin.count': 'vežbi',
   'practiceAdmin.publish': 'Objavi',
   'practiceAdmin.empty': 'Još nema vežbi',
-  'practiceAdmin.emptyDesc': 'Napravi vežbu i objavi je da bi studenti mogli da je rade kad god žele.',
+  'practiceAdmin.emptyDesc':
+    'Napravi vežbu i objavi je da bi studenti mogli da je rade kad god žele.',
   'practiceAdmin.public': 'Javna',
   'practiceAdmin.enrolledOnly': 'Samo upisani',
   'practiceAdmin.hidden': 'Skrivena od studenata',
-  'practiceAdmin.hiddenHint': 'Ova vežba nije samoposlužna, pa se ne pojavljuje u listi vežbi kod studenata. Klikni Objavi ponovo da se popravi.',
+  'practiceAdmin.hiddenHint':
+    'Ova vežba nije samoposlužna, pa se ne pojavljuje u listi vežbi kod studenata. Klikni Objavi ponovo da se popravi.',
   'practiceAdmin.republish': 'Objavi ponovo',
   'practiceAdmin.republished': 'Vežba je ponovo vidljiva studentima.',
   'practiceAdmin.republishFailed': 'Ponovno objavljivanje vežbe nije uspelo.',
-  'practiceAdmin.subjectRequired': 'Vežba mora da ima predmet, inače studenti ne mogu da je pokrenu.',
+  'practiceAdmin.subjectRequired':
+    'Vežba mora da ima predmet, inače studenti ne mogu da je pokrenu.',
   'manage.importJsonSubjectPlaceholder': 'Izaberi predmet…',
   'manage.subjectPlaceholder': 'Izaberi predmet…',
   'manage.createSuccess': 'Ispit je napravljen.',
@@ -396,8 +411,10 @@ const sr: Record<I18nKey, string> = {
   'questions.imageReadFailed': 'Čitanje slike nije uspelo.',
   'questions.imageCompressed': 'Slika je smanjena i kompresovana: {from} na {to}.',
   'questions.imageUploadFailed': 'Otpremanje slike nije uspelo.',
-  'questions.imageUnsupported': 'Ovaj format slike nije podržan. Sačuvaj je kao JPG ili PNG i pokušaj ponovo.',
-  'questions.imageTooManyPixels': 'Dimenzije slike su prevelike (preko 120 megapiksela). Smanji je i pokušaj ponovo.',
+  'questions.imageUnsupported':
+    'Ovaj format slike nije podržan. Sačuvaj je kao JPG ili PNG i pokušaj ponovo.',
+  'questions.imageTooManyPixels':
+    'Dimenzije slike su prevelike (preko 120 megapiksela). Smanji je i pokušaj ponovo.',
   'questions.imageUploading': 'Otpremanje...',
   'questions.imageInvalidUrl': 'URL slike nije validan.',
   'questions.multipleChoice': 'Višestruki izbor',
@@ -534,13 +551,17 @@ const sr: Record<I18nKey, string> = {
   'exam.loggedInAs': 'Prijavljen kao',
   'exam.student': 'Student',
   'exam.waitingForInstructor': 'Čekanje da asistent pokrene ispit...',
-  'exam.waitingDesc': 'Čekanje da asistent pokrene ispit. Automatski ćete biti preusmereni kada tajmer počne.',
+  'exam.waitingDesc':
+    'Čekanje da asistent pokrene ispit. Automatski ćete biti preusmereni kada tajmer počne.',
   'exam.back': 'Nazad',
   'exam.negativePoints': 'Negativni bodovi',
-  'exam.negativePointsDesc': 'Posle {threshold} pogrešnih odgovora, svaki sledeći pogrešni odgovor oduzima {value} bod(ova).',
+  'exam.negativePointsDesc':
+    'Posle {threshold} pogrešnih odgovora, svaki sledeći pogrešni odgovor oduzima {value} bod(ova).',
   'exam.threshold': 'Prag: {value}',
-  'exam.cheatingWarning': 'Svaki vid prepisivanja, neovlašćene komunikacije ili korišćenja spoljnih izvora strogo je zabranjen tokom ispita.',
-  'exam.disciplinaryWarning': 'Kršenje pravila vodi trenutnom poništavanju ispita i disciplinskom postupku.',
+  'exam.cheatingWarning':
+    'Svaki vid prepisivanja, neovlašćene komunikacije ili korišćenja spoljnih izvora strogo je zabranjen tokom ispita.',
+  'exam.disciplinaryWarning':
+    'Kršenje pravila vodi trenutnom poništavanju ispita i disciplinskom postupku.',
   'exam.question': 'Pitanje {current} od {total}',
   'exam.point': 'bod',
   'exam.points': 'bodova',
@@ -556,7 +577,8 @@ const sr: Record<I18nKey, string> = {
   'exam.submitting': 'Predaja ispita u toku...',
   'exam.finishConfirmTitle': 'Da li ste sigurni?',
   'exam.finishConfirmBody': 'Predaćete ispit i nećete moći da se vratite niti da menjate odgovore.',
-  'exam.finishConfirmWarning': 'Ova radnja je trajna. Posle predaje ne možete više da pristupite ispitu.',
+  'exam.finishConfirmWarning':
+    'Ova radnja je trajna. Posle predaje ne možete više da pristupite ispitu.',
   'exam.finishConfirmCancel': 'Otkaži',
   'exam.finishConfirmYes': 'Da, završi i predaj',
   'exam.leaveWarning': 'Ispit je u toku. Da li ste sigurni da želite da napustite stranicu?',
@@ -565,17 +587,20 @@ const sr: Record<I18nKey, string> = {
   'exam.notesLabel': 'Beleške',
   'exam.finishHeader': 'Završi test',
   'room.readOnly.title': 'Ispit je završen',
-  'room.readOnly.desc': 'Ispit je zatvoren. Soba uživo je zaključana; možeš da preuzmeš rezultate i otvoriš izveštaje po studentu ispod.',
+  'room.readOnly.desc':
+    'Ispit je zatvoren. Soba uživo je zaključana; možeš da preuzmeš rezultate i otvoriš izveštaje po studentu ispod.',
   'room.readOnly.exportTitle': 'Preuzmi rezultate',
   'room.readOnly.statsTitle': 'Statistika ispita',
-  'room.readOnly.statsDesc': 'Uspeh po pitanju, najteže / najlakše, raspodela rezultata, izbori odgovora.',
+  'room.readOnly.statsDesc':
+    'Uspeh po pitanju, najteže / najlakše, raspodela rezultata, izbori odgovora.',
   'room.readOnly.openStats': 'Otvori statistiku',
   'room.readOnly.exportDesc': 'ZIP sa results.csv, results-table.pdf i PDF-om po studentu.',
   'room.readOnly.downloadZip': 'Preuzmi ZIP',
   'room.readOnly.studentsTitle': 'Izveštaji po studentu',
   'room.readOnly.openReport': 'Otvori izveštaj',
   'room.readOnly.noStudents': 'Nema predaja na ovom ispitu.',
-  'exam.scratchPlaceholder': 'Pišite beleške, računajte ili radite ovde...\n\nOve beleške se NE predaju sa ispitom.',
+  'exam.scratchPlaceholder':
+    'Pišite beleške, računajte ili radite ovde...\n\nOve beleške se NE predaju sa ispitom.',
   'exam.scratchFooter': 'Samo za ličnu upotrebu. Ne predaje se.',
 
   // Results
@@ -590,7 +615,8 @@ const sr: Record<I18nKey, string> = {
   'results.thresholdLabel': 'Prag {value}%',
   'results.correct': 'tačno',
   'results.aiGradingInProgress': 'Čeka ocenjivanje',
-  'results.aiGradingWait': 'Odgovore otvorenog tipa ocenjuje profesor. Rezultat će biti ažuriran kada budu ocenjeni.',
+  'results.aiGradingWait':
+    'Odgovore otvorenog tipa ocenjuje profesor. Rezultat će biti ažuriran kada budu ocenjeni.',
   'results.aiGradingPartial': 'Delimično AI ocenjivanje',
   'results.aiGradingPartialHint': 'Neki odgovori nisu mogli biti automatski ocenjeni.',
   'results.recap': 'Rekapitulacija po pitanjima',
@@ -634,7 +660,8 @@ const sr: Record<I18nKey, string> = {
   'join.redirecting': 'Preusmeravanje...',
   'join.loggedInAs': 'Prijavljen kao',
   'join.waitingForInstructor': 'Čekanje da asistent pokrene ispit...',
-  'join.waitingDesc': 'Uspešno ste pristupili ispitu. Sačekajte da asistent pokrene tajmer. Ne zatvarajte ovaj prozor.',
+  'join.waitingDesc':
+    'Uspešno ste pristupili ispitu. Sačekajte da asistent pokrene tajmer. Ne zatvarajte ovaj prozor.',
   'join.examNotFound': 'Ispit nije pronađen.',
   'join.examNotActive': 'Ovaj ispit trenutno nije aktivan.',
   'join.connectionError': 'Nije moguće povezivanje sa serverom.',
@@ -644,7 +671,8 @@ const sr: Record<I18nKey, string> = {
 
   // Awaiting approval (late join)
   'exam.awaitingApproval.title': 'Čekanje odobrenja',
-  'exam.awaitingApproval.body': 'Zahtev za pristup je poslat asistentu. Bićete automatski preusmereni čim odobre vaš zahtev.',
+  'exam.awaitingApproval.body':
+    'Zahtev za pristup je poslat asistentu. Bićete automatski preusmereni čim odobre vaš zahtev.',
   'exam.awaitingApproval.pill': 'Zahtev na čekanju',
   'exam.awaitingApproval.dontClose': 'Ne zatvarajte ovaj prozor',
 
@@ -671,17 +699,20 @@ const sr: Record<I18nKey, string> = {
   'room.toast.finishFailed': 'Zatvaranje ispita nije uspelo.',
   'room.finishAll': 'Završi za sve',
   'room.finishAll.title': 'Završi ispit za sve studente?',
-  'room.finishAll.body': 'Ovo zaustavlja tajmer i automatski predaje sve nepredate radove. Bodovi se računaju iz već sačuvanih odgovora.',
+  'room.finishAll.body':
+    'Ovo zaustavlja tajmer i automatski predaje sve nepredate radove. Bodovi se računaju iz već sačuvanih odgovora.',
   'room.finishAll.warning': 'Akcija je trajna. Zatvoreni ispit se ne može ponovo otvoriti.',
   'room.finishAll.redirectLabel': 'Vrati studente na početnu stranicu',
-  'room.finishAll.redirectHint': 'Studenti dobijaju kratku poruku i bivaju automatski preusmereni nazad. Bez ove opcije idu na ekran sa rezultatima.',
+  'room.finishAll.redirectHint':
+    'Studenti dobijaju kratku poruku i bivaju automatski preusmereni nazad. Bez ove opcije idu na ekran sa rezultatima.',
   'room.finishAll.confirm': 'Da, završi za sve',
   'exam.toast.timerAdded': 'Asistent je dodao {minutes} min.',
   'exam.toast.timerRemoved': 'Asistent je oduzeo {minutes} min.',
   'exam.toast.finishedByAdmin': 'Asistent je završio ispit.',
   'exam.toast.kicked': 'Asistent te je izbacio iz ispita.',
   'room.kick': 'Izbaci sa ispita',
-  'room.kickConfirm': 'Izbaciti studenta {name} iz ispita? Njegov pokušaj se predaje sa odgovorima koje je do sada uneo.',
+  'room.kickConfirm':
+    'Izbaciti studenta {name} iz ispita? Njegov pokušaj se predaje sa odgovorima koje je do sada uneo.',
   'room.kickFailed': 'Nije moguće izbaciti studenta.',
   'room.kickToast': 'Student {name} je izbačen iz ispita.',
   'room.viewReport': 'Otvori izveštaj',

@@ -15,18 +15,16 @@ import type {
 // EXAMS
 // ========================================
 
-export async function getOtisakExams(
-  filters?: {
-    status?: string;
-    statuses?: string[];
-    subject_id?: string;
-    exam_mode?: string;
-    subject_ids?: string[];
-    tags?: string[];
-    scheduled_from?: string;
-    scheduled_to?: string;
-  }
-): Promise<OtisakExamWithSubject[]> {
+export async function getOtisakExams(filters?: {
+  status?: string;
+  statuses?: string[];
+  subject_id?: string;
+  exam_mode?: string;
+  subject_ids?: string[];
+  tags?: string[];
+  scheduled_from?: string;
+  scheduled_to?: string;
+}): Promise<OtisakExamWithSubject[]> {
   let sql = `
     SELECT e.*, s.name as subject_name, s.code as subject_code,
            (SELECT COUNT(*)::int FROM otisak_questions q WHERE q.exam_id = e.id) as question_count
@@ -97,14 +95,14 @@ export async function getOtisakExamById(id: string): Promise<OtisakExamWithSubje
      FROM otisak_exams e
      LEFT JOIN otisak_subjects s ON e.subject_id = s.id
      WHERE e.id = $1`,
-    [id]
+    [id],
   );
   return result.rows[0] || null;
 }
 
 export async function createOtisakExam(
   data: CreateOtisakExamInput,
-  createdBy: string
+  createdBy: string,
 ): Promise<OtisakExam> {
   // Tags get normalised once on the way in: lowercased, trimmed, deduped,
   // empties dropped. Saves us from re-doing it on every read.
@@ -146,7 +144,7 @@ export async function createOtisakExam(
       tags,
       data.allow_notes ?? true,
       data.allow_calculator ?? false,
-    ]
+    ],
   );
   return result.rows[0];
 }
@@ -195,12 +193,14 @@ export const DEMO_EXAM_TITLE = 'Šaljivi test: crtani junaci';
 // ConflictError so the centralized error handler maps it to a 409 with the
 // DEMO_EXAM_LOCKED code; the existing route-level catch keeps working too.
 export class DemoExamLockedError extends ConflictError {
-  constructor() { super('DEMO_EXAM_LOCKED', 'DEMO_EXAM_LOCKED'); }
+  constructor() {
+    super('DEMO_EXAM_LOCKED', 'DEMO_EXAM_LOCKED');
+  }
 }
 
 export async function updateOtisakExamStatus(
   examId: string,
-  status: OtisakExam['status']
+  status: OtisakExam['status'],
 ): Promise<OtisakExam | null> {
   // A finished exam stays finished. We block flips OUT of completed/archived
   // here at the DB layer so no UI button (or stray API call) can reopen them.
@@ -224,14 +224,39 @@ export async function updateOtisakExamStatus(
   }
   const result = await query<OtisakExam>(
     `UPDATE otisak_exams SET status = $2, updated_at = NOW() WHERE id = $1 RETURNING *`,
-    [examId, status]
+    [examId, status],
   );
   return result.rows[0] || null;
 }
 
 export async function updateOtisakExam(
   examId: string,
-  data: Partial<Pick<OtisakExam, 'title' | 'description' | 'duration_minutes' | 'pass_threshold' | 'has_pass_threshold' | 'allow_review' | 'allow_notes' | 'allow_calculator' | 'shuffle_questions' | 'shuffle_answers' | 'is_public' | 'self_service' | 'repeat_interval_minutes' | 'auto_activate' | 'negative_points_enabled' | 'negative_points_value' | 'negative_points_threshold' | 'partial_scoring' | 'exam_mode' | 'subject_id' | 'tags'>>
+  data: Partial<
+    Pick<
+      OtisakExam,
+      | 'title'
+      | 'description'
+      | 'duration_minutes'
+      | 'pass_threshold'
+      | 'has_pass_threshold'
+      | 'allow_review'
+      | 'allow_notes'
+      | 'allow_calculator'
+      | 'shuffle_questions'
+      | 'shuffle_answers'
+      | 'is_public'
+      | 'self_service'
+      | 'repeat_interval_minutes'
+      | 'auto_activate'
+      | 'negative_points_enabled'
+      | 'negative_points_value'
+      | 'negative_points_threshold'
+      | 'partial_scoring'
+      | 'exam_mode'
+      | 'subject_id'
+      | 'tags'
+    >
+  >,
 ): Promise<OtisakExam | null> {
   // Block edits that would break the demo lock. The demo is identified by
   // its title, so renaming it would orphan the lock and let the demo be
@@ -261,46 +286,109 @@ export async function updateOtisakExam(
   const values: unknown[] = [];
   let idx = 1;
 
-  if (data.title !== undefined) { updates.push(`title = $${idx++}`); values.push(data.title); }
-  if (data.description !== undefined) { updates.push(`description = $${idx++}`); values.push(data.description); }
-  if (data.duration_minutes !== undefined) { updates.push(`duration_minutes = $${idx++}`); values.push(data.duration_minutes); }
-  if (data.pass_threshold !== undefined) { updates.push(`pass_threshold = $${idx++}`); values.push(data.pass_threshold); }
-  if (data.has_pass_threshold !== undefined) { updates.push(`has_pass_threshold = $${idx++}`); values.push(data.has_pass_threshold); }
-  if (data.allow_review !== undefined) { updates.push(`allow_review = $${idx++}`); values.push(data.allow_review); }
-  if (data.allow_notes !== undefined) { updates.push(`allow_notes = $${idx++}`); values.push(data.allow_notes); }
-  if (data.allow_calculator !== undefined) { updates.push(`allow_calculator = $${idx++}`); values.push(data.allow_calculator); }
-  if (data.shuffle_questions !== undefined) { updates.push(`shuffle_questions = $${idx++}`); values.push(data.shuffle_questions); }
-  if (data.shuffle_answers !== undefined) { updates.push(`shuffle_answers = $${idx++}`); values.push(data.shuffle_answers); }
-  if (data.is_public !== undefined) { updates.push(`is_public = $${idx++}`); values.push(data.is_public); }
-  if (data.self_service !== undefined) { updates.push(`self_service = $${idx++}`); values.push(data.self_service); }
-  if (data.repeat_interval_minutes !== undefined) { updates.push(`repeat_interval_minutes = $${idx++}`); values.push(data.repeat_interval_minutes); }
-  if (data.auto_activate !== undefined) { updates.push(`auto_activate = $${idx++}`); values.push(data.auto_activate); }
-  if (data.negative_points_enabled !== undefined) { updates.push(`negative_points_enabled = $${idx++}`); values.push(data.negative_points_enabled); }
-  if (data.negative_points_value !== undefined) { updates.push(`negative_points_value = $${idx++}`); values.push(data.negative_points_value); }
-  if (data.negative_points_threshold !== undefined) { updates.push(`negative_points_threshold = $${idx++}`); values.push(data.negative_points_threshold); }
-  if (data.partial_scoring !== undefined) { updates.push(`partial_scoring = $${idx++}`); values.push(data.partial_scoring); }
-  if (data.tags !== undefined) { updates.push(`tags = $${idx++}`); values.push(normalizeExamTags(data.tags)); }
+  if (data.title !== undefined) {
+    updates.push(`title = $${idx++}`);
+    values.push(data.title);
+  }
+  if (data.description !== undefined) {
+    updates.push(`description = $${idx++}`);
+    values.push(data.description);
+  }
+  if (data.duration_minutes !== undefined) {
+    updates.push(`duration_minutes = $${idx++}`);
+    values.push(data.duration_minutes);
+  }
+  if (data.pass_threshold !== undefined) {
+    updates.push(`pass_threshold = $${idx++}`);
+    values.push(data.pass_threshold);
+  }
+  if (data.has_pass_threshold !== undefined) {
+    updates.push(`has_pass_threshold = $${idx++}`);
+    values.push(data.has_pass_threshold);
+  }
+  if (data.allow_review !== undefined) {
+    updates.push(`allow_review = $${idx++}`);
+    values.push(data.allow_review);
+  }
+  if (data.allow_notes !== undefined) {
+    updates.push(`allow_notes = $${idx++}`);
+    values.push(data.allow_notes);
+  }
+  if (data.allow_calculator !== undefined) {
+    updates.push(`allow_calculator = $${idx++}`);
+    values.push(data.allow_calculator);
+  }
+  if (data.shuffle_questions !== undefined) {
+    updates.push(`shuffle_questions = $${idx++}`);
+    values.push(data.shuffle_questions);
+  }
+  if (data.shuffle_answers !== undefined) {
+    updates.push(`shuffle_answers = $${idx++}`);
+    values.push(data.shuffle_answers);
+  }
+  if (data.is_public !== undefined) {
+    updates.push(`is_public = $${idx++}`);
+    values.push(data.is_public);
+  }
+  if (data.self_service !== undefined) {
+    updates.push(`self_service = $${idx++}`);
+    values.push(data.self_service);
+  }
+  if (data.repeat_interval_minutes !== undefined) {
+    updates.push(`repeat_interval_minutes = $${idx++}`);
+    values.push(data.repeat_interval_minutes);
+  }
+  if (data.auto_activate !== undefined) {
+    updates.push(`auto_activate = $${idx++}`);
+    values.push(data.auto_activate);
+  }
+  if (data.negative_points_enabled !== undefined) {
+    updates.push(`negative_points_enabled = $${idx++}`);
+    values.push(data.negative_points_enabled);
+  }
+  if (data.negative_points_value !== undefined) {
+    updates.push(`negative_points_value = $${idx++}`);
+    values.push(data.negative_points_value);
+  }
+  if (data.negative_points_threshold !== undefined) {
+    updates.push(`negative_points_threshold = $${idx++}`);
+    values.push(data.negative_points_threshold);
+  }
+  if (data.partial_scoring !== undefined) {
+    updates.push(`partial_scoring = $${idx++}`);
+    values.push(data.partial_scoring);
+  }
+  if (data.tags !== undefined) {
+    updates.push(`tags = $${idx++}`);
+    values.push(normalizeExamTags(data.tags));
+  }
   if (data.exam_mode !== undefined) {
     const mode = coerceExamMode(data.exam_mode);
     const flags = deriveExamModeFlags(mode);
-    updates.push(`exam_mode = $${idx++}`); values.push(mode);
+    updates.push(`exam_mode = $${idx++}`);
+    values.push(mode);
     // Keep the practice-side flags in sync. Skips when the caller explicitly
     // set those fields above. Note no UI sends exam_mode any more (mode is
     // fixed at creation by the page), so this branch is for API callers only.
     if (data.self_service === undefined) {
-      updates.push(`self_service = $${idx++}`); values.push(flags.self_service);
+      updates.push(`self_service = $${idx++}`);
+      values.push(flags.self_service);
     }
     if (data.is_public === undefined) {
-      updates.push(`is_public = $${idx++}`); values.push(flags.is_public);
+      updates.push(`is_public = $${idx++}`);
+      values.push(flags.is_public);
     }
   }
-  if (data.subject_id !== undefined) { updates.push(`subject_id = $${idx++}`); values.push(data.subject_id); }
+  if (data.subject_id !== undefined) {
+    updates.push(`subject_id = $${idx++}`);
+    values.push(data.subject_id);
+  }
 
   if (updates.length === 0) return null;
   values.push(examId);
   const result = await query<OtisakExam>(
     `UPDATE otisak_exams SET ${updates.join(', ')} WHERE id = $${idx} RETURNING *`,
-    values
+    values,
   );
   return result.rows[0] || null;
 }
@@ -316,7 +404,7 @@ export async function updateOtisakExam(
 export async function getSelfServicePracticeExams(
   userId: string,
   subjectId?: string,
-  staffScope?: { allSubjects?: boolean; subjectIds?: string[] }
+  staffScope?: { allSubjects?: boolean; subjectIds?: string[] },
 ): Promise<OtisakExamWithSubject[]> {
   let sql = `
     SELECT e.*, s.name as subject_name, s.code as subject_code,
@@ -364,7 +452,7 @@ export async function getSelfServicePracticeExams(
 export async function getExamAiSettings(examId: string): Promise<OtisakExamAiSettings | null> {
   const result = await query<OtisakExamAiSettings>(
     'SELECT * FROM otisak_exam_ai_settings WHERE exam_id = $1',
-    [examId]
+    [examId],
   );
   return result.rows[0] || null;
 }
@@ -377,7 +465,7 @@ export async function upsertExamAiSettings(
     grading_mode?: string;
     allow_student_api_keys?: boolean;
     max_student_credits?: number;
-  }
+  },
 ): Promise<OtisakExamAiSettings> {
   const result = await query<OtisakExamAiSettings>(
     `INSERT INTO otisak_exam_ai_settings (exam_id, ai_provider, api_key_encrypted, grading_mode, allow_student_api_keys, max_student_credits)
@@ -396,7 +484,7 @@ export async function upsertExamAiSettings(
       data.grading_mode || 'deferred',
       data.allow_student_api_keys ?? false,
       data.max_student_credits ?? 0,
-    ]
+    ],
   );
   return result.rows[0];
 }

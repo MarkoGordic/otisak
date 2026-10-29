@@ -42,12 +42,16 @@ type GuardContext = {
   payload: Record<string, unknown>;
 };
 
-const REQUEST_GUARDS: Record<ExamRequestType, (ctx: GuardContext) => Promise<{ ok: true } | { ok: false; error: string }>> = {
+const REQUEST_GUARDS: Record<
+  ExamRequestType,
+  (ctx: GuardContext) => Promise<{ ok: true } | { ok: false; error: string }>
+> = {
   late_join: async ({ examId, userId }) => {
     const exam = await getOtisakExamById(examId);
     if (!exam) return { ok: false, error: 'Exam not found' };
     if (exam.status !== 'active') return { ok: false, error: 'Exam is not active' };
-    if (!exam.exam_started_at) return { ok: false, error: 'Exam has not started yet - no late-join needed' };
+    if (!exam.exam_started_at)
+      return { ok: false, error: 'Exam has not started yet - no late-join needed' };
     const existing = await getActiveAttempt(examId, userId);
     if (existing) return { ok: false, error: 'You already have an active attempt' };
     return { ok: true };
@@ -109,7 +113,11 @@ export async function createExamRequest(input: {
 }): Promise<{ request: ExamRequestRow } | { error: string }> {
   const guard = REQUEST_GUARDS[input.type];
   if (!guard) return { error: 'Unsupported request type' };
-  const guardResult = await guard({ examId: input.examId, userId: input.userId, payload: input.payload || {} });
+  const guardResult = await guard({
+    examId: input.examId,
+    userId: input.userId,
+    payload: input.payload || {},
+  });
   if (!guardResult.ok) return { error: guardResult.error };
 
   // Reuse existing pending request of the same type rather than 23505 on the unique partial index.
@@ -117,7 +125,7 @@ export async function createExamRequest(input: {
     `SELECT * FROM exam_requests
      WHERE exam_id = $1 AND user_id = $2 AND type = $3 AND status = 'pending'
      LIMIT 1`,
-    [input.examId, input.userId, input.type]
+    [input.examId, input.userId, input.type],
   );
   if (existing.rows[0]) return { request: existing.rows[0] };
 
@@ -125,7 +133,7 @@ export async function createExamRequest(input: {
     `INSERT INTO exam_requests (exam_id, user_id, type, payload)
      VALUES ($1, $2, $3, $4)
      RETURNING *`,
-    [input.examId, input.userId, input.type, input.payload || {}]
+    [input.examId, input.userId, input.type, input.payload || {}],
   );
   return { request: result.rows[0] };
 }
@@ -137,15 +145,18 @@ export async function listPendingRequestsForExam(examId: string): Promise<ExamRe
      JOIN users u ON u.id = r.user_id
      WHERE r.exam_id = $1 AND r.status = 'pending'
      ORDER BY r.created_at ASC`,
-    [examId]
+    [examId],
   );
   return result.rows;
 }
 
-export async function listRequestsForUser(examId: string, userId: string): Promise<ExamRequestRow[]> {
+export async function listRequestsForUser(
+  examId: string,
+  userId: string,
+): Promise<ExamRequestRow[]> {
   const result = await query<ExamRequestRow>(
     `SELECT * FROM exam_requests WHERE exam_id = $1 AND user_id = $2 ORDER BY created_at DESC LIMIT 20`,
-    [examId, userId]
+    [examId, userId],
   );
   return result.rows;
 }
@@ -161,7 +172,7 @@ export async function decideExamRequest(input: {
     // Lock the row so concurrent decisions don't race.
     const lockedResult = await client.query<ExamRequestRow>(
       `SELECT * FROM exam_requests WHERE id = $1 AND exam_id = $2 FOR UPDATE`,
-      [input.requestId, input.examId]
+      [input.requestId, input.examId],
     );
     const row = lockedResult.rows[0];
     if (!row) return { error: 'Request not found' };
@@ -182,7 +193,7 @@ export async function decideExamRequest(input: {
          SET status = $1, decided_by = $2, decided_at = NOW(), decision_note = $3
        WHERE id = $4
        RETURNING *`,
-      [input.decision, input.decidedBy, input.note || null, input.requestId]
+      [input.decision, input.decidedBy, input.note || null, input.requestId],
     );
     return { request: updated.rows[0] };
   });

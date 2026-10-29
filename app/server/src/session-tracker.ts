@@ -14,7 +14,10 @@ export function markSessionActive(userId: string, sessionId: string): void {
   sessions.set(userId, { sessionId, lastSeen: Date.now() });
 }
 
-export function isLockedByOtherSession(userId: string, currentSessionId: string | null | undefined): boolean {
+export function isLockedByOtherSession(
+  userId: string,
+  currentSessionId: string | null | undefined,
+): boolean {
   const entry = sessions.get(userId);
   if (!entry) return false;
   if (entry.sessionId === currentSessionId) return false; // same browser/refresh

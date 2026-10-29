@@ -29,8 +29,12 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
         setElpisConfigured(!!d.configured);
         setElpisLinked(!!d.linked);
       })
-      .catch(() => { /* feature stays hidden */ });
-    return () => { alive = false; };
+      .catch(() => {
+        /* feature stays hidden */
+      });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const startLink = () => {
@@ -42,7 +46,10 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
     setUnlinking(true);
     try {
       const res = await fetch('/api/auth/elpis/unlink', { method: 'POST', credentials: 'include' });
-      if (!res.ok) { toast.error(t('account.elpis.unlinkFailed')); return; }
+      if (!res.ok) {
+        toast.error(t('account.elpis.unlinkFailed'));
+        return;
+      }
       setElpisLinked(false);
       toast.success(t('account.elpis.unlinked'));
     } catch {
@@ -122,7 +129,9 @@ export function ChangePasswordModal({ onClose }: { onClose: () => void }) {
           <div className="mt-5 pt-5 border-t border-[var(--border-default)]">
             <div className="flex items-center gap-2 mb-2">
               <Fingerprint size={16} className="text-accent" />
-              <h3 className="text-sm font-semibold text-[var(--text-primary)]">{t('account.elpis.title')}</h3>
+              <h3 className="text-sm font-semibold text-[var(--text-primary)]">
+                {t('account.elpis.title')}
+              </h3>
             </div>
             <div className="flex items-center justify-between gap-3">
               <p className="text-xs text-[var(--text-secondary)]">

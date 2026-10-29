@@ -67,7 +67,10 @@ export default function AdminErrorsPage() {
   const load = useCallback(async (requestId?: string) => {
     setLoading(true);
     try {
-      const q = requestId && requestId.trim() ? `?requestId=${encodeURIComponent(requestId.trim())}` : '?limit=100';
+      const q =
+        requestId && requestId.trim()
+          ? `?requestId=${encodeURIComponent(requestId.trim())}`
+          : '?limit=100';
       const data = await api.get<{ errors: ErrorRow[] }>(`/api/admin/errors${q}`);
       setRows(data.errors || []);
     } catch {
@@ -118,9 +121,12 @@ export default function AdminErrorsPage() {
                 <ScrollText className="w-6 h-6 text-accent" strokeWidth={1.5} />
               </div>
               <div className="flex-1">
-                <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">Greske i logovi</h1>
+                <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                  Greske i logovi
+                </h1>
                 <p className="text-sm text-[var(--text-secondary)]">
-                  Server i klijent greske. Pretrazi po kodu za prijavu (requestId) koji ti korisnik da.
+                  Server i klijent greske. Pretrazi po kodu za prijavu (requestId) koji ti korisnik
+                  da.
                 </p>
               </div>
             </div>
@@ -151,11 +157,16 @@ export default function AdminErrorsPage() {
                 <Loader2 className="w-7 h-7 animate-spin text-accent" />
               </div>
             ) : rows.length === 0 ? (
-              <div className="text-center py-16 text-[var(--text-muted)] text-sm">Nema zabelezenih gresaka.</div>
+              <div className="text-center py-16 text-[var(--text-muted)] text-sm">
+                Nema zabelezenih gresaka.
+              </div>
             ) : (
               <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] overflow-hidden">
                 {rows.map((r) => (
-                  <div key={r.id} className="border-b border-[var(--border-subtle)] last:border-b-0">
+                  <div
+                    key={r.id}
+                    className="border-b border-[var(--border-subtle)] last:border-b-0"
+                  >
                     <button
                       onClick={() => toggleRow(r.id)}
                       className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-[var(--bg-tertiary)] transition-colors"

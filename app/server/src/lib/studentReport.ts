@@ -1,8 +1,4 @@
-import {
-  getOtisakExamById,
-  getUserAttempts,
-  getAttemptResults,
-} from '../db/otisak';
+import { getOtisakExamById, getUserAttempts, getAttemptResults } from '../db/otisak';
 import { findUserById } from '../db/users';
 import { getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
 import { reportStrings, type ReportLocale, type ReportStrings } from './reportStrings';
@@ -31,16 +27,31 @@ export type StudentReportResult =
 // and the PDF rendering page happily executes it.
 function escapeHtml(s: unknown): string {
   if (s === null || s === undefined) return '';
-  return String(s).replace(/[&<>"']/g, (c) => (
-    { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' } as Record<string, string>
-  )[c]);
+  return String(s).replace(
+    /[&<>"']/g,
+    (c) =>
+      (
+        ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }) as Record<
+          string,
+          string
+        >
+      )[c],
+  );
 }
 
 function formatTime(date: Date | string, dateLocale: string): string {
-  return new Date(date).toLocaleTimeString(dateLocale, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(date).toLocaleTimeString(dateLocale, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+  });
 }
 function formatDate(date: Date | string, dateLocale: string): string {
-  return new Date(date).toLocaleDateString(dateLocale, { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return new Date(date).toLocaleDateString(dateLocale, {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
 }
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -62,8 +73,14 @@ function warnSvg(color: string, size = 12): string {
 }
 
 const SUSPICIOUS_TYPES = new Set([
-  'copy_attempt', 'cut_attempt', 'paste_attempt', 'page_blur',
-  'mouse_leave_window', 'devtools_attempt', 'print_attempt', 'tab_switch',
+  'copy_attempt',
+  'cut_attempt',
+  'paste_attempt',
+  'page_blur',
+  'mouse_leave_window',
+  'devtools_attempt',
+  'print_attempt',
+  'tab_switch',
 ]);
 
 // Robust font stack: Inter from the CDN when reachable, otherwise the locally
@@ -114,50 +131,56 @@ export async function buildStudentReportHTML(
     const styles = {
       'yours-wrong': 'background:rgba(220,38,38,0.18);color:#fca5a5;',
       'yours-right': 'background:rgba(5,150,105,0.20);color:#6ee7b7;',
-      'correct': 'border:1px solid rgba(5,150,105,0.45);color:#6ee7b7;',
+      correct: 'border:1px solid rgba(5,150,105,0.45);color:#6ee7b7;',
     }[kind];
     return `<span style="margin-left:auto;flex:0 0 auto;${styles}font-size:8.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:2px 7px;border-radius:999px;white-space:nowrap;">${text}</span>`;
   };
 
-  const questionsHtml = results?.questions.map((q, idx) => {
-    const correct = q.points_awarded > 0;
+  const questionsHtml =
+    results?.questions
+      .map((q, idx) => {
+        const correct = q.points_awarded > 0;
 
-    let body: string;
-    if (q.answers.length > 0) {
-      // Choice question: mark every picked answer ("Your answer") and every
-      // correct answer, so it is obvious what the student chose vs the key.
-      body = q.answers.map((a) => {
-        const selected = q.selected_answer_ids.includes(a.id);
-        const isCorrect = q.correct_answer_ids.includes(a.id);
-        let bg = '#0f1623';
-        let border = '#1f2937';
-        let mark = `<span style="display:inline-block;width:13px;flex:0 0 auto;"></span>`;
-        let badge = '';
-        if (isCorrect) {
-          bg = 'rgba(5,46,22,0.5)'; border = '#059669';
-          mark = checkSvg('#34d399');
-          badge = selected
-            ? tag(`${S.yourAnswerTag} · ${S.correctTag}`, 'yours-right')
-            : tag(S.correctAnswerLabel, 'correct');
-        } else if (selected) {
-          bg = 'rgba(69,10,10,0.5)'; border = '#dc2626';
-          mark = crossSvg('#f87171');
-          badge = tag(S.yourAnswerTag, 'yours-wrong');
-        }
-        return `<div style="padding:7px 11px;margin:4px 0;border-radius:7px;background:${bg};border:1px solid ${border};font-size:11px;color:#e5e7eb;display:flex;align-items:center;gap:9px;line-height:1.4;">
+        let body: string;
+        if (q.answers.length > 0) {
+          // Choice question: mark every picked answer ("Your answer") and every
+          // correct answer, so it is obvious what the student chose vs the key.
+          body = q.answers
+            .map((a) => {
+              const selected = q.selected_answer_ids.includes(a.id);
+              const isCorrect = q.correct_answer_ids.includes(a.id);
+              let bg = '#0f1623';
+              let border = '#1f2937';
+              let mark = `<span style="display:inline-block;width:13px;flex:0 0 auto;"></span>`;
+              let badge = '';
+              if (isCorrect) {
+                bg = 'rgba(5,46,22,0.5)';
+                border = '#059669';
+                mark = checkSvg('#34d399');
+                badge = selected
+                  ? tag(`${S.yourAnswerTag} · ${S.correctTag}`, 'yours-right')
+                  : tag(S.correctAnswerLabel, 'correct');
+              } else if (selected) {
+                bg = 'rgba(69,10,10,0.5)';
+                border = '#dc2626';
+                mark = crossSvg('#f87171');
+                badge = tag(S.yourAnswerTag, 'yours-wrong');
+              }
+              return `<div style="padding:7px 11px;margin:4px 0;border-radius:7px;background:${bg};border:1px solid ${border};font-size:11px;color:#e5e7eb;display:flex;align-items:center;gap:9px;line-height:1.4;">
           ${mark}<span style="flex:1 1 auto;">${escapeHtml(a.text)}</span>${badge}
         </div>`;
-      }).join('');
-    } else {
-      // Open-text and compound types (ordering / matching / fill_blank): show
-      // the student's raw response.
-      body = `<div style="padding:9px 11px;border-radius:7px;background:#0f1623;border:1px solid #1f2937;font-size:11px;color:#cbd5e1;line-height:1.5;">
+            })
+            .join('');
+        } else {
+          // Open-text and compound types (ordering / matching / fill_blank): show
+          // the student's raw response.
+          body = `<div style="padding:9px 11px;border-radius:7px;background:#0f1623;border:1px solid #1f2937;font-size:11px;color:#cbd5e1;line-height:1.5;">
         <span style="color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:1px;">${S.yourAnswerTag}</span><br/>
         ${q.text_answer ? escapeHtml(q.text_answer) : `<em style="color:#64748b;">${S.noAnswerText}</em>`}
       </div>`;
-    }
+        }
 
-    return `<div style="margin-bottom:14px;padding:14px;border-radius:10px;border:1px solid ${correct ? '#065f46' : '#7f1d1d'};background:${correct ? 'rgba(5,46,22,0.28)' : 'rgba(69,10,10,0.28)'};">
+        return `<div style="margin-bottom:14px;padding:14px;border-radius:10px;border:1px solid ${correct ? '#065f46' : '#7f1d1d'};background:${correct ? 'rgba(5,46,22,0.28)' : 'rgba(69,10,10,0.28)'};">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px;">
         <span style="display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:2px;color:${correct ? '#34d399' : '#f87171'};">${correct ? checkSvg('#34d399', 12) : crossSvg('#f87171', 12)} ${S.questionWord} ${idx + 1}</span>
         <span class="mono" style="font-size:11px;font-weight:bold;color:${correct ? '#34d399' : '#f87171'};">${Number(q.points_awarded)}/${Number(q.question.points)} ${S.pointsShort}</span>
@@ -165,21 +188,27 @@ export async function buildStudentReportHTML(
       <p style="font-size:12px;color:#f1f5f9;margin-bottom:10px;line-height:1.5;">${escapeHtml(q.question.text)}</p>
       ${body}
     </div>`;
-  }).join('') || '';
+      })
+      .join('') || '';
 
   const enrichedActivity = await enrichActivityEventData(examId, activityLog);
-  const timelineHtml = enrichedActivity.slice(0, 200).map((e) => {
-    const isSuspicious = SUSPICIOUS_TYPES.has(e.event_type);
-    const color = isSuspicious ? '#f87171' : '#94a3b8';
-    const bg = isSuspicious ? 'rgba(239,68,68,0.05)' : 'transparent';
-    const label = S.events[e.event_type] || e.event_type;
-    const dataStr = Object.entries(e.event_data || {}).map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(String(v))}`).join('<br/>');
-    return `<tr style="background:${bg};">
+  const timelineHtml = enrichedActivity
+    .slice(0, 200)
+    .map((e) => {
+      const isSuspicious = SUSPICIOUS_TYPES.has(e.event_type);
+      const color = isSuspicious ? '#f87171' : '#94a3b8';
+      const bg = isSuspicious ? 'rgba(239,68,68,0.05)' : 'transparent';
+      const label = S.events[e.event_type] || e.event_type;
+      const dataStr = Object.entries(e.event_data || {})
+        .map(([k, v]) => `${escapeHtml(k)}: ${escapeHtml(String(v))}`)
+        .join('<br/>');
+      return `<tr style="background:${bg};">
       <td class="mono" style="padding:5px 8px;font-size:10px;color:#6b7280;white-space:nowrap;border-bottom:1px solid #1a1a2e;vertical-align:top;">${formatTime(e.timestamp, dl)}</td>
       <td style="padding:5px 8px;font-size:10px;color:${color};border-bottom:1px solid #1a1a2e;vertical-align:top;white-space:nowrap;">${isSuspicious ? warnSvg('#f87171', 10) + ' ' : ''}${escapeHtml(label)}</td>
       <td style="padding:5px 8px;font-size:10px;color:#cbd5e1;border-bottom:1px solid #1a1a2e;line-height:1.5;">${dataStr}</td>
     </tr>`;
-  }).join('');
+    })
+    .join('');
 
   const html = `<!DOCTYPE html>
 <html>
@@ -220,13 +249,14 @@ export async function buildStudentReportHTML(
     </div>
   </div>
 
-  ${hasPassThreshold
-    ? `<div style="padding:20px;border-radius:12px;background:${passed ? 'rgba(5,46,22,0.4)' : 'rgba(69,10,10,0.4)'};border:2px solid ${passed ? '#059669' : '#dc2626'};margin-bottom:24px;text-align:center;">
+  ${
+    hasPassThreshold
+      ? `<div style="padding:20px;border-radius:12px;background:${passed ? 'rgba(5,46,22,0.4)' : 'rgba(69,10,10,0.4)'};border:2px solid ${passed ? '#059669' : '#dc2626'};margin-bottom:24px;text-align:center;">
         <div class="mono" style="font-size:48px;font-weight:700;color:${passed ? '#34d399' : '#f87171'};">${totalPoints}/${maxPoints}</div>
         <div style="font-size:14px;color:${passed ? '#34d399' : '#f87171'};margin-top:4px;">${percentage}% | ${passed ? S.passed : S.notPassed}</div>
         <div style="font-size:10px;color:#6b7280;margin-top:4px;">${S.thresholdLabel}: ${exam.pass_threshold}% | ${S.timeLabel}: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
       </div>`
-    : `<div style="padding:20px;border-radius:12px;background:rgba(30,58,138,0.3);border:2px solid #3b82f6;margin-bottom:24px;text-align:center;">
+      : `<div style="padding:20px;border-radius:12px;background:rgba(30,58,138,0.3);border:2px solid #3b82f6;margin-bottom:24px;text-align:center;">
         <div class="mono" style="font-size:48px;font-weight:700;color:#60a5fa;">${totalPoints}/${maxPoints}</div>
         <div style="font-size:14px;color:#60a5fa;margin-top:4px;">${percentage}%</div>
         <div style="font-size:10px;color:#6b7280;margin-top:4px;">${S.timeLabel}: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
@@ -240,31 +270,57 @@ export async function buildStudentReportHTML(
         { label: S.statTotalEvents, value: stats.totalEvents, color: '#3b82f6' },
         { label: S.statKeystrokes, value: stats.keystrokes, color: '#3b82f6' },
         { label: S.statAnswerChanges, value: stats.answerChanges, color: '#f59e0b' },
-        { label: S.statWindowBlur, value: stats.tabSwitches, color: stats.tabSwitches > 3 ? '#ef4444' : '#f59e0b' },
-        { label: S.statCopyAttempts, value: stats.copyAttempts, color: stats.copyAttempts > 0 ? '#ef4444' : '#22c55e' },
-        { label: S.statRightClicks, value: stats.rightClicks, color: stats.rightClicks > 2 ? '#ef4444' : '#6b7280' },
-      ].map((s) => `<div style="flex:1;min-width:120px;padding:12px;border-radius:8px;background:#0d1117;border:1px solid #1f2937;text-align:center;">
+        {
+          label: S.statWindowBlur,
+          value: stats.tabSwitches,
+          color: stats.tabSwitches > 3 ? '#ef4444' : '#f59e0b',
+        },
+        {
+          label: S.statCopyAttempts,
+          value: stats.copyAttempts,
+          color: stats.copyAttempts > 0 ? '#ef4444' : '#22c55e',
+        },
+        {
+          label: S.statRightClicks,
+          value: stats.rightClicks,
+          color: stats.rightClicks > 2 ? '#ef4444' : '#6b7280',
+        },
+      ]
+        .map(
+          (
+            s,
+          ) => `<div style="flex:1;min-width:120px;padding:12px;border-radius:8px;background:#0d1117;border:1px solid #1f2937;text-align:center;">
         <div class="mono" style="font-size:22px;font-weight:700;color:${s.color};">${s.value}</div>
         <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:4px;">${s.label}</div>
-      </div>`).join('')}
+      </div>`,
+        )
+        .join('')}
     </div>
   </div>
 
-  ${suspiciousEvents.length > 0 ? `
+  ${
+    suspiciousEvents.length > 0
+      ? `
   <div style="margin-bottom:24px;padding:16px;border-radius:10px;background:rgba(239,68,68,0.05);border:1px solid rgba(239,68,68,0.2);">
     <div style="display:flex;align-items:center;gap:6px;font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#ef4444;margin-bottom:10px;font-weight:600;">${warnSvg('#ef4444', 13)} ${S.suspiciousActivity} (${suspiciousEvents.length})</div>
     <table style="width:100%;border-collapse:collapse;">
-      ${suspiciousEvents.map((e) => `<tr>
+      ${suspiciousEvents
+        .map(
+          (e) => `<tr>
         <td class="mono" style="padding:3px 6px;font-size:10px;color:#6b7280;">${formatTime(e.timestamp, dl)}</td>
         <td style="padding:3px 6px;font-size:10px;color:#f87171;">${escapeHtml(S.events[e.event_type] || e.event_type)}</td>
-      </tr>`).join('')}
+      </tr>`,
+        )
+        .join('')}
     </table>
   </div>
-  ` : `
+  `
+      : `
   <div style="margin-bottom:24px;padding:14px;border-radius:10px;background:rgba(34,197,94,0.05);border:1px solid rgba(34,197,94,0.2);">
     <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:#22c55e;">${checkSvg('#22c55e', 13)} ${S.noSuspicious}</div>
   </div>
-  `}
+  `
+  }
 
   <div style="margin-bottom:24px;">
     <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">${S.answersPerQuestion}</div>
@@ -296,7 +352,10 @@ export async function buildStudentReportHTML(
 </body>
 </html>`;
 
-  const safeName = (student.index_number || student.name || student.email).replace(/[^a-z0-9._-]+/gi, '_');
+  const safeName = (student.index_number || student.name || student.email).replace(
+    /[^a-z0-9._-]+/gi,
+    '_',
+  );
 
   return {
     ok: true,
@@ -338,7 +397,9 @@ export function buildResultsTableHTML(args: {
   const dl = S.dateLocale;
 
   const passedCount = hasPassThreshold ? rows.filter((r) => r.passed).length : 0;
-  const avgPct = rows.length ? Math.round(rows.reduce((s, r) => s + r.percentage, 0) / rows.length) : 0;
+  const avgPct = rows.length
+    ? Math.round(rows.reduce((s, r) => s + r.percentage, 0) / rows.length)
+    : 0;
 
   const rowsHtml = rows
     .slice()
@@ -397,10 +458,14 @@ export function buildResultsTableHTML(args: {
       <div class="mono" style="font-size:22px;font-weight:700;color:#3b82f6;">${rows.length}</div>
       <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">${S.studentsWord}</div>
     </div>
-    ${hasPassThreshold ? `<div style="padding:14px 16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;text-align:center;">
+    ${
+      hasPassThreshold
+        ? `<div style="padding:14px 16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;text-align:center;">
       <div class="mono" style="font-size:22px;font-weight:700;color:#34d399;">${passedCount}</div>
       <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">${S.passedWord} (${S.thresholdLabel} ${passThreshold}%)</div>
-    </div>` : ''}
+    </div>`
+        : ''
+    }
     <div style="padding:14px 16px;border-radius:10px;background:#0d1117;border:1px solid #1e3a5f;text-align:center;">
       <div class="mono" style="font-size:22px;font-weight:700;color:#f59e0b;">${avgPct}%</div>
       <div style="font-size:9px;color:#6b7280;text-transform:uppercase;letter-spacing:1px;margin-top:2px;">${S.averageWord}</div>
@@ -451,7 +516,12 @@ export type RenderPdfOptions = {
   // explicit per-page margins instead (so every page is margined, not just the
   // first/last), which needs preferCSSPageSize off.
   preferCSSPageSize?: boolean;
-  margin?: { top?: string | number; bottom?: string | number; left?: string | number; right?: string | number };
+  margin?: {
+    top?: string | number;
+    bottom?: string | number;
+    left?: string | number;
+    right?: string | number;
+  };
   displayHeaderFooter?: boolean;
   headerTemplate?: string;
   footerTemplate?: string;
@@ -475,7 +545,10 @@ export async function renderHtmlToPdf(
   page.setDefaultTimeout(PUPPETEER_NAVIGATION_TIMEOUT_MS);
   try {
     await page.emulateMediaType('screen');
-    await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: PUPPETEER_NAVIGATION_TIMEOUT_MS });
+    await page.setContent(html, {
+      waitUntil: 'domcontentloaded',
+      timeout: PUPPETEER_NAVIGATION_TIMEOUT_MS,
+    });
     const pdf = await page.pdf({
       format: 'A4',
       landscape: o.landscape ?? false,

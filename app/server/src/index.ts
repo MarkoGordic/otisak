@@ -98,11 +98,13 @@ app.use(accessLog);
 // 'unsafe-inline' (defeats the purpose). The cross-origin policies are also
 // relaxed so the LAN clients can fetch assets without being upgraded into
 // cross-origin-isolated contexts.
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false,
-  crossOriginResourcePolicy: false,
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: false,
+  }),
+);
 
 // Middleware
 app.use(cookieParser());
@@ -110,10 +112,12 @@ app.use(cookieParser());
 // the request origin (with credentials enabled) is the only way to keep both
 // the bundled SPA at the same host AND remote LAN access from any device
 // working without CLIENT_URL having to be reconfigured every time.
-app.use(cors({
-  origin: (origin, cb) => cb(null, origin || true),
-  credentials: true,
-}));
+app.use(
+  cors({
+    origin: (origin, cb) => cb(null, origin || true),
+    credentials: true,
+  }),
+);
 // 1 MB is plenty for every legitimate request: the biggest payload is the CSV
 // import (one row per student, ~80 bytes; even 1000 students fits in <100 KB).
 // A smaller cap reduces blast radius from a malicious or runaway client.
@@ -125,7 +129,9 @@ app.use(cors({
 // anonymous client can't make the server buffer a big body.
 const jsonParser = express.json({
   limit: '1mb',
-  verify: (req, _res, buf) => { (req as express.Request).rawBody = buf; },
+  verify: (req, _res, buf) => {
+    (req as express.Request).rawBody = buf;
+  },
 });
 app.use((req, res, next) => (req.path === IMPORT_JSON_PATH ? next() : jsonParser(req, res, next)));
 

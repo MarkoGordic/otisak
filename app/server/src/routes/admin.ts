@@ -1,6 +1,13 @@
 import { Router, Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
-import { getAllUsers, updateUser, updateUserPasswordHash, findUserById, linkElpisId, unlinkElpisId } from '../db/users';
+import {
+  getAllUsers,
+  updateUser,
+  updateUserPasswordHash,
+  findUserById,
+  linkElpisId,
+  unlinkElpisId,
+} from '../db/users';
 import { getAllSettings, setSetting } from '../db/settings';
 import { requireAuth, requireRole } from '../middleware';
 import { query } from '../db/client';
@@ -54,7 +61,7 @@ router.patch('/users', async (req: Request, res: Response) => {
       }
       const dup = await query<{ id: string }>(
         'SELECT id FROM users WHERE email = $1 AND id <> $2 LIMIT 1',
-        [trimmed, id]
+        [trimmed, id],
       );
       if (dup.rows[0]) {
         return res.status(409).json({ error: 'Email already exists' });
@@ -153,7 +160,10 @@ router.post('/users/import-csv', async (req: Request, res: Response) => {
       try {
         const indexRaw = row.indeks.trim();
         const indexNorm = indexRaw.toLowerCase().replace(/\s+/g, '');
-        if (!indexNorm) { skipped.push({ index_number: indexRaw, reason: 'empty index' }); continue; }
+        if (!indexNorm) {
+          skipped.push({ index_number: indexRaw, reason: 'empty index' });
+          continue;
+        }
         const name = `${row.ime.trim()} ${row.prezime.trim()}`.trim() || null;
         const email = synthesiseStudentEmail(row.prezime, indexNorm);
 
@@ -162,22 +172,33 @@ router.post('/users/import-csv', async (req: Request, res: Response) => {
           `SELECT id FROM users
            WHERE LOWER(REPLACE(index_number, ' ', '')) = $1 OR email = $2
            LIMIT 1`,
-          [indexNorm, email]
+          [indexNorm, email],
         );
-        if (existing.rows[0]) { skipped.push({ index_number: indexRaw, reason: 'already exists' }); continue; }
+        if (existing.rows[0]) {
+          skipped.push({ index_number: indexRaw, reason: 'already exists' });
+          continue;
+        }
 
         await query(
           `INSERT INTO users (email, password_hash, name, role, index_number)
            VALUES ($1, $2, $3, 'student', $4)`,
-          [email, passwordHash, name, indexNorm]
+          [email, passwordHash, name, indexNorm],
         );
         created.push({ index_number: indexNorm, email });
       } catch (e) {
-        skipped.push({ index_number: row.indeks || '?', reason: (e as Error).message || 'insert failed' });
+        skipped.push({
+          index_number: row.indeks || '?',
+          reason: (e as Error).message || 'insert failed',
+        });
       }
     }
 
-    return res.json({ created: created.length, skipped: skipped.length, total: rows.length, items: { created, skipped } });
+    return res.json({
+      created: created.length,
+      skipped: skipped.length,
+      total: rows.length,
+      items: { created, skipped },
+    });
   } catch (error) {
     console.error('Import CSV error:', error);
     return res.status(500).json({ error: 'Internal server error' });
@@ -212,9 +233,17 @@ function synthesiseStudentEmail(prezimeRaw: string, indexNorm: string): string {
 function stripDiacritics(s: string): string {
   if (!s) return '';
   const map: Record<string, string> = {
-    'č': 'c', 'Č': 'C', 'ć': 'c', 'Ć': 'C',
-    'š': 's', 'Š': 'S', 'ž': 'z', 'Ž': 'Z',
-    'đ': 'dj', 'Đ': 'Dj', 'ǆ': 'dz',
+    č: 'c',
+    Č: 'C',
+    ć: 'c',
+    Ć: 'C',
+    š: 's',
+    Š: 'S',
+    ž: 'z',
+    Ž: 'Z',
+    đ: 'dj',
+    Đ: 'Dj',
+    ǆ: 'dz',
   };
   return s
     .replace(/[čČćĆšŠžŽđĐǆ]/g, (ch) => map[ch] ?? ch)
@@ -226,7 +255,11 @@ function stripDiacritics(s: string): string {
 //   col 0 = id, col 1 = ime (first name), col 2 = prezime (last name), col 3 = indeks.
 // Extra columns after position 3 are ignored. Empty rows are skipped.
 // Quoted fields with doubled-quote escapes are supported.
-function parseStudentCsv(csv: string): { rows: Array<{ id: string; ime: string; prezime: string; indeks: string }> } | { error: string } {
+function parseStudentCsv(
+  csv: string,
+):
+  | { rows: Array<{ id: string; ime: string; prezime: string; indeks: string }> }
+  | { error: string } {
   const lines = csv.split(/\r?\n/).filter((l) => l.trim().length > 0);
   if (lines.length === 0) return { error: 'CSV is empty' };
 
@@ -238,12 +271,16 @@ function parseStudentCsv(csv: string): { rows: Array<{ id: string; ime: string; 
       const c = line[i];
       if (inQuotes) {
         if (c === '"') {
-          if (line[i + 1] === '"') { cur += '"'; i++; }
-          else inQuotes = false;
+          if (line[i + 1] === '"') {
+            cur += '"';
+            i++;
+          } else inQuotes = false;
         } else cur += c;
       } else {
-        if (c === ',') { out.push(cur); cur = ''; }
-        else if (c === '"' && cur.length === 0) inQuotes = true;
+        if (c === ',') {
+          out.push(cur);
+          cur = '';
+        } else if (c === '"' && cur.length === 0) inQuotes = true;
         else cur += c;
       }
     }
@@ -262,7 +299,8 @@ function parseStudentCsv(csv: string): { rows: Array<{ id: string; ime: string; 
       indeks: (cells[3] || '').trim(),
     });
   }
-  if (rows.length === 0) return { error: 'No valid rows (each row needs at least id, firstname, lastname, indeks)' };
+  if (rows.length === 0)
+    return { error: 'No valid rows (each row needs at least id, firstname, lastname, indeks)' };
   return { rows };
 }
 

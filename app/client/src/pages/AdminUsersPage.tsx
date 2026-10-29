@@ -1,8 +1,16 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2, Plus, Users, Upload, Search,
-  ChevronLeft, ChevronRight, Pencil, Key, User,
+  Loader2,
+  Plus,
+  Users,
+  Upload,
+  Search,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Key,
+  User,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -38,10 +46,19 @@ export default function AdminUsersPage() {
   const [newIndex, setNewIndex] = useState('');
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(null);
-  const [importSummary, setImportSummary] = useState<{ created: number; skipped: number; total: number; items?: { skipped: Array<{ index_number: string; reason: string }> } } | null>(null);
+  const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(
+    null,
+  );
+  const [importSummary, setImportSummary] = useState<{
+    created: number;
+    skipped: number;
+    total: number;
+    items?: { skipped: Array<{ index_number: string; reason: string }> };
+  } | null>(null);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'student' | 'assistant' | 'professor' | 'admin'>('all');
+  const [roleFilter, setRoleFilter] = useState<
+    'all' | 'student' | 'assistant' | 'professor' | 'admin'
+  >('all');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
 
@@ -65,12 +82,20 @@ export default function AdminUsersPage() {
   const loadUsers = useCallback(async () => {
     try {
       const res = await fetch('/api/admin/users', { credentials: 'include' });
-      if (res.ok) { const d = await res.json(); setUsers(d.users || []); }
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      if (res.ok) {
+        const d = await res.json();
+        setUsers(d.users || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { if (currentUser) loadUsers(); }, [currentUser, loadUsers]);
+  useEffect(() => {
+    if (currentUser) loadUsers();
+  }, [currentUser, loadUsers]);
 
   const handleCreate = async () => {
     if (!newEmail || !newPassword) return;
@@ -90,7 +115,11 @@ export default function AdminUsersPage() {
       });
       if (res.ok) {
         setShowCreate(false);
-        setNewEmail(''); setNewPassword(''); setNewName(''); setNewRole('student'); setNewIndex('');
+        setNewEmail('');
+        setNewPassword('');
+        setNewName('');
+        setNewRole('student');
+        setNewIndex('');
         toast.success(t('users.createSuccess'));
         loadUsers();
       } else {
@@ -177,7 +206,11 @@ export default function AdminUsersPage() {
   };
 
   if (!currentUser) {
-    return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
   }
 
   return (
@@ -194,8 +227,12 @@ export default function AdminUsersPage() {
                   <Users className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('users.title')}</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">{users.length} {t('users.count')}</p>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                    {t('users.title')}
+                  </h1>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {users.length} {t('users.count')}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
@@ -204,15 +241,29 @@ export default function AdminUsersPage() {
                     type="file"
                     accept=".csv,text/csv"
                     className="hidden"
-                    onChange={(e) => { const f = e.target.files?.[0] || null; handleImportFile(f); e.target.value = ''; }}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0] || null;
+                      handleImportFile(f);
+                      e.target.value = '';
+                    }}
                     disabled={importing}
                   />
-                  <span className={`inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium transition-colors ${importing ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent hover:text-accent'}`}>
-                    {importing ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
+                  <span
+                    className={`inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium transition-colors ${importing ? 'opacity-50 cursor-not-allowed' : 'hover:border-accent hover:text-accent'}`}
+                  >
+                    {importing ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Upload size={14} />
+                    )}
                     {t('users.importCsv')}
                   </span>
                 </label>
-                <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={16} />}
+                  onClick={() => setShowCreate(true)}
+                >
                   {t('users.add')}
                 </Button>
               </div>
@@ -232,7 +283,9 @@ export default function AdminUsersPage() {
                 <div className="h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
                   <div
                     className="h-full bg-accent transition-[width] duration-200 ease-out"
-                    style={{ width: `${Math.round((importProgress.processed / Math.max(1, importProgress.total)) * 100)}%` }}
+                    style={{
+                      width: `${Math.round((importProgress.processed / Math.max(1, importProgress.total)) * 100)}%`,
+                    }}
                   />
                 </div>
               </div>
@@ -242,14 +295,27 @@ export default function AdminUsersPage() {
               <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <span className="text-[var(--text-primary)] font-medium">{t('users.importDone')}</span>
-                    <span className="text-success">+{importSummary.created} {t('users.imported')}</span>
+                    <span className="text-[var(--text-primary)] font-medium">
+                      {t('users.importDone')}
+                    </span>
+                    <span className="text-success">
+                      +{importSummary.created} {t('users.imported')}
+                    </span>
                     {importSummary.skipped > 0 && (
-                      <span className="text-warning">{importSummary.skipped} {t('users.skipped')}</span>
+                      <span className="text-warning">
+                        {importSummary.skipped} {t('users.skipped')}
+                      </span>
                     )}
-                    <span className="text-[var(--text-muted)]">/ {importSummary.total} {t('users.totalRows')}</span>
+                    <span className="text-[var(--text-muted)]">
+                      / {importSummary.total} {t('users.totalRows')}
+                    </span>
                   </div>
-                  <button onClick={() => setImportSummary(null)} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs">{t('users.dismiss')}</button>
+                  <button
+                    onClick={() => setImportSummary(null)}
+                    className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xs"
+                  >
+                    {t('users.dismiss')}
+                  </button>
                 </div>
                 {importSummary.items?.skipped && importSummary.items.skipped.length > 0 && (
                   <details className="mt-2 text-xs text-[var(--text-secondary)]">
@@ -270,29 +336,41 @@ export default function AdminUsersPage() {
             {!loading && (
               <div className="flex flex-wrap items-center gap-2 mb-3">
                 <div className="relative flex-1 min-w-[220px] max-w-[420px]">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <Search
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                  />
                   <input
                     value={search}
-                    onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                    }}
                     placeholder={t('users.searchPlaceholder')}
                     className="w-full h-9 pl-8 pr-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm focus:border-accent focus:ring-0"
                   />
                 </div>
                 <select
                   value={roleFilter}
-                  onChange={(e) => { setRoleFilter(e.target.value as typeof roleFilter); setPage(1); }}
+                  onChange={(e) => {
+                    setRoleFilter(e.target.value as typeof roleFilter);
+                    setPage(1);
+                  }}
                   className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
                 >
                   <option value="all">{t('users.allRoles')}</option>
                   <option value="student">{t('users.student')}</option>
-                  <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
+                  <option value="assistant">{t('users.assistant')}</option>
+                  <option value="professor">{t('users.professor')}</option>
                   <option value="admin">{t('users.admin')}</option>
                 </select>
               </div>
             )}
 
             {loading ? (
-              <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              </div>
             ) : (
               <UserList
                 users={users}
@@ -309,28 +387,62 @@ export default function AdminUsersPage() {
               />
             )}
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
+          <div className="px-4 pb-6 pt-2 flex justify-center">
+            <AppCopyright />
+          </div>
         </main>
       </div>
 
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('users.addTitle')}</h2>
+            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">
+              {t('users.addTitle')}
+            </h2>
             <div className="space-y-3">
-              <input value={newEmail} onChange={(e) => setNewEmail(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.email')} />
-              <input value={newPassword} onChange={(e) => setNewPassword(e.target.value)} type="password" className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.password')} />
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.name')} />
-              <input value={newIndex} onChange={(e) => setNewIndex(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.indexNumber')} />
-              <select value={newRole} onChange={(e) => setNewRole(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
+              <input
+                value={newEmail}
+                onChange={(e) => setNewEmail(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                placeholder={t('users.email')}
+              />
+              <input
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                type="password"
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                placeholder={t('users.password')}
+              />
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                placeholder={t('users.name')}
+              />
+              <input
+                value={newIndex}
+                onChange={(e) => setNewIndex(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                placeholder={t('users.indexNumber')}
+              />
+              <select
+                value={newRole}
+                onChange={(e) => setNewRole(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+              >
                 <option value="student">{t('users.student')}</option>
-                <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
+                <option value="assistant">{t('users.assistant')}</option>
+                <option value="professor">{t('users.professor')}</option>
                 <option value="admin">{t('users.admin')}</option>
               </select>
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>{t('users.cancel')}</Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>{t('users.createUser')}</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)}>
+                {t('users.cancel')}
+              </Button>
+              <Button variant="primary" loading={creating} onClick={handleCreate}>
+                {t('users.createUser')}
+              </Button>
             </div>
           </div>
         </div>
@@ -348,10 +460,7 @@ export default function AdminUsersPage() {
       )}
 
       {passwordTarget && (
-        <PasswordModal
-          user={passwordTarget}
-          onClose={() => setPasswordTarget(null)}
-        />
+        <PasswordModal user={passwordTarget} onClose={() => setPasswordTarget(null)} />
       )}
     </div>
   );
@@ -373,7 +482,19 @@ type UserListProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange, onRoleChange, onEdit, onSetPassword, onOpenProfile, t }: UserListProps) {
+function UserListImpl({
+  users,
+  search,
+  roleFilter,
+  page,
+  pageSize,
+  onPageChange,
+  onRoleChange,
+  onEdit,
+  onSetPassword,
+  onOpenProfile,
+  t,
+}: UserListProps) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
@@ -402,7 +523,9 @@ function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange,
         <div className="w-24 text-right">{t('users.edit')}</div>
       </div>
       {slice.length === 0 ? (
-        <div className="py-12 text-center text-sm text-[var(--text-muted)]">{t('users.noResults')}</div>
+        <div className="py-12 text-center text-sm text-[var(--text-muted)]">
+          {t('users.noResults')}
+        </div>
       ) : (
         slice.map((u) => (
           <UserRow
@@ -431,7 +554,9 @@ function UserListImpl({ users, search, roleFilter, page, pageSize, onPageChange,
             >
               <ChevronLeft size={14} />
             </button>
-            <span className="font-mono">{safePage} / {totalPages}</span>
+            <span className="font-mono">
+              {safePage} / {totalPages}
+            </span>
             <button
               type="button"
               onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
@@ -457,14 +582,25 @@ type UserRowProps = {
   t: (key: string, params?: Record<string, string | number>) => string;
 };
 
-function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, onOpenProfile, t }: UserRowProps) {
+function UserRowImpl({
+  user,
+  onRoleChange,
+  onEdit,
+  onSetPassword,
+  onOpenProfile,
+  t,
+}: UserRowProps) {
   return (
     <div className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-[var(--text-primary)] truncate">{user.name || user.email}</div>
+        <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+          {user.name || user.email}
+        </div>
         <div className="text-[11px] text-[var(--text-muted)] truncate">{user.email}</div>
       </div>
-      <div className="w-32 text-xs text-[var(--text-muted)] font-mono truncate">{user.index_number || '-'}</div>
+      <div className="w-32 text-xs text-[var(--text-muted)] font-mono truncate">
+        {user.index_number || '-'}
+      </div>
       <div className="w-36">
         <select
           value={user.role}
@@ -472,7 +608,8 @@ function UserRowImpl({ user, onRoleChange, onEdit, onSetPassword, onOpenProfile,
           className="h-9 px-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
         >
           <option value="student">{t('users.student')}</option>
-          <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
+          <option value="assistant">{t('users.assistant')}</option>
+          <option value="professor">{t('users.professor')}</option>
           <option value="admin">{t('users.admin')}</option>
         </select>
       </div>
@@ -563,24 +700,54 @@ function EditUserModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('users.editTitle')}</h2>
+        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">
+          {t('users.editTitle')}
+        </h2>
         <div className="space-y-3">
-          <input value={name} onChange={(e) => setName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.name')} />
-          <input value={email} onChange={(e) => setEmail(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.email')} />
-          <input value={indexNumber} onChange={(e) => setIndexNumber(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('users.indexNumber')} />
-          <select value={role} onChange={(e) => setRole(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
+          <input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+            placeholder={t('users.name')}
+          />
+          <input
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+            placeholder={t('users.email')}
+          />
+          <input
+            value={indexNumber}
+            onChange={(e) => setIndexNumber(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+            placeholder={t('users.indexNumber')}
+          />
+          <select
+            value={role}
+            onChange={(e) => setRole(e.target.value)}
+            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+          >
             <option value="student">{t('users.student')}</option>
-            <option value="assistant">{t('users.assistant')}</option><option value="professor">{t('users.professor')}</option>
+            <option value="assistant">{t('users.assistant')}</option>
+            <option value="professor">{t('users.professor')}</option>
             <option value="admin">{t('users.admin')}</option>
           </select>
           <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
-            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} />
+            <input
+              type="checkbox"
+              checked={isActive}
+              onChange={(e) => setIsActive(e.target.checked)}
+            />
             {t('users.statusActive')}
           </label>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>{t('users.cancel')}</Button>
-          <Button variant="primary" loading={saving} onClick={handleSave}>{t('users.save')}</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            {t('users.cancel')}
+          </Button>
+          <Button variant="primary" loading={saving} onClick={handleSave}>
+            {t('users.save')}
+          </Button>
         </div>
       </div>
     </div>
@@ -623,7 +790,9 @@ function PasswordModal({ user, onClose }: { user: UserData; onClose: () => void 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-1">{t('users.passwordTitle')}</h2>
+        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-1">
+          {t('users.passwordTitle')}
+        </h2>
         <p className="text-xs text-[var(--text-muted)] mb-4 truncate">{user.name || user.email}</p>
         <input
           type="password"
@@ -634,8 +803,12 @@ function PasswordModal({ user, onClose }: { user: UserData; onClose: () => void 
           className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
         />
         <div className="flex items-center justify-end gap-3 mt-6">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>{t('users.cancel')}</Button>
-          <Button variant="primary" loading={saving} onClick={handleSave}>{t('users.save')}</Button>
+          <Button variant="secondary" onClick={onClose} disabled={saving}>
+            {t('users.cancel')}
+          </Button>
+          <Button variant="primary" loading={saving} onClick={handleSave}>
+            {t('users.save')}
+          </Button>
         </div>
       </div>
     </div>

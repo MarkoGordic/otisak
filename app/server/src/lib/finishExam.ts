@@ -1,15 +1,13 @@
-import {
-  getOtisakExamById,
-  updateOtisakExamStatus,
-  DEMO_EXAM_TITLE,
-} from '../db/otisak';
+import { getOtisakExamById, updateOtisakExamStatus, DEMO_EXAM_TITLE } from '../db/otisak';
 import { endLockdown, getTotalLockdownPauseSeconds } from '../db/settings';
 import { finishAttempt } from '../db/otisak';
 import { query } from '../db/client';
 import { broadcastExamEvent } from '../ws/events';
 import { refreshLiveStatsNow } from '../ws/liveStatsAggregator';
 
-type FinishResult = { ok: true; finishedCount: number } | { ok: false; error: string; status: number };
+type FinishResult =
+  | { ok: true; finishedCount: number }
+  | { ok: false; error: string; status: number };
 
 // Finish an exam "for everyone": submit every unsubmitted attempt with the elapsed
 // time computed from the timer reference, end any open lockdown, flip status to
@@ -24,7 +22,11 @@ type FinishResult = { ok: true; finishedCount: number } | { ok: false; error: st
 // it to the admin or skip the broadcast when nothing actually changed.
 export async function finishExamForEveryone(
   examId: string,
-  options: { redirectStudents: boolean; broadcast?: boolean; invalidateCache?: (examId: string) => void }
+  options: {
+    redirectStudents: boolean;
+    broadcast?: boolean;
+    invalidateCache?: (examId: string) => void;
+  },
 ): Promise<FinishResult> {
   const exam = await getOtisakExamById(examId);
   if (!exam) return { ok: false, error: 'Exam not found', status: 404 };
@@ -67,7 +69,9 @@ export async function finishExamForEveryone(
     });
     // Live-stats cache should reflect that everyone is now submitted, in case the
     // admin RoomPage polls right after we broadcast.
-    refreshLiveStatsNow(examId).catch((err) => console.error('finishExamForEveryone: refreshLiveStatsNow failed', err));
+    refreshLiveStatsNow(examId).catch((err) =>
+      console.error('finishExamForEveryone: refreshLiveStatsNow failed', err),
+    );
   }
 
   return { ok: true, finishedCount };

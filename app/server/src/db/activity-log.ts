@@ -26,11 +26,13 @@ export async function logEvents(
   attemptId: string,
   userId: string,
   examId: string,
-  events: ActivityEvent[]
+  events: ActivityEvent[],
 ): Promise<void> {
   if (events.length === 0) return;
   if (events.length > MAX_EVENTS_PER_BATCH) {
-    console.warn(`logEvents: truncating ${events.length} events to ${MAX_EVENTS_PER_BATCH} (attempt ${attemptId})`);
+    console.warn(
+      `logEvents: truncating ${events.length} events to ${MAX_EVENTS_PER_BATCH} (attempt ${attemptId})`,
+    );
     events = events.slice(0, MAX_EVENTS_PER_BATCH);
   }
 
@@ -46,30 +48,28 @@ export async function logEvents(
   await query(
     `INSERT INTO exam_activity_log (attempt_id, user_id, exam_id, event_type, event_data)
      VALUES ${placeholders.join(', ')}`,
-    values
+    values,
   );
 }
 
-export async function getActivityLog(
-  attemptId: string
-): Promise<ActivityLogEntry[]> {
+export async function getActivityLog(attemptId: string): Promise<ActivityLogEntry[]> {
   const result = await query<ActivityLogEntry>(
     'SELECT * FROM exam_activity_log WHERE attempt_id = $1 ORDER BY timestamp ASC',
-    [attemptId]
+    [attemptId],
   );
   return result.rows;
 }
 
 export async function getActivityLogForExam(
   examId: string,
-  userId: string
+  userId: string,
 ): Promise<ActivityLogEntry[]> {
   const result = await query<ActivityLogEntry>(
     `SELECT al.* FROM exam_activity_log al
      JOIN otisak_attempts a ON al.attempt_id = a.id
      WHERE a.exam_id = $1 AND a.user_id = $2
      ORDER BY al.timestamp ASC`,
-    [examId, userId]
+    [examId, userId],
   );
   return result.rows;
 }
@@ -133,7 +133,8 @@ export async function enrichActivityEventData(
         break;
       }
       case 'copy_attempt': {
-        if (typeof src.selection === 'string' && src.selection.length > 0) out.selekcija = truncate(src.selection, 60);
+        if (typeof src.selection === 'string' && src.selection.length > 0)
+          out.selekcija = truncate(src.selection, 60);
         break;
       }
       case 'paste_attempt': {
@@ -145,7 +146,8 @@ export async function enrichActivityEventData(
         break;
       }
       case 'window_resize': {
-        if (src.width !== undefined && src.height !== undefined) out.dimenzije = `${src.width}×${src.height}`;
+        if (src.width !== undefined && src.height !== undefined)
+          out.dimenzije = `${src.width}×${src.height}`;
         break;
       }
       case 'keystroke_batch': {
@@ -215,7 +217,8 @@ export async function getActivityStats(attemptId: string): Promise<{
     stats.eventCounts[event.event_type] = (stats.eventCounts[event.event_type] || 0) + 1;
 
     if (event.event_type === 'keystroke') stats.keystrokes++;
-    if (event.event_type === 'answer_selected' || event.event_type === 'answer_deselected') stats.answerChanges++;
+    if (event.event_type === 'answer_selected' || event.event_type === 'answer_deselected')
+      stats.answerChanges++;
     if (event.event_type === 'tab_switch' || event.event_type === 'page_blur') stats.tabSwitches++;
     if (event.event_type === 'copy_attempt') stats.copyAttempts++;
     if (event.event_type === 'right_click') stats.rightClicks++;

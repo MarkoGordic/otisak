@@ -1,9 +1,21 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Loader2, Plus, Settings, Play, Pause, Archive,
-  FileText, CalendarIcon, Radio,
-  Download, Upload, Pencil, Package, BarChart3, Printer,
+  Loader2,
+  Plus,
+  Settings,
+  Play,
+  Pause,
+  Archive,
+  FileText,
+  CalendarIcon,
+  Radio,
+  Download,
+  Upload,
+  Pencil,
+  Package,
+  BarChart3,
+  Printer,
   ClipboardCheck,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
@@ -50,20 +62,17 @@ export default function ManagePage() {
 
   // Per-status admin actions. Completed and archived exams are read-only -
   // they can be archived (housekeeping) but never reopened.
-  const statusActions: Record<string, Array<{ label: string; status: string; icon: React.ReactNode }>> = {
+  const statusActions: Record<
+    string,
+    Array<{ label: string; status: string; icon: React.ReactNode }>
+  > = {
     draft: [
       { label: t('manage.activate'), status: 'active', icon: <Play size={14} /> },
       { label: t('manage.schedule'), status: 'scheduled', icon: <CalendarIcon size={14} /> },
     ],
-    scheduled: [
-      { label: t('manage.activate'), status: 'active', icon: <Play size={14} /> },
-    ],
-    active: [
-      { label: t('manage.complete'), status: 'completed', icon: <Pause size={14} /> },
-    ],
-    completed: [
-      { label: t('manage.archive'), status: 'archived', icon: <Archive size={14} /> },
-    ],
+    scheduled: [{ label: t('manage.activate'), status: 'active', icon: <Play size={14} /> }],
+    active: [{ label: t('manage.complete'), status: 'completed', icon: <Pause size={14} /> }],
+    completed: [{ label: t('manage.archive'), status: 'archived', icon: <Archive size={14} /> }],
     archived: [],
   };
   const [user, setUser] = useState<UserInfo | null>(null);
@@ -87,7 +96,12 @@ export default function ManagePage() {
     (async () => {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
-      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor')) {
+      if (
+        !data.authenticated ||
+        (data.user?.role !== 'admin' &&
+          data.user?.role !== 'assistant' &&
+          data.user?.role !== 'professor')
+      ) {
         navigate('/dashboard', { replace: true });
         return;
       }
@@ -101,13 +115,24 @@ export default function ManagePage() {
         fetch('/api/otisak/exams?exam_mode=real', { credentials: 'include' }),
         fetch('/api/otisak/subjects', { credentials: 'include' }),
       ]);
-      if (examsRes.ok) { const d = await examsRes.json(); setExams(d.exams || []); }
-      if (subjectsRes.ok) { const d = await subjectsRes.json(); setSubjects(d.subjects || []); }
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      if (examsRes.ok) {
+        const d = await examsRes.json();
+        setExams(d.exams || []);
+      }
+      if (subjectsRes.ok) {
+        const d = await subjectsRes.json();
+        setSubjects(d.subjects || []);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { if (user) loadData(); }, [user, loadData]);
+  useEffect(() => {
+    if (user) loadData();
+  }, [user, loadData]);
 
   const handleStatusChange = useExamStatusChange(loadData);
 
@@ -140,12 +165,18 @@ export default function ManagePage() {
 
   // Collected tag pool for the filter dropdown - every tag seen on any exam
   // in scope, sorted alphabetically. Recomputes per render; small N.
-  const tagPool = Array.from(new Set(
-    exams.flatMap((e) => (Array.isArray(e.tags) ? e.tags : []).map((x) => x.toLowerCase()))
-  )).sort();
+  const tagPool = Array.from(
+    new Set(
+      exams.flatMap((e) => (Array.isArray(e.tags) ? e.tags : []).map((x) => x.toLowerCase())),
+    ),
+  ).sort();
 
   if (!user) {
-    return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
   }
 
   return (
@@ -163,7 +194,9 @@ export default function ManagePage() {
                   <Settings className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('manage.title')}</h1>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                    {t('manage.title')}
+                  </h1>
                   <p className="text-sm text-[var(--text-secondary)]">{t('manage.subtitle')}</p>
                 </div>
               </div>
@@ -175,7 +208,11 @@ export default function ManagePage() {
                 >
                   {t('manage.importJson')}
                 </Button>
-                <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreateModal(true)}>
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={16} />}
+                  onClick={() => setShowCreateModal(true)}
+                >
                   {t('manage.newExam')}
                 </Button>
               </div>
@@ -190,7 +227,10 @@ export default function ManagePage() {
                   { id: 'arhiva', label: t('manage.tab.archive') },
                 ]}
                 activeTab={tab}
-                onChange={(id) => { setTab(id as ManageTab); setStatusFilter('all'); }}
+                onChange={(id) => {
+                  setTab(id as ManageTab);
+                  setStatusFilter('all');
+                }}
               />
             </div>
 
@@ -198,7 +238,11 @@ export default function ManagePage() {
             <div className="flex flex-wrap items-center gap-3 mb-6">
               {tab === 'aktivni' && (
                 <div className="w-[160px]">
-                  <Dropdown options={AKTIVNI_STATUS_OPTIONS} value={statusFilter} onChange={setStatusFilter} />
+                  <Dropdown
+                    options={AKTIVNI_STATUS_OPTIONS}
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                  />
                 </div>
               )}
               <div className="w-[200px]">
@@ -219,9 +263,15 @@ export default function ManagePage() {
                       <button
                         key={tg}
                         type="button"
-                        onClick={() => setTagFilter((prev) => active ? prev.filter((x) => x !== tg) : [...prev, tg])}
+                        onClick={() =>
+                          setTagFilter((prev) =>
+                            active ? prev.filter((x) => x !== tg) : [...prev, tg],
+                          )
+                        }
                         className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium transition-colors ${
-                          active ? 'bg-accent text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-accent-light hover:text-accent'
+                          active
+                            ? 'bg-accent text-white'
+                            : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:bg-accent-light hover:text-accent'
                         }`}
                       >
                         {tg}
@@ -249,7 +299,10 @@ export default function ManagePage() {
                 {(scheduledFrom || scheduledTo) && (
                   <button
                     type="button"
-                    onClick={() => { setScheduledFrom(''); setScheduledTo(''); }}
+                    onClick={() => {
+                      setScheduledFrom('');
+                      setScheduledTo('');
+                    }}
                     className="text-xs text-[var(--text-muted)] hover:text-[var(--text-primary)] px-2"
                     title={t('common.clear')}
                   >
@@ -257,12 +310,16 @@ export default function ManagePage() {
                   </button>
                 )}
               </div>
-              <span className="text-xs text-[var(--text-muted)]">{filteredExams.length} {t('manage.exams')}</span>
+              <span className="text-xs text-[var(--text-muted)]">
+                {filteredExams.length} {t('manage.exams')}
+              </span>
             </div>
 
             {/* Exam List */}
             {loading ? (
-              <div className="flex items-center justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="w-8 h-8 animate-spin text-accent" />
+              </div>
             ) : filteredExams.length > 0 ? (
               <div className="space-y-3">
                 {filteredExams.map((exam, idx) => (
@@ -273,11 +330,21 @@ export default function ManagePage() {
                     actions={
                       <>
                         {exam.status === 'active' && (
-                          <Button variant="primary" size="sm" leftIcon={<Radio size={14} />} onClick={() => navigate(`/manage/${exam.id}`)}>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            leftIcon={<Radio size={14} />}
+                            onClick={() => navigate(`/manage/${exam.id}`)}
+                          >
                             {t('manage.room')}
                           </Button>
                         )}
-                        <Button variant="secondary" size="sm" leftIcon={<Pencil size={14} />} onClick={() => navigate(`/manage/${exam.id}/edit`)}>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          leftIcon={<Pencil size={14} />}
+                          onClick={() => navigate(`/manage/${exam.id}/edit`)}
+                        >
                           {t('manage.edit')}
                         </Button>
                         <a
@@ -330,7 +397,13 @@ export default function ManagePage() {
                           </button>
                         )}
                         {statusActions[exam.status]?.map((action) => (
-                          <Button key={action.status} variant="secondary" size="sm" leftIcon={action.icon} onClick={() => handleStatusChange(exam.id, action.status)}>
+                          <Button
+                            key={action.status}
+                            variant="secondary"
+                            size="sm"
+                            leftIcon={action.icon}
+                            onClick={() => handleStatusChange(exam.id, action.status)}
+                          >
                             {action.label}
                           </Button>
                         ))}
@@ -340,10 +413,18 @@ export default function ManagePage() {
                 ))}
               </div>
             ) : (
-              <EmptyState icon={<FileText size={32} strokeWidth={1.5} />} title={t('manage.noExams')} description={t('manage.noExamsDesc')} actionLabel={t('manage.createExam')} onAction={() => setShowCreateModal(true)} />
+              <EmptyState
+                icon={<FileText size={32} strokeWidth={1.5} />}
+                title={t('manage.noExams')}
+                description={t('manage.noExamsDesc')}
+                actionLabel={t('manage.createExam')}
+                onAction={() => setShowCreateModal(true)}
+              />
             )}
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
+          <div className="px-4 pb-6 pt-2 flex justify-center">
+            <AppCopyright />
+          </div>
         </main>
       </div>
 

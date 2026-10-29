@@ -67,12 +67,12 @@ export async function ensureDemoExam(): Promise<void> {
 
     const existing = await query<{ id: string }>(
       'SELECT id FROM otisak_exams WHERE title = $1 LIMIT 1',
-      [demoTitle]
+      [demoTitle],
     );
     if (existing.rows[0]) return;
 
     const admin = await query<{ id: string }>(
-      `SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1`
+      `SELECT id FROM users WHERE role = 'admin' ORDER BY created_at ASC LIMIT 1`,
     );
     const adminId = admin.rows[0]?.id;
     if (!adminId) {
@@ -86,14 +86,14 @@ export async function ensureDemoExam(): Promise<void> {
     const DEMO_SUBJECT_NAME = 'Demo';
     const subject = await query<{ id: string }>(
       'SELECT id FROM otisak_subjects WHERE name = $1 LIMIT 1',
-      [DEMO_SUBJECT_NAME]
+      [DEMO_SUBJECT_NAME],
     );
     let subjectId = subject.rows[0]?.id;
     if (!subjectId) {
       const inserted = await query<{ id: string }>(
         `INSERT INTO otisak_subjects (name, code, description, created_by)
          VALUES ($1, 'DEMO', 'Built-in demo subject', $2) RETURNING id`,
-        [DEMO_SUBJECT_NAME, adminId]
+        [DEMO_SUBJECT_NAME, adminId],
       );
       subjectId = inserted.rows[0].id;
     }

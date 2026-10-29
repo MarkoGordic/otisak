@@ -55,8 +55,7 @@ const pgSink: Sink = (entry) => {
 const sinks: Sink[] = [stdoutSink, pgSink];
 
 export function reportError(err: unknown, ctx: ReportContext = {}): string {
-  const e =
-    err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Unknown error');
+  const e = err instanceof Error ? err : new Error(typeof err === 'string' ? err : 'Unknown error');
   const code = (e as { code?: string }).code;
   const store = getRequestContext();
   const entry: ErrorLogEntry = {

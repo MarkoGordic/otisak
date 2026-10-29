@@ -1,9 +1,25 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Loader2, ArrowLeft, Plus, Trash2, Code, Image as ImageIcon, FileText, MessageSquare,
-  Settings, Download, Save, ChevronDown, ChevronUp, Upload as UploadIcon, Pencil, X, Check,
-  AlertTriangle, Printer,
+  Loader2,
+  ArrowLeft,
+  Plus,
+  Trash2,
+  Code,
+  Image as ImageIcon,
+  FileText,
+  MessageSquare,
+  Settings,
+  Download,
+  Save,
+  ChevronDown,
+  ChevronUp,
+  Upload as UploadIcon,
+  Pencil,
+  X,
+  Check,
+  AlertTriangle,
+  Printer,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -109,7 +125,12 @@ export default function ExamEditPage() {
     (async () => {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
-      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor')) {
+      if (
+        !data.authenticated ||
+        (data.user?.role !== 'admin' &&
+          data.user?.role !== 'assistant' &&
+          data.user?.role !== 'professor')
+      ) {
         navigate('/login', { replace: true });
         return;
       }
@@ -130,19 +151,23 @@ export default function ExamEditPage() {
         const found = (d.exams || []).find((e: Exam) => e.id === examId) || null;
         // Old API responses (or pre-migration rows) may lack the tags array;
         // default to [] so the chip editor never crashes on undefined.
-        if (found) setExam({
-          ...found,
-          tags: Array.isArray(found.tags) ? found.tags : [],
-          // Default to TRUE for back-compat when the server has the field as
-          // undefined (old payloads pre-migration). Migration runs on boot,
-          // so this is only relevant during the rollout window.
-          has_pass_threshold: typeof found.has_pass_threshold === 'boolean' ? found.has_pass_threshold : true,
-        });
+        if (found)
+          setExam({
+            ...found,
+            tags: Array.isArray(found.tags) ? found.tags : [],
+            // Default to TRUE for back-compat when the server has the field as
+            // undefined (old payloads pre-migration). Migration runs on boot,
+            // so this is only relevant during the rollout window.
+            has_pass_threshold:
+              typeof found.has_pass_threshold === 'boolean' ? found.has_pass_threshold : true,
+          });
         else setExam(null);
       }
       if (qRes.ok) {
         const d = await qRes.json();
-        const sorted = (d.questions || []).sort((a: Question, b: Question) => a.position - b.position);
+        const sorted = (d.questions || []).sort(
+          (a: Question, b: Question) => a.position - b.position,
+        );
         setQuestions(sorted);
       }
       if (subjectsRes.ok) {
@@ -154,7 +179,9 @@ export default function ExamEditPage() {
     }
   }, [examId]);
 
-  useEffect(() => { if (user) load(); }, [user, load]);
+  useEffect(() => {
+    if (user) load();
+  }, [user, load]);
 
   const handleSaveSettings = async () => {
     if (!exam) return;
@@ -193,7 +220,11 @@ export default function ExamEditPage() {
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
-        toast.error(d.error === 'DEMO_EXAM_LOCKED' ? t('manage.demoLocked') : (d.error || t('examEdit.saveFailed')));
+        toast.error(
+          d.error === 'DEMO_EXAM_LOCKED'
+            ? t('manage.demoLocked')
+            : d.error || t('examEdit.saveFailed'),
+        );
         return;
       }
       // Sync local state to the server's truth so the form reflects what was
@@ -207,30 +238,42 @@ export default function ExamEditPage() {
         // subjects list to keep the breadcrumb / labels in sync.
         const newSubjectId = (saved as { subject_id?: string | null }).subject_id ?? null;
         const matched = newSubjectId ? subjects.find((s) => s.id === newSubjectId) : null;
-        setExam((prev) => prev ? {
-          ...prev,
-          title: typeof saved.title === 'string' ? saved.title : prev.title,
-          description: 'description' in saved ? saved.description : prev.description,
-          duration_minutes: Number(saved.duration_minutes ?? prev.duration_minutes),
-          pass_threshold: Number(saved.pass_threshold ?? prev.pass_threshold),
-          has_pass_threshold: typeof (saved as { has_pass_threshold?: unknown }).has_pass_threshold === 'boolean'
-            ? !!(saved as { has_pass_threshold: boolean }).has_pass_threshold
-            : prev.has_pass_threshold,
-          subject_id: newSubjectId,
-          subject_name: matched ? matched.name : null,
-          allow_review: !!saved.allow_review,
-          allow_notes: saved.allow_notes !== false,
-          allow_calculator: !!saved.allow_calculator,
-          shuffle_questions: !!saved.shuffle_questions,
-          shuffle_answers: !!saved.shuffle_answers,
-          partial_scoring: !!saved.partial_scoring,
-          negative_points_enabled: !!saved.negative_points_enabled,
-          negative_points_value: Number(saved.negative_points_value ?? prev.negative_points_value),
-          negative_points_threshold: Number(saved.negative_points_threshold ?? prev.negative_points_threshold),
-          tags: Array.isArray((saved as { tags?: unknown }).tags)
-            ? ((saved as { tags: unknown[] }).tags as unknown[]).filter((x): x is string => typeof x === 'string')
-            : prev.tags,
-        } : prev);
+        setExam((prev) =>
+          prev
+            ? {
+                ...prev,
+                title: typeof saved.title === 'string' ? saved.title : prev.title,
+                description: 'description' in saved ? saved.description : prev.description,
+                duration_minutes: Number(saved.duration_minutes ?? prev.duration_minutes),
+                pass_threshold: Number(saved.pass_threshold ?? prev.pass_threshold),
+                has_pass_threshold:
+                  typeof (saved as { has_pass_threshold?: unknown }).has_pass_threshold ===
+                  'boolean'
+                    ? !!(saved as { has_pass_threshold: boolean }).has_pass_threshold
+                    : prev.has_pass_threshold,
+                subject_id: newSubjectId,
+                subject_name: matched ? matched.name : null,
+                allow_review: !!saved.allow_review,
+                allow_notes: saved.allow_notes !== false,
+                allow_calculator: !!saved.allow_calculator,
+                shuffle_questions: !!saved.shuffle_questions,
+                shuffle_answers: !!saved.shuffle_answers,
+                partial_scoring: !!saved.partial_scoring,
+                negative_points_enabled: !!saved.negative_points_enabled,
+                negative_points_value: Number(
+                  saved.negative_points_value ?? prev.negative_points_value,
+                ),
+                negative_points_threshold: Number(
+                  saved.negative_points_threshold ?? prev.negative_points_threshold,
+                ),
+                tags: Array.isArray((saved as { tags?: unknown }).tags)
+                  ? ((saved as { tags: unknown[] }).tags as unknown[]).filter(
+                      (x): x is string => typeof x === 'string',
+                    )
+                  : prev.tags,
+              }
+            : prev,
+        );
       }
       toast.success(t('examEdit.saveSuccess'));
     } catch {
@@ -312,7 +355,11 @@ export default function ExamEditPage() {
   };
 
   if (!user || loading) {
-    return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
   }
 
   if (!exam) {
@@ -328,7 +375,8 @@ export default function ExamEditPage() {
   const toggleExpand = (id: string) => {
     setExpanded((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   };
@@ -436,11 +484,15 @@ export default function ExamEditPage() {
     if (!draft) return;
     let current: { snippet?: string; language?: string } = {};
     if (draft.content) {
-      try { current = JSON.parse(draft.content); } catch { current = { snippet: draft.content }; }
+      try {
+        current = JSON.parse(draft.content);
+      } catch {
+        current = { snippet: draft.content };
+      }
     }
     const next = JSON.stringify({
-      snippet: snippet !== undefined ? snippet : current.snippet ?? '',
-      language: language !== undefined ? language : current.language ?? null,
+      snippet: snippet !== undefined ? snippet : (current.snippet ?? ''),
+      language: language !== undefined ? language : (current.language ?? null),
     });
     patchDraft(qid, { content: next });
   };
@@ -466,19 +518,29 @@ export default function ExamEditPage() {
             {/* Header */}
             <div className="flex items-center justify-between gap-3 mb-6 flex-wrap">
               <div className="flex items-center gap-3 min-w-0">
-                <button onClick={() => navigate(exam.exam_mode === 'practice' ? '/practice' : '/manage')} className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]">
+                <button
+                  onClick={() => navigate(exam.exam_mode === 'practice' ? '/practice' : '/manage')}
+                  className="p-2 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
+                >
                   <ArrowLeft size={20} />
                 </button>
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <h1 className="text-2xl font-display font-bold text-[var(--text-primary)] truncate">{exam.title}</h1>
+                    <h1 className="text-2xl font-display font-bold text-[var(--text-primary)] truncate">
+                      {exam.title}
+                    </h1>
                     {/* Mode is fixed at creation, so it's a label, not a control.
                         Real exams show nothing: real is the default and a badge
                         saying "normal" is noise. */}
-                    {exam.exam_mode === 'practice' && <Badge variant="accent" size="sm">{t('examEdit.modePractice')}</Badge>}
+                    {exam.exam_mode === 'practice' && (
+                      <Badge variant="accent" size="sm">
+                        {t('examEdit.modePractice')}
+                      </Badge>
+                    )}
                   </div>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {questions.length} {t('examEdit.questions')} · {totalPoints} {t('questions.pts')} · {exam.status}
+                    {questions.length} {t('examEdit.questions')} · {totalPoints}{' '}
+                    {t('questions.pts')} · {exam.status}
                   </p>
                 </div>
               </div>
@@ -489,13 +551,15 @@ export default function ExamEditPage() {
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
                 >
-                  <Printer size={14} />{t('manage.printTest')}
+                  <Printer size={14} />
+                  {t('manage.printTest')}
                 </a>
                 <a
                   href={`/api/otisak/exams/${exam.id}/export`}
                   className="inline-flex items-center gap-2 h-10 px-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
                 >
-                  <Download size={14} />{t('manage.exportJson')}
+                  <Download size={14} />
+                  {t('manage.exportJson')}
                 </a>
               </div>
             </div>
@@ -509,25 +573,51 @@ export default function ExamEditPage() {
               >
                 <div className="flex items-center gap-3">
                   <Settings size={16} className="text-accent" />
-                  <span className="text-sm font-medium text-[var(--text-primary)]">{t('examEdit.settings')}</span>
+                  <span className="text-sm font-medium text-[var(--text-primary)]">
+                    {t('examEdit.settings')}
+                  </span>
                 </div>
-                {showSettings ? <ChevronUp size={16} className="text-[var(--text-muted)]" /> : <ChevronDown size={16} className="text-[var(--text-muted)]" />}
+                {showSettings ? (
+                  <ChevronUp size={16} className="text-[var(--text-muted)]" />
+                ) : (
+                  <ChevronDown size={16} className="text-[var(--text-muted)]" />
+                )}
               </button>
               {showSettings && (
                 <div className="px-5 pb-5 grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Field label={t('examEdit.title')}>
-                    <input value={exam.title} onChange={(e) => setExam({ ...exam, title: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
+                    <input
+                      value={exam.title}
+                      onChange={(e) => setExam({ ...exam, title: e.target.value })}
+                      className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                    />
                   </Field>
                   <Field label={t('examEdit.description')}>
-                    <input value={exam.description ?? ''} onChange={(e) => setExam({ ...exam, description: e.target.value })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
+                    <input
+                      value={exam.description ?? ''}
+                      onChange={(e) => setExam({ ...exam, description: e.target.value })}
+                      className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                    />
                   </Field>
                   <Field label={t('examEdit.duration')}>
-                    <input type="number" min={1} value={exam.duration_minutes} onChange={(e) => setExam({ ...exam, duration_minutes: Number(e.target.value) })} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
+                    <input
+                      type="number"
+                      min={1}
+                      value={exam.duration_minutes}
+                      onChange={(e) =>
+                        setExam({ ...exam, duration_minutes: Number(e.target.value) })
+                      }
+                      className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                    />
                   </Field>
                   <Field label={t('examEdit.passThreshold')}>
                     <div className="space-y-2">
                       <Toggle
-                        label={exam.has_pass_threshold ? t('examEdit.hasPassThresholdOn') : t('examEdit.hasPassThresholdOff')}
+                        label={
+                          exam.has_pass_threshold
+                            ? t('examEdit.hasPassThresholdOn')
+                            : t('examEdit.hasPassThresholdOff')
+                        }
                         value={exam.has_pass_threshold}
                         onChange={(v) => setExam({ ...exam, has_pass_threshold: v })}
                       />
@@ -537,7 +627,9 @@ export default function ExamEditPage() {
                         max={100}
                         value={exam.pass_threshold}
                         disabled={!exam.has_pass_threshold}
-                        onChange={(e) => setExam({ ...exam, pass_threshold: Number(e.target.value) })}
+                        onChange={(e) =>
+                          setExam({ ...exam, pass_threshold: Number(e.target.value) })
+                        }
                         className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                       />
                     </div>
@@ -550,17 +642,43 @@ export default function ExamEditPage() {
                     >
                       <option value="">{t('examEdit.noSubject')}</option>
                       {subjects.map((s) => (
-                        <option key={s.id} value={s.id}>{s.code ? `${s.name} (${s.code})` : s.name}</option>
+                        <option key={s.id} value={s.id}>
+                          {s.code ? `${s.name} (${s.code})` : s.name}
+                        </option>
                       ))}
                     </select>
                   </Field>
                   <div className="grid grid-cols-2 gap-2 col-span-1 sm:col-span-2">
-                    <Toggle label={t('examEdit.allowReview')} value={exam.allow_review} onChange={(v) => setExam({ ...exam, allow_review: v })} />
-                    <Toggle label={t('examEdit.allowNotes')} value={exam.allow_notes} onChange={(v) => setExam({ ...exam, allow_notes: v })} />
-                    <Toggle label={t('examEdit.allowCalculator')} value={exam.allow_calculator} onChange={(v) => setExam({ ...exam, allow_calculator: v })} />
-                    <Toggle label={t('examEdit.shuffleQuestions')} value={exam.shuffle_questions} onChange={(v) => setExam({ ...exam, shuffle_questions: v })} />
-                    <Toggle label={t('examEdit.shuffleAnswers')} value={exam.shuffle_answers} onChange={(v) => setExam({ ...exam, shuffle_answers: v })} />
-                    <Toggle label={t('examEdit.partialScoring')} value={exam.partial_scoring} onChange={(v) => setExam({ ...exam, partial_scoring: v })} />
+                    <Toggle
+                      label={t('examEdit.allowReview')}
+                      value={exam.allow_review}
+                      onChange={(v) => setExam({ ...exam, allow_review: v })}
+                    />
+                    <Toggle
+                      label={t('examEdit.allowNotes')}
+                      value={exam.allow_notes}
+                      onChange={(v) => setExam({ ...exam, allow_notes: v })}
+                    />
+                    <Toggle
+                      label={t('examEdit.allowCalculator')}
+                      value={exam.allow_calculator}
+                      onChange={(v) => setExam({ ...exam, allow_calculator: v })}
+                    />
+                    <Toggle
+                      label={t('examEdit.shuffleQuestions')}
+                      value={exam.shuffle_questions}
+                      onChange={(v) => setExam({ ...exam, shuffle_questions: v })}
+                    />
+                    <Toggle
+                      label={t('examEdit.shuffleAnswers')}
+                      value={exam.shuffle_answers}
+                      onChange={(v) => setExam({ ...exam, shuffle_answers: v })}
+                    />
+                    <Toggle
+                      label={t('examEdit.partialScoring')}
+                      value={exam.partial_scoring}
+                      onChange={(v) => setExam({ ...exam, partial_scoring: v })}
+                    />
                   </div>
 
                   <div className="col-span-1 sm:col-span-2">
@@ -570,7 +688,9 @@ export default function ExamEditPage() {
                         onChange={(next) => setExam({ ...exam, tags: next })}
                         placeholder={t('examEdit.tagsPlaceholder')}
                       />
-                      <p className="text-[11px] text-[var(--text-muted)] mt-1">{t('examEdit.tagsHelp')}</p>
+                      <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                        {t('examEdit.tagsHelp')}
+                      </p>
                     </Field>
                   </div>
 
@@ -582,7 +702,12 @@ export default function ExamEditPage() {
                   )}
 
                   <div className="col-span-1 sm:col-span-2 flex justify-end">
-                    <Button variant="primary" leftIcon={<Save size={14} />} loading={savingSettings} onClick={handleSaveSettings}>
+                    <Button
+                      variant="primary"
+                      leftIcon={<Save size={14} />}
+                      loading={savingSettings}
+                      onClick={handleSaveSettings}
+                    >
                       {t('examEdit.saveSettings')}
                     </Button>
                   </div>
@@ -594,12 +719,18 @@ export default function ExamEditPage() {
             <section className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-5 mb-6">
               <div className="flex items-center gap-2 mb-3">
                 <Plus size={16} className="text-accent" />
-                <span className="text-sm font-medium text-[var(--text-primary)]">{t('examEdit.addQuestion')}</span>
+                <span className="text-sm font-medium text-[var(--text-primary)]">
+                  {t('examEdit.addQuestion')}
+                </span>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 <Field label={t('questions.type')}>
-                  <select value={draftType} onChange={(e) => setDraftType(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
+                  <select
+                    value={draftType}
+                    onChange={(e) => setDraftType(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                  >
                     <option value="text">{t('questions.multipleChoice')}</option>
                     <option value="code">{t('questions.code')}</option>
                     <option value="image">{t('questions.image')}</option>
@@ -607,26 +738,67 @@ export default function ExamEditPage() {
                   </select>
                 </Field>
                 <Field label={t('questions.pts')}>
-                  <input type="number" min={0} value={draftPoints} onChange={(e) => setDraftPoints(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" />
+                  <input
+                    type="number"
+                    min={0}
+                    value={draftPoints}
+                    onChange={(e) => setDraftPoints(e.target.value)}
+                    className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                  />
                 </Field>
               </div>
 
               <Field label={t('questions.questionText')}>
-                <textarea value={draftText} onChange={(e) => setDraftText(e.target.value)} className="w-full h-20 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none" />
+                <textarea
+                  value={draftText}
+                  onChange={(e) => setDraftText(e.target.value)}
+                  className="w-full h-20 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none"
+                />
               </Field>
 
               {draftType === 'code' && (
                 <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div className="sm:col-span-2">
                     <Field label={t('questions.codeSnippet')}>
-                      <textarea value={draftCode} onChange={(e) => setDraftCode(e.target.value)} spellCheck={false} className="w-full h-32 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[#0d1117] text-gray-200 text-xs font-mono resize-y" />
+                      <textarea
+                        value={draftCode}
+                        onChange={(e) => setDraftCode(e.target.value)}
+                        spellCheck={false}
+                        className="w-full h-32 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[#0d1117] text-gray-200 text-xs font-mono resize-y"
+                      />
                     </Field>
                   </div>
                   <div>
                     <Field label={t('questions.codeLanguage')}>
-                      <select value={draftLang} onChange={(e) => setDraftLang(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm">
-                        {['python','javascript','typescript','java','csharp','cpp','c','sql','bash','go','rust','php','ruby','html','css','json','xml','yaml',''].map((v) => (
-                          <option key={v} value={v}>{v || t('questions.codeLanguageAuto')}</option>
+                      <select
+                        value={draftLang}
+                        onChange={(e) => setDraftLang(e.target.value)}
+                        className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                      >
+                        {[
+                          'python',
+                          'javascript',
+                          'typescript',
+                          'java',
+                          'csharp',
+                          'cpp',
+                          'c',
+                          'sql',
+                          'bash',
+                          'go',
+                          'rust',
+                          'php',
+                          'ruby',
+                          'html',
+                          'css',
+                          'json',
+                          'xml',
+                          'yaml',
+                          '',
+                        ].map((v) => (
+                          <option key={v} value={v}>
+                            {v || t('questions.codeLanguageAuto')}
+                          </option>
                         ))}
                       </select>
                     </Field>
@@ -646,13 +818,23 @@ export default function ExamEditPage() {
                       onUploaded={setDraftImage}
                       className="flex-1 flex items-center justify-center gap-2 h-10 px-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors"
                     >
-                      <UploadIcon size={14} />{t('questions.imageUpload')}
+                      <UploadIcon size={14} />
+                      {t('questions.imageUpload')}
                     </ImageUploadButton>
-                    <input value={draftImage.startsWith('data:') ? '' : draftImage} onChange={(e) => setDraftImage(e.target.value)} className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('questions.imageUrlPlaceholder')} />
+                    <input
+                      value={draftImage.startsWith('data:') ? '' : draftImage}
+                      onChange={(e) => setDraftImage(e.target.value)}
+                      className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                      placeholder={t('questions.imageUrlPlaceholder')}
+                    />
                   </div>
                   {draftImage && (
                     <div className="rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] p-2">
-                      <img src={draftImage} alt="preview" className="max-h-48 max-w-full rounded mx-auto block" />
+                      <img
+                        src={draftImage}
+                        alt="preview"
+                        className="max-h-48 max-w-full rounded mx-auto block"
+                      />
                     </div>
                   )}
                 </div>
@@ -670,28 +852,63 @@ export default function ExamEditPage() {
 
               {draftType !== 'open_text' && (
                 <div className="mt-3 space-y-2">
-                  <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">{t('examEdit.answers')}</span>
+                  <span className="text-xs text-[var(--text-muted)] uppercase tracking-wider">
+                    {t('examEdit.answers')}
+                  </span>
                   {draftAnswers.map((a, i) => (
                     <div key={i} className="flex items-center gap-2">
-                      <button type="button" onClick={() => setDraftAnswers((prev) => prev.map((x, j) => j === i ? { ...x, is_correct: !x.is_correct } : x))} className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 text-xs font-bold transition-colors ${a.is_correct ? 'bg-success text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setDraftAnswers((prev) =>
+                            prev.map((x, j) => (j === i ? { ...x, is_correct: !x.is_correct } : x)),
+                          )
+                        }
+                        className={`w-7 h-7 rounded flex items-center justify-center flex-shrink-0 text-xs font-bold transition-colors ${a.is_correct ? 'bg-success text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}
+                      >
                         {a.is_correct ? '✓' : String.fromCharCode(65 + i)}
                       </button>
-                      <input value={a.text} onChange={(e) => setDraftAnswers((prev) => prev.map((x, j) => j === i ? { ...x, text: e.target.value } : x))} className="flex-1 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={`${t('examEdit.answer')} ${String.fromCharCode(65 + i)}`} />
+                      <input
+                        value={a.text}
+                        onChange={(e) =>
+                          setDraftAnswers((prev) =>
+                            prev.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)),
+                          )
+                        }
+                        className="flex-1 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                        placeholder={`${t('examEdit.answer')} ${String.fromCharCode(65 + i)}`}
+                      />
                       {draftAnswers.length > 2 && (
-                        <button type="button" onClick={() => setDraftAnswers((prev) => prev.filter((_, j) => j !== i))} className="text-[var(--text-muted)] hover:text-danger p-1" title={t('examEdit.removeAnswer')}>
+                        <button
+                          type="button"
+                          onClick={() => setDraftAnswers((prev) => prev.filter((_, j) => j !== i))}
+                          className="text-[var(--text-muted)] hover:text-danger p-1"
+                          title={t('examEdit.removeAnswer')}
+                        >
                           <Trash2 size={14} />
                         </button>
                       )}
                     </div>
                   ))}
-                  <button type="button" onClick={() => setDraftAnswers((prev) => [...prev, { text: '', is_correct: false }])} className="text-xs text-accent hover:text-accent-hover">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setDraftAnswers((prev) => [...prev, { text: '', is_correct: false }])
+                    }
+                    className="text-xs text-accent hover:text-accent-hover"
+                  >
                     + {t('examEdit.addAnswer')}
                   </button>
                 </div>
               )}
 
               <div className="flex justify-end mt-3">
-                <Button variant="primary" leftIcon={<Plus size={14} />} loading={creating} onClick={handleAddQuestion}>
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={14} />}
+                  loading={creating}
+                  onClick={handleAddQuestion}
+                >
                   {t('examEdit.addQuestion')}
                 </Button>
               </div>
@@ -699,7 +916,9 @@ export default function ExamEditPage() {
 
             {/* Existing questions */}
             <section>
-              <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold mb-3">{t('examEdit.questions')} ({questions.length})</h2>
+              <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold mb-3">
+                {t('examEdit.questions')} ({questions.length})
+              </h2>
               {questions.length === 0 ? (
                 <div className="text-sm text-[var(--text-muted)] text-center py-12 bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)]">
                   {t('examEdit.empty')}
@@ -708,16 +927,28 @@ export default function ExamEditPage() {
                 <div className="space-y-2">
                   {questions.map((q, idx) => {
                     const isOpen = expanded.has(q.id);
-                    const typeInfo = TYPE_LABELS[q.type] || { labelKey: '', icon: <FileText size={14} /> };
+                    const typeInfo = TYPE_LABELS[q.type] || {
+                      labelKey: '',
+                      icon: <FileText size={14} />,
+                    };
                     const typeLabel = typeInfo.labelKey ? t(typeInfo.labelKey) : q.type;
                     // Surface single-vs-multi status. The flag is now an explicit column
                     // on the question, set by the admin toggle when authoring (or by the
                     // JSON import).
                     const isMultiAnswer = q.multi_answer;
                     return (
-                      <div key={q.id} className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)]">
-                        <button type="button" onClick={() => toggleExpand(q.id)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
-                          <span className="text-xs font-mono text-[var(--text-muted)] w-6 flex-shrink-0">{idx + 1}.</span>
+                      <div
+                        key={q.id}
+                        className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)]"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => toggleExpand(q.id)}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-left"
+                        >
+                          <span className="text-xs font-mono text-[var(--text-muted)] w-6 flex-shrink-0">
+                            {idx + 1}.
+                          </span>
                           <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-accent bg-accent-light px-2 py-0.5 rounded-full">
                             {typeInfo.icon}
                             {typeLabel}
@@ -727,192 +958,302 @@ export default function ExamEditPage() {
                               {t('examEdit.multiAnswer')}
                             </span>
                           )}
-                          <span className="flex-1 text-sm text-[var(--text-primary)] truncate">{q.text}</span>
-                          <span className="text-xs font-mono text-[var(--text-secondary)]">{Number(q.points)} {t('questions.pts')}</span>
-                          {isOpen ? <ChevronUp size={14} className="text-[var(--text-muted)]" /> : <ChevronDown size={14} className="text-[var(--text-muted)]" />}
+                          <span className="flex-1 text-sm text-[var(--text-primary)] truncate">
+                            {q.text}
+                          </span>
+                          <span className="text-xs font-mono text-[var(--text-secondary)]">
+                            {Number(q.points)} {t('questions.pts')}
+                          </span>
+                          {isOpen ? (
+                            <ChevronUp size={14} className="text-[var(--text-muted)]" />
+                          ) : (
+                            <ChevronDown size={14} className="text-[var(--text-muted)]" />
+                          )}
                         </button>
-                        {isOpen && (() => {
-                          const draft = editDrafts[q.id];
-                          const editing = !!draft;
-                          const saving = savingEdit.has(q.id);
-                          if (!editing) {
+                        {isOpen &&
+                          (() => {
+                            const draft = editDrafts[q.id];
+                            const editing = !!draft;
+                            const saving = savingEdit.has(q.id);
+                            if (!editing) {
+                              return (
+                                <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3">
+                                  <p className="text-sm text-[var(--text-primary)] mb-2 whitespace-pre-wrap">
+                                    {q.text}
+                                  </p>
+                                  {q.type === 'code' &&
+                                    q.content &&
+                                    (() => {
+                                      const { snippet, language } = parseCodeContent(q.content);
+                                      return <CodeBlock code={snippet} language={language} />;
+                                    })()}
+                                  {q.type === 'image' && q.content && (
+                                    <img
+                                      src={q.content}
+                                      alt=""
+                                      className="max-h-60 max-w-full rounded mx-auto block bg-white p-1"
+                                    />
+                                  )}
+                                  {q.answers.length > 0 && (
+                                    <ul className="mt-2 space-y-1">
+                                      {q.answers.map((a, i) => (
+                                        <li
+                                          key={a.id ?? i}
+                                          className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${a.is_correct ? 'bg-success-light text-success' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}
+                                        >
+                                          <span className="font-mono">
+                                            {String.fromCharCode(65 + i)}.
+                                          </span>
+                                          <span>{a.text}</span>
+                                          {a.is_correct && (
+                                            <span className="ml-auto text-[10px] uppercase tracking-wider">
+                                              ✓
+                                            </span>
+                                          )}
+                                        </li>
+                                      ))}
+                                    </ul>
+                                  )}
+                                  <div className="flex justify-end mt-3 gap-2">
+                                    <Button
+                                      variant="secondary"
+                                      size="sm"
+                                      leftIcon={<Pencil size={14} />}
+                                      onClick={() => beginEdit(q)}
+                                    >
+                                      {t('examEdit.editQuestion')}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      leftIcon={<Trash2 size={14} />}
+                                      onClick={() => handleDeleteQuestion(q.id)}
+                                      className="text-danger hover:bg-danger-light"
+                                    >
+                                      {t('examEdit.delete')}
+                                    </Button>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            const code = parseCodeDraft(draft);
+                            const editableMulti = ['text', 'code', 'image'].includes(draft.type);
+                            const hasAnswers = draft.type !== 'open_text';
                             return (
-                              <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3">
-                                <p className="text-sm text-[var(--text-primary)] mb-2 whitespace-pre-wrap">{q.text}</p>
-                                {q.type === 'code' && q.content && (() => {
-                                  const { snippet, language } = parseCodeContent(q.content);
-                                  return <CodeBlock code={snippet} language={language} />;
-                                })()}
-                                {q.type === 'image' && q.content && (
-                                  <img src={q.content} alt="" className="max-h-60 max-w-full rounded mx-auto block bg-white p-1" />
+                              <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3 space-y-3">
+                                <div className="grid grid-cols-[1fr_120px] gap-3">
+                                  <Field label={t('questions.questionText')}>
+                                    <textarea
+                                      value={draft.text}
+                                      onChange={(e) => patchDraft(q.id, { text: e.target.value })}
+                                      rows={3}
+                                      className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                    />
+                                  </Field>
+                                  <Field label={t('questions.pts')}>
+                                    <input
+                                      type="number"
+                                      min={0}
+                                      step="0.5"
+                                      value={String(draft.points)}
+                                      onChange={(e) =>
+                                        patchDraft(q.id, { points: Number(e.target.value) })
+                                      }
+                                      className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                    />
+                                  </Field>
+                                </div>
+
+                                {draft.type === 'code' && (
+                                  <>
+                                    <Field label={t('questions.codeSnippet')}>
+                                      <textarea
+                                        value={code.snippet}
+                                        onChange={(e) =>
+                                          updateCodeDraft(q.id, e.target.value, undefined)
+                                        }
+                                        rows={6}
+                                        className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-xs font-mono"
+                                      />
+                                    </Field>
+                                    <Field label={t('questions.codeLanguage')}>
+                                      <select
+                                        value={code.language}
+                                        onChange={(e) =>
+                                          updateCodeDraft(q.id, undefined, e.target.value)
+                                        }
+                                        className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                      >
+                                        {[
+                                          '',
+                                          'python',
+                                          'javascript',
+                                          'typescript',
+                                          'java',
+                                          'c',
+                                          'cpp',
+                                          'csharp',
+                                          'go',
+                                          'rust',
+                                          'sql',
+                                          'bash',
+                                          'html',
+                                          'css',
+                                          'json',
+                                        ].map((v) => (
+                                          <option key={v} value={v}>
+                                            {v || t('questions.codeLanguageAuto')}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    </Field>
+                                  </>
                                 )}
-                                {q.answers.length > 0 && (
-                                  <ul className="mt-2 space-y-1">
-                                    {q.answers.map((a, i) => (
-                                      <li key={a.id ?? i} className={`flex items-center gap-2 text-xs px-2 py-1.5 rounded ${a.is_correct ? 'bg-success-light text-success' : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)]'}`}>
-                                        <span className="font-mono">{String.fromCharCode(65 + i)}.</span>
-                                        <span>{a.text}</span>
-                                        {a.is_correct && <span className="ml-auto text-[10px] uppercase tracking-wider">✓</span>}
-                                      </li>
-                                    ))}
-                                  </ul>
+
+                                {draft.type === 'image' && (
+                                  <Field label={t('questions.image')}>
+                                    <div className="flex items-center gap-2">
+                                      <ImageUploadButton
+                                        onUploaded={(url) => patchDraft(q.id, { content: url })}
+                                        className="inline-flex items-center gap-1.5 px-3 h-10 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
+                                      >
+                                        <UploadIcon size={14} />
+                                        {t('questions.imageUpload')}
+                                      </ImageUploadButton>
+                                      <input
+                                        value={
+                                          draft.content?.startsWith('data:')
+                                            ? ''
+                                            : (draft.content ?? '')
+                                        }
+                                        onChange={(e) =>
+                                          patchDraft(q.id, { content: e.target.value })
+                                        }
+                                        className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                        placeholder={t('questions.imageUrlPlaceholder')}
+                                      />
+                                    </div>
+                                    {draft.content && (
+                                      <img
+                                        src={draft.content}
+                                        alt=""
+                                        className="mt-2 max-h-40 max-w-full rounded mx-auto block bg-white p-1"
+                                      />
+                                    )}
+                                  </Field>
                                 )}
-                                <div className="flex justify-end mt-3 gap-2">
-                                  <Button variant="secondary" size="sm" leftIcon={<Pencil size={14} />} onClick={() => beginEdit(q)}>
-                                    {t('examEdit.editQuestion')}
+
+                                {editableMulti && (
+                                  <Toggle
+                                    label={t('examEdit.multiAnswerToggle')}
+                                    value={draft.multi_answer}
+                                    onChange={(v) => patchDraft(q.id, { multi_answer: v })}
+                                  />
+                                )}
+
+                                {hasAnswers && (
+                                  <div>
+                                    <div className="text-xs font-medium text-[var(--text-secondary)] mb-1.5">
+                                      {t('examEdit.answers')}
+                                    </div>
+                                    <div className="space-y-1.5">
+                                      {draft.answers.map((a, i) => (
+                                        <div key={i} className="flex items-center gap-2">
+                                          <span className="text-xs font-mono text-[var(--text-muted)] w-5 flex-shrink-0">
+                                            {String.fromCharCode(65 + i)}.
+                                          </span>
+                                          <input
+                                            value={a.text}
+                                            onChange={(e) =>
+                                              patchDraftAnswers(q.id, (xs) =>
+                                                xs.map((x, j) =>
+                                                  j === i ? { ...x, text: e.target.value } : x,
+                                                ),
+                                              )
+                                            }
+                                            placeholder={t('examEdit.answerPlaceholder')}
+                                            className="flex-1 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              // Multi-answer: toggle independently. Single-answer: clicking
+                                              // sets this one correct, clears the rest. Matches the create
+                                              // flow's mental model so editing isn't surprising.
+                                              patchDraftAnswers(q.id, (xs) =>
+                                                xs.map((x, j) => {
+                                                  if (draft.multi_answer) {
+                                                    return j === i
+                                                      ? { ...x, is_correct: !x.is_correct }
+                                                      : x;
+                                                  }
+                                                  return { ...x, is_correct: j === i };
+                                                }),
+                                              );
+                                            }}
+                                            title={
+                                              a.is_correct
+                                                ? t('examEdit.markIncorrect')
+                                                : t('examEdit.markCorrect')
+                                            }
+                                            className={`h-9 w-9 flex items-center justify-center rounded-lg border text-xs ${a.is_correct ? 'border-success bg-success-light text-success' : 'border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
+                                          >
+                                            <Check size={14} />
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() =>
+                                              patchDraftAnswers(q.id, (xs) =>
+                                                xs.filter((_, j) => j !== i),
+                                              )
+                                            }
+                                            title={t('examEdit.removeAnswer')}
+                                            className="h-9 w-9 flex items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-danger"
+                                          >
+                                            <X size={14} />
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      leftIcon={<Plus size={14} />}
+                                      onClick={() =>
+                                        patchDraftAnswers(q.id, (xs) => [
+                                          ...xs,
+                                          { text: '', is_correct: false },
+                                        ])
+                                      }
+                                      className="mt-2"
+                                    >
+                                      {t('examEdit.addAnswer')}
+                                    </Button>
+                                  </div>
+                                )}
+
+                                <div className="flex justify-end gap-2 pt-2">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => cancelEdit(q.id)}
+                                    disabled={saving}
+                                  >
+                                    {t('examEdit.cancel')}
                                   </Button>
-                                  <Button variant="ghost" size="sm" leftIcon={<Trash2 size={14} />} onClick={() => handleDeleteQuestion(q.id)} className="text-danger hover:bg-danger-light">
-                                    {t('examEdit.delete')}
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    leftIcon={<Save size={14} />}
+                                    loading={saving}
+                                    onClick={() => handleSaveEdit(q.id)}
+                                  >
+                                    {t('examEdit.save')}
                                   </Button>
                                 </div>
                               </div>
                             );
-                          }
-                          const code = parseCodeDraft(draft);
-                          const editableMulti = ['text', 'code', 'image'].includes(draft.type);
-                          const hasAnswers = draft.type !== 'open_text';
-                          return (
-                            <div className="px-4 pb-4 border-t border-[var(--border-subtle)] pt-3 space-y-3">
-                              <div className="grid grid-cols-[1fr_120px] gap-3">
-                                <Field label={t('questions.questionText')}>
-                                  <textarea
-                                    value={draft.text}
-                                    onChange={(e) => patchDraft(q.id, { text: e.target.value })}
-                                    rows={3}
-                                    className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                                  />
-                                </Field>
-                                <Field label={t('questions.pts')}>
-                                  <input
-                                    type="number"
-                                    min={0}
-                                    step="0.5"
-                                    value={String(draft.points)}
-                                    onChange={(e) => patchDraft(q.id, { points: Number(e.target.value) })}
-                                    className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                                  />
-                                </Field>
-                              </div>
-
-                              {draft.type === 'code' && (
-                                <>
-                                  <Field label={t('questions.codeSnippet')}>
-                                    <textarea
-                                      value={code.snippet}
-                                      onChange={(e) => updateCodeDraft(q.id, e.target.value, undefined)}
-                                      rows={6}
-                                      className="w-full px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-xs font-mono"
-                                    />
-                                  </Field>
-                                  <Field label={t('questions.codeLanguage')}>
-                                    <select
-                                      value={code.language}
-                                      onChange={(e) => updateCodeDraft(q.id, undefined, e.target.value)}
-                                      className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                                    >
-                                      {['', 'python', 'javascript', 'typescript', 'java', 'c', 'cpp', 'csharp', 'go', 'rust', 'sql', 'bash', 'html', 'css', 'json'].map((v) => (
-                                        <option key={v} value={v}>{v || t('questions.codeLanguageAuto')}</option>
-                                      ))}
-                                    </select>
-                                  </Field>
-                                </>
-                              )}
-
-                              {draft.type === 'image' && (
-                                <Field label={t('questions.image')}>
-                                  <div className="flex items-center gap-2">
-                                    <ImageUploadButton
-                                      onUploaded={(url) => patchDraft(q.id, { content: url })}
-                                      className="inline-flex items-center gap-1.5 px-3 h-10 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-                                    >
-                                      <UploadIcon size={14} />{t('questions.imageUpload')}
-                                    </ImageUploadButton>
-                                    <input
-                                      value={draft.content?.startsWith('data:') ? '' : (draft.content ?? '')}
-                                      onChange={(e) => patchDraft(q.id, { content: e.target.value })}
-                                      className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                                      placeholder={t('questions.imageUrlPlaceholder')}
-                                    />
-                                  </div>
-                                  {draft.content && (
-                                    <img src={draft.content} alt="" className="mt-2 max-h-40 max-w-full rounded mx-auto block bg-white p-1" />
-                                  )}
-                                </Field>
-                              )}
-
-                              {editableMulti && (
-                                <Toggle
-                                  label={t('examEdit.multiAnswerToggle')}
-                                  value={draft.multi_answer}
-                                  onChange={(v) => patchDraft(q.id, { multi_answer: v })}
-                                />
-                              )}
-
-                              {hasAnswers && (
-                                <div>
-                                  <div className="text-xs font-medium text-[var(--text-secondary)] mb-1.5">{t('examEdit.answers')}</div>
-                                  <div className="space-y-1.5">
-                                    {draft.answers.map((a, i) => (
-                                      <div key={i} className="flex items-center gap-2">
-                                        <span className="text-xs font-mono text-[var(--text-muted)] w-5 flex-shrink-0">{String.fromCharCode(65 + i)}.</span>
-                                        <input
-                                          value={a.text}
-                                          onChange={(e) => patchDraftAnswers(q.id, (xs) => xs.map((x, j) => j === i ? { ...x, text: e.target.value } : x))}
-                                          placeholder={t('examEdit.answerPlaceholder')}
-                                          className="flex-1 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                                        />
-                                        <button
-                                          type="button"
-                                          onClick={() => {
-                                            // Multi-answer: toggle independently. Single-answer: clicking
-                                            // sets this one correct, clears the rest. Matches the create
-                                            // flow's mental model so editing isn't surprising.
-                                            patchDraftAnswers(q.id, (xs) => xs.map((x, j) => {
-                                              if (draft.multi_answer) {
-                                                return j === i ? { ...x, is_correct: !x.is_correct } : x;
-                                              }
-                                              return { ...x, is_correct: j === i };
-                                            }));
-                                          }}
-                                          title={a.is_correct ? t('examEdit.markIncorrect') : t('examEdit.markCorrect')}
-                                          className={`h-9 w-9 flex items-center justify-center rounded-lg border text-xs ${a.is_correct ? 'border-success bg-success-light text-success' : 'border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}
-                                        >
-                                          <Check size={14} />
-                                        </button>
-                                        <button
-                                          type="button"
-                                          onClick={() => patchDraftAnswers(q.id, (xs) => xs.filter((_, j) => j !== i))}
-                                          title={t('examEdit.removeAnswer')}
-                                          className="h-9 w-9 flex items-center justify-center rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-muted)] hover:text-danger"
-                                        >
-                                          <X size={14} />
-                                        </button>
-                                      </div>
-                                    ))}
-                                  </div>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    leftIcon={<Plus size={14} />}
-                                    onClick={() => patchDraftAnswers(q.id, (xs) => [...xs, { text: '', is_correct: false }])}
-                                    className="mt-2"
-                                  >
-                                    {t('examEdit.addAnswer')}
-                                  </Button>
-                                </div>
-                              )}
-
-                              <div className="flex justify-end gap-2 pt-2">
-                                <Button variant="ghost" size="sm" onClick={() => cancelEdit(q.id)} disabled={saving}>
-                                  {t('examEdit.cancel')}
-                                </Button>
-                                <Button variant="primary" size="sm" leftIcon={<Save size={14} />} loading={saving} onClick={() => handleSaveEdit(q.id)}>
-                                  {t('examEdit.save')}
-                                </Button>
-                              </div>
-                            </div>
-                          );
-                        })()}
+                          })()}
                       </div>
                     );
                   })}
@@ -920,7 +1261,9 @@ export default function ExamEditPage() {
               )}
             </section>
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
+          <div className="px-4 pb-6 pt-2 flex justify-center">
+            <AppCopyright />
+          </div>
         </main>
       </div>
     </div>
@@ -936,14 +1279,24 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
   );
 }
 
-function Toggle({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+}) {
   return (
     <button
       type="button"
       onClick={() => onChange(!value)}
       className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-sm transition-colors ${value ? 'border-accent bg-accent-light text-accent' : 'border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-secondary)]'}`}
     >
-      <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${value ? 'border-accent bg-accent' : 'border-[var(--border-default)]'}`} />
+      <span
+        className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${value ? 'border-accent bg-accent' : 'border-[var(--border-default)]'}`}
+      />
       <span>{label}</span>
     </button>
   );
@@ -954,7 +1307,9 @@ function Toggle({ label, value, onChange }: { label: string; value: boolean; onC
 // Enter / comma commits the current draft; Backspace on an empty input removes
 // the last chip. Duplicates are silently dropped.
 function TagChipsEditor({
-  value, onChange, placeholder,
+  value,
+  onChange,
+  placeholder,
 }: {
   value: string[];
   onChange: (next: string[]) => void;
@@ -964,14 +1319,20 @@ function TagChipsEditor({
   const commit = () => {
     const norm = draft.trim().toLowerCase();
     if (!norm) return;
-    if (value.includes(norm)) { setDraft(''); return; }
+    if (value.includes(norm)) {
+      setDraft('');
+      return;
+    }
     onChange([...value, norm]);
     setDraft('');
   };
   return (
     <div className="flex flex-wrap items-center gap-1.5 min-h-10 px-2 py-1.5 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] focus-within:border-accent">
       {value.map((tag) => (
-        <span key={tag} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-light text-accent text-xs font-medium">
+        <span
+          key={tag}
+          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-accent-light text-accent text-xs font-medium"
+        >
           {tag}
           <button
             type="button"

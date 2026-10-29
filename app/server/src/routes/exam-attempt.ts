@@ -23,7 +23,12 @@ import {
 import { findUserById, findOrProvisionStudentByIndex } from '../db/users';
 import { broadcastExamEvent } from '../ws/events';
 import { refreshLiveStatsNow } from '../ws/liveStatsAggregator';
-import { createSessionCookie, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
+import {
+  createSessionCookie,
+  parseSessionCookie,
+  SESSION_COOKIE,
+  DEFAULT_TTL_MS,
+} from '../session';
 import { markSessionActive, isLockedByOtherSession } from '../session-tracker';
 import { requireAuth } from '../middleware';
 import { getExamId, getCachedExam } from './exam-shared';
@@ -56,7 +61,13 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       const userAttempts = await getUserAttempts(user.id);
       const submitted = userAttempts.find((a) => a.exam_id === examId && a.submitted);
       if (submitted) {
-        return res.json({ exam, attempt: null, questions: [], savedAnswers: [], alreadySubmitted: true });
+        return res.json({
+          exam,
+          attempt: null,
+          questions: [],
+          savedAnswers: [],
+          alreadySubmitted: true,
+        });
       }
     }
 
@@ -64,7 +75,9 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     // BUT: late joiners (who have a pending late_join request) must wait for admin approval.
     if (!attempt && user.role === 'student' && exam.status === 'active' && exam.exam_started_at) {
       const pending = await listRequestsForUser(examId, user.id);
-      const hasPendingLateJoin = pending.some((r) => r.type === 'late_join' && r.status === 'pending');
+      const hasPendingLateJoin = pending.some(
+        (r) => r.type === 'late_join' && r.status === 'pending',
+      );
       if (hasPendingLateJoin) {
         return res.json({
           exam,
@@ -187,7 +200,9 @@ router.post('/attempt', requireAuth, async (req: Request, res: Response) => {
 
     // Submit (finish) attempt
     if (submit === true) {
-      const timeSpent = time_spent_seconds || Math.floor((Date.now() - new Date(attempt.started_at).getTime()) / 1000);
+      const timeSpent =
+        time_spent_seconds ||
+        Math.floor((Date.now() - new Date(attempt.started_at).getTime()) / 1000);
       const finished = await finishAttempt(attempt.id, timeSpent);
       // Refresh the live-stats cache immediately so the next admin poll (within 5s)
       // reflects this submission. Also fire a WS event so any admin RoomPage that
@@ -473,7 +488,9 @@ router.get('/lockdown', async (req: Request, res: Response) => {
     const { getTotalLockdownPauseSeconds } = await import('../db/settings');
     const paused_seconds = await getTotalLockdownPauseSeconds(examId);
     const exam = await getCachedExam(examId);
-    const extra_seconds = Number((exam as unknown as { extra_seconds?: number } | null)?.extra_seconds ?? 0);
+    const extra_seconds = Number(
+      (exam as unknown as { extra_seconds?: number } | null)?.extra_seconds ?? 0,
+    );
     return res.json({
       lockdown: lockdown ? { is_active: true, message: lockdown.message } : null,
       paused_seconds,

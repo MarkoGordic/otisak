@@ -1,4 +1,3 @@
-
 import { Fingerprint } from 'lucide-react';
 
 interface FingerprintLogoProps {

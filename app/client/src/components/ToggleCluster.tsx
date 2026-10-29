@@ -1,4 +1,3 @@
-
 import { Sun, Moon } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';
@@ -13,7 +12,11 @@ type ToggleClusterProps = {
   className?: string;
 };
 
-export function ToggleCluster({ variant = 'glass', position = 'absolute', className = '' }: ToggleClusterProps) {
+export function ToggleCluster({
+  variant = 'glass',
+  position = 'absolute',
+  className = '',
+}: ToggleClusterProps) {
   const { theme, toggle } = useTheme();
   const { t } = useLang();
   const isDark = theme === 'dark';
@@ -22,12 +25,15 @@ export function ToggleCluster({ variant = 'glass', position = 'absolute', classN
   const glassPill = isDark
     ? 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
     : 'bg-white border-slate-200 text-slate-500 hover:text-slate-900 hover:border-slate-300 shadow-sm';
-  const solidPill = 'bg-[var(--bg-elevated)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
+  const solidPill =
+    'bg-[var(--bg-elevated)] border-[var(--border-default)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]';
   const pillClass = `p-2.5 rounded-xl border ${variant === 'glass' ? 'backdrop-blur-sm' : ''} transition-colors ${variant === 'glass' ? glassPill : solidPill}`;
 
   let wrapperClass: string;
-  if (position === 'absolute') wrapperClass = `absolute top-4 right-4 z-20 flex items-center gap-2 ${className}`;
-  else if (position === 'fixed') wrapperClass = `fixed top-4 right-4 z-20 flex items-center gap-2 ${className}`;
+  if (position === 'absolute')
+    wrapperClass = `absolute top-4 right-4 z-20 flex items-center gap-2 ${className}`;
+  else if (position === 'fixed')
+    wrapperClass = `fixed top-4 right-4 z-20 flex items-center gap-2 ${className}`;
   else wrapperClass = `flex items-center gap-2 ${className}`;
 
   return (

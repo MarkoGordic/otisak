@@ -5,9 +5,7 @@ import { query } from './client';
 import { getOtisakExamById } from './otisak-exams';
 import { enrollUserInExam } from './otisak-enrollments';
 import { findOrProvisionStudentByIndex } from './users';
-import type {
-  OtisakExam,
-} from './otisak-types';
+import type { OtisakExam } from './otisak-types';
 
 // ========================================
 // ROOM / LIVE EXAM CONTROL
@@ -26,12 +24,15 @@ export async function startExamTimer(examId: string): Promise<OtisakExam | null>
      WHERE id = $1
        AND status IN ('draft', 'scheduled', 'active')
      RETURNING *`,
-    [examId]
+    [examId],
   );
   return result.rows[0] || null;
 }
 
-export async function joinExamByIndex(examId: string, indexNumber: string): Promise<{
+export async function joinExamByIndex(
+  examId: string,
+  indexNumber: string,
+): Promise<{
   user: { id: string; name: string | null; index_number: string | null } | null;
   error?: string;
 }> {

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
@@ -41,22 +40,36 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
     isStaff
       ? { id: 'admin-home', label: t('nav.adminHome'), icon: LayoutDashboard, href: '/admin/home' }
       : { id: 'dashboard', label: t('nav.dashboard'), icon: LayoutDashboard, href: '/dashboard' },
-    ...(isStaff ? [
-      { id: 'manage', label: t('nav.manage'), icon: Settings, href: '/manage' },
-      // Administering practice templates. Distinct from 'my-practice' below,
-      // which is where staff go to TAKE a practice exam - hence the different
-      // icon, two items that look alike but go elsewhere is a trap.
-      { id: 'practice-admin', label: t('nav.practiceAdmin'), icon: Dumbbell, href: '/practice' },
-      { id: 'subjects', label: t('nav.subjects'), icon: BookMarked, href: '/subjects' },
-      { id: 'questions', label: t('nav.questionBank'), icon: BookOpen, href: '/questions' },
-      // Staff can take practice exams themselves via the student dashboard.
-      { id: 'my-practice', label: t('nav.myPractice'), icon: GraduationCap, href: '/dashboard' },
-    ] : []),
-    ...(isAdmin ? [
-      { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
-      { id: 'logs', label: t('nav.logs'), icon: ScrollText, href: '/admin/logs' },
-      { id: 'settings', label: t('nav.settings'), icon: Settings, href: '/admin/settings' },
-    ] : []),
+    ...(isStaff
+      ? [
+          { id: 'manage', label: t('nav.manage'), icon: Settings, href: '/manage' },
+          // Administering practice templates. Distinct from 'my-practice' below,
+          // which is where staff go to TAKE a practice exam - hence the different
+          // icon, two items that look alike but go elsewhere is a trap.
+          {
+            id: 'practice-admin',
+            label: t('nav.practiceAdmin'),
+            icon: Dumbbell,
+            href: '/practice',
+          },
+          { id: 'subjects', label: t('nav.subjects'), icon: BookMarked, href: '/subjects' },
+          { id: 'questions', label: t('nav.questionBank'), icon: BookOpen, href: '/questions' },
+          // Staff can take practice exams themselves via the student dashboard.
+          {
+            id: 'my-practice',
+            label: t('nav.myPractice'),
+            icon: GraduationCap,
+            href: '/dashboard',
+          },
+        ]
+      : []),
+    ...(isAdmin
+      ? [
+          { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
+          { id: 'logs', label: t('nav.logs'), icon: ScrollText, href: '/admin/logs' },
+          { id: 'settings', label: t('nav.settings'), icon: Settings, href: '/admin/settings' },
+        ]
+      : []),
     // Documentation - visible to everyone with a session.
     { id: 'docs', label: t('nav.docs'), icon: BookText, href: '/docs' },
   ];
@@ -76,7 +89,9 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
           <Fingerprint className="w-5 h-5 text-accent" strokeWidth={1.5} />
         </div>
         <div>
-          <div className="text-base font-display font-bold text-[var(--text-primary)] leading-tight">OTISAK</div>
+          <div className="text-base font-display font-bold text-[var(--text-primary)] leading-tight">
+            OTISAK
+          </div>
           <div className="text-[11px] text-[var(--text-muted)]">{t('nav.assessmentSystem')}</div>
         </div>
       </div>
@@ -109,7 +124,11 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
           onClick={toggle}
           className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors mb-1"
         >
-          {theme === 'dark' ? <Sun size={18} strokeWidth={1.5} /> : <Moon size={18} strokeWidth={1.5} />}
+          {theme === 'dark' ? (
+            <Sun size={18} strokeWidth={1.5} />
+          ) : (
+            <Moon size={18} strokeWidth={1.5} />
+          )}
           {theme === 'dark' ? t('nav.lightMode') : t('nav.darkMode')}
         </button>
 
@@ -124,7 +143,9 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
             {userName?.[0]?.toUpperCase() || '?'}
           </div>
           <div className="flex-1 min-w-0">
-            <div className="text-sm font-medium text-[var(--text-primary)] truncate">{userName || 'User'}</div>
+            <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+              {userName || 'User'}
+            </div>
             <div className="text-[11px] text-[var(--text-muted)] capitalize">{userRole}</div>
           </div>
           <button
@@ -143,9 +164,7 @@ export function Sidebar({ userName, userRole }: SidebarProps) {
           </button>
         </div>
       </div>
-      {showPasswordModal && (
-        <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />
-      )}
+      {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </aside>
   );
 }
@@ -161,10 +180,17 @@ export function MobileNav({ userRole }: SidebarProps) {
     isStaff
       ? { id: 'admin-home', label: t('nav.home'), icon: LayoutDashboard, href: '/admin/home' }
       : { id: 'dashboard', label: t('nav.home'), icon: LayoutDashboard, href: '/dashboard' },
-    ...(isStaff ? [
-      { id: 'manage', label: t('nav.manage.short'), icon: Settings, href: '/manage' },
-      { id: 'my-practice', label: t('nav.myPractice.short'), icon: GraduationCap, href: '/dashboard' },
-    ] : []),
+    ...(isStaff
+      ? [
+          { id: 'manage', label: t('nav.manage.short'), icon: Settings, href: '/manage' },
+          {
+            id: 'my-practice',
+            label: t('nav.myPractice.short'),
+            icon: GraduationCap,
+            href: '/dashboard',
+          },
+        ]
+      : []),
   ];
 
   return (

@@ -7,12 +7,29 @@ export type ExamWsEvent =
   | { type: 'exam.started'; exam_started_at: string; duration_minutes: number }
   | { type: 'lockdown.changed'; is_active: boolean; message: string | null }
   | { type: 'assistant.message'; message: string }
-  | { type: 'timer.adjusted'; extra_seconds: number; effective_duration_seconds: number; delta_seconds: number }
+  | {
+      type: 'timer.adjusted';
+      extra_seconds: number;
+      effective_duration_seconds: number;
+      delta_seconds: number;
+    }
   | { type: 'request.created'; request_id: string; request_type: string; user_id: string }
-  | { type: 'request.decided'; request_id: string; request_type: string; user_id: string; status: 'approved' | 'denied' }
+  | {
+      type: 'request.decided';
+      request_id: string;
+      request_type: string;
+      user_id: string;
+      status: 'approved' | 'denied';
+    }
   | { type: 'exam.finished'; redirect: boolean; finished_count: number }
   | { type: 'exam.submitted'; user_id: string; finished_count: number; total_participants: number }
-  | { type: 'exam.progress'; user_id: string; answered_count: number; total_questions: number; time_spent_seconds: number }
+  | {
+      type: 'exam.progress';
+      user_id: string;
+      answered_count: number;
+      total_questions: number;
+      time_spent_seconds: number;
+    }
   | { type: 'student.joined'; user_id: string }
   | { type: 'student.kicked'; user_id: string };
 
@@ -37,7 +54,7 @@ type UseExamSocketOptions = {
 export function useExamSocket(
   examId: string | undefined,
   onEvent: (e: ExamWsEvent) => void,
-  options?: UseExamSocketOptions
+  options?: UseExamSocketOptions,
 ): UseExamSocketResult {
   const handlerRef = useRef(onEvent);
   handlerRef.current = onEvent;
@@ -67,7 +84,11 @@ export function useExamSocket(
     const resetSilenceTimer = () => {
       if (silenceTimer) clearTimeout(silenceTimer);
       silenceTimer = setTimeout(() => {
-        try { ws?.close(); } catch { /* ignore */ }
+        try {
+          ws?.close();
+        } catch {
+          /* ignore */
+        }
       }, SILENCE_TIMEOUT_MS);
     };
 
@@ -78,7 +99,14 @@ export function useExamSocket(
       ws = new WebSocket(url);
 
       ws.onopen = () => {
-        if (stopped) { try { ws?.close(); } catch { /* ignore */ } return; }
+        if (stopped) {
+          try {
+            ws?.close();
+          } catch {
+            /* ignore */
+          }
+          return;
+        }
         attempt = 0;
         setConnected(true);
         ws?.send(JSON.stringify({ type: 'subscribe_exam', exam_id: examId }));
@@ -86,7 +114,11 @@ export function useExamSocket(
         if (everConnected) {
           // Reconnect: any events between the disconnect and now are gone. Ask the
           // consumer to resync its state from the server.
-          try { onReconnectRef.current?.(); } catch { /* consumer error shouldn't crash hook */ }
+          try {
+            onReconnectRef.current?.();
+          } catch {
+            /* consumer error shouldn't crash hook */
+          }
         }
         everConnected = true;
       };
@@ -106,7 +138,10 @@ export function useExamSocket(
       };
 
       ws.onclose = (e) => {
-        if (silenceTimer) { clearTimeout(silenceTimer); silenceTimer = null; }
+        if (silenceTimer) {
+          clearTimeout(silenceTimer);
+          silenceTimer = null;
+        }
         if (stopped) return;
         setConnected(false);
         // 4001 = server rejected the session (unauthenticated or remotely
@@ -120,7 +155,11 @@ export function useExamSocket(
 
       ws.onerror = () => {
         // Close triggers reconnect via onclose; just nudge it.
-        try { ws?.close(); } catch { /* already broken */ }
+        try {
+          ws?.close();
+        } catch {
+          /* already broken */
+        }
       };
     };
 
@@ -134,7 +173,11 @@ export function useExamSocket(
       // is legal and aborts the handshake - the previous check missed that case
       // and would leave the socket dangling until the browser timed it out.
       if (ws && ws.readyState !== WebSocket.CLOSED && ws.readyState !== WebSocket.CLOSING) {
-        try { ws.close(1000, 'unmount'); } catch { /* ignore */ }
+        try {
+          ws.close(1000, 'unmount');
+        } catch {
+          /* ignore */
+        }
       }
     };
   }, [examId]);

@@ -364,7 +364,8 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
 
 // Map any incoming string to a supported locale, defaulting to Serbian Latin.
 export function reportStrings(locale: string | undefined | null): ReportStrings {
-  if (locale === 'en' || locale === 'sr-Latn' || locale === 'sr-Cyrl' || locale === 'bs') return REPORT_STRINGS[locale];
+  if (locale === 'en' || locale === 'sr-Latn' || locale === 'sr-Cyrl' || locale === 'bs')
+    return REPORT_STRINGS[locale];
   if (locale === 'sr') return REPORT_STRINGS['sr-Latn'];
   return REPORT_STRINGS['sr-Latn'];
 }

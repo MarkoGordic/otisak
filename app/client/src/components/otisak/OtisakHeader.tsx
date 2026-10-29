@@ -15,7 +15,13 @@ interface OtisakHeaderProps {
   dateLabel?: string;
 }
 
-export function OtisakHeader({ user, centerContent, actionButton, showDate = true, dateLabel }: OtisakHeaderProps) {
+export function OtisakHeader({
+  user,
+  centerContent,
+  actionButton,
+  showDate = true,
+  dateLabel,
+}: OtisakHeaderProps) {
   const { t } = useLang();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -29,11 +35,19 @@ export function OtisakHeader({ user, centerContent, actionButton, showDate = tru
     return () => clearInterval(id);
   }, [showDate]);
 
-  const displayDate = dateLabel || now.toLocaleDateString('sr-RS', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  }).replace(/\//g, '.');
+  const displayDate =
+    dateLabel ||
+    now
+      .toLocaleDateString('sr-RS', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      })
+      .replace(/\//g, '.');
   const displayTime = now.toLocaleTimeString('sr-RS', {
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
   });
 
   // Header was originally hard-coded dark gradient. Mirror it in light mode with a soft
@@ -69,9 +83,7 @@ export function OtisakHeader({ user, centerContent, actionButton, showDate = tru
             transition={{ duration: 0.5, delay: 0.1 }}
             className="hidden sm:flex flex-col"
           >
-            <span className={`text-2xl font-bold tracking-wider ${otisakTitleClass}`}>
-              OTISAK
-            </span>
+            <span className={`text-2xl font-bold tracking-wider ${otisakTitleClass}`}>OTISAK</span>
             <span className={`text-[10px] tracking-[0.2em] font-medium uppercase ${versionLabel}`}>
               v 2.0
             </span>
@@ -81,7 +93,9 @@ export function OtisakHeader({ user, centerContent, actionButton, showDate = tru
         {/* Center */}
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center max-w-[55%] sm:max-w-none">
           {showDate && (
-            <span className={`hidden sm:flex items-center gap-2 text-xs mb-1 font-medium tracking-wide opacity-70 ${dateClass}`}>
+            <span
+              className={`hidden sm:flex items-center gap-2 text-xs mb-1 font-medium tracking-wide opacity-70 ${dateClass}`}
+            >
               <span>{displayDate}</span>
               <span className="opacity-40">·</span>
               <span className="font-mono tabular-nums">{displayTime}</span>
@@ -97,42 +111,46 @@ export function OtisakHeader({ user, centerContent, actionButton, showDate = tru
             <ToggleCluster variant="solid" position="static" />
           </div>
           {user && (
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.5 }}
-            className="flex items-center gap-3 sm:gap-4 text-right"
-          >
-            <div className="hidden sm:flex flex-col">
-              <span className={`text-[10px] uppercase tracking-wider font-medium ${userLabelClass}`}>
-                {t('exam.loggedInAs')}
-              </span>
-              <span className={`text-base font-semibold tracking-wide ${userNameClass}`}>
-                {user.name || t('exam.student')}
-              </span>
-              {user.index_number && (
-                <span className={`text-[11px] font-mono ${userIndexClass}`}>
-                  {user.index_number}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+              className="flex items-center gap-3 sm:gap-4 text-right"
+            >
+              <div className="hidden sm:flex flex-col">
+                <span
+                  className={`text-[10px] uppercase tracking-wider font-medium ${userLabelClass}`}
+                >
+                  {t('exam.loggedInAs')}
                 </span>
-              )}
-            </div>
-            <div className="relative">
-              <div className={`absolute inset-0 rounded-full blur-md ${avatarGlow}`} />
-              {user.avatar_url ? (
-                <img
-                  src={user.avatar_url}
-                  alt={user.name || 'User'}
-                  className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 object-cover shadow-lg ${avatarBorder}`}
-                />
-              ) : (
-                <div className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 flex items-center justify-center shadow-lg ${avatarBorder} ${avatarFallback}`}>
-                  <span className="text-sm font-bold">
-                    {(user.name || 'U').charAt(0).toUpperCase()}
+                <span className={`text-base font-semibold tracking-wide ${userNameClass}`}>
+                  {user.name || t('exam.student')}
+                </span>
+                {user.index_number && (
+                  <span className={`text-[11px] font-mono ${userIndexClass}`}>
+                    {user.index_number}
                   </span>
-                </div>
-              )}
-            </div>
-          </motion.div>
+                )}
+              </div>
+              <div className="relative">
+                <div className={`absolute inset-0 rounded-full blur-md ${avatarGlow}`} />
+                {user.avatar_url ? (
+                  <img
+                    src={user.avatar_url}
+                    alt={user.name || 'User'}
+                    className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 object-cover shadow-lg ${avatarBorder}`}
+                  />
+                ) : (
+                  <div
+                    className={`relative w-9 h-9 sm:w-11 sm:h-11 rounded-full border-2 flex items-center justify-center shadow-lg ${avatarBorder} ${avatarFallback}`}
+                  >
+                    <span className="text-sm font-bold">
+                      {(user.name || 'U').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           )}
         </div>
       </div>

@@ -20,27 +20,38 @@ export class LdapUnavailableError extends Error {}
 
 const bool = (v: string | undefined) => /^(1|true|yes|on)$/i.test(v || '');
 const csv = (v: string | undefined) =>
-  (v || '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  (v || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
 
-const URL = process.env.LDAP_URL || '';                       // ldaps://192.168.1.247:636
-const BASE_DN = process.env.LDAP_BASE_DN || '';               // dc=labs,dc=acs,dc=uns,dc=ac,dc=rs
+const URL = process.env.LDAP_URL || ''; // ldaps://192.168.1.247:636
+const BASE_DN = process.env.LDAP_BASE_DN || ''; // dc=labs,dc=acs,dc=uns,dc=ac,dc=rs
 const DN_TEMPLATE = process.env.LDAP_USER_DN_TEMPLATE || 'uid={uid},cn=users,cn=accounts,{base}';
-const DOMAIN = process.env.LDAP_DOMAIN || '';                 // labs.acs.uns.ac.rs (email fallback)
-const CA_FILE = process.env.LDAP_CA_FILE || '';               // /etc/otisak/ipa-ca.crt (verifies ldaps)
-const TLS_INSECURE = bool(process.env.LDAP_TLS_INSECURE);     // skip cert verify (dev only)
-const ADMIN_GROUPS = csv(process.env.LDAP_ADMIN_GROUPS) .length ? csv(process.env.LDAP_ADMIN_GROUPS) : ['admins'];
-const PROFESSOR_GROUPS = csv(process.env.LDAP_PROFESSOR_GROUPS).length ? csv(process.env.LDAP_PROFESSOR_GROUPS) : ['professors'];
-const ASSISTANT_GROUPS = csv(process.env.LDAP_ASSISTANT_GROUPS).length ? csv(process.env.LDAP_ASSISTANT_GROUPS) : ['assistants'];
+const DOMAIN = process.env.LDAP_DOMAIN || ''; // labs.acs.uns.ac.rs (email fallback)
+const CA_FILE = process.env.LDAP_CA_FILE || ''; // /etc/otisak/ipa-ca.crt (verifies ldaps)
+const TLS_INSECURE = bool(process.env.LDAP_TLS_INSECURE); // skip cert verify (dev only)
+const ADMIN_GROUPS = csv(process.env.LDAP_ADMIN_GROUPS).length
+  ? csv(process.env.LDAP_ADMIN_GROUPS)
+  : ['admins'];
+const PROFESSOR_GROUPS = csv(process.env.LDAP_PROFESSOR_GROUPS).length
+  ? csv(process.env.LDAP_PROFESSOR_GROUPS)
+  : ['professors'];
+const ASSISTANT_GROUPS = csv(process.env.LDAP_ASSISTANT_GROUPS).length
+  ? csv(process.env.LDAP_ASSISTANT_GROUPS)
+  : ['assistants'];
 const TIMEOUT = Number(process.env.LDAP_TIMEOUT_MS || 8000);
 // Directory lookup without the user's password (the index-number exam join, see lookupLdapStudent).
 // Optional read account (FreeIPA sysaccount): without it the search is anonymous, and FreeIPA then
 // hides group membership, mail and the lock flag.
 const BIND_DN = process.env.LDAP_BIND_DN || '';
 const BIND_PASSWORD = process.env.LDAP_BIND_PASSWORD || '';
-const USERS_BASE = process.env.LDAP_USERS_BASE || '';         // default cn=users,cn=accounts,<base>
+const USERS_BASE = process.env.LDAP_USERS_BASE || ''; // default cn=users,cn=accounts,<base>
 // What a student login (= index number) looks like, e.g. e223-2026, in15-2023. Used to tell students
 // from staff when the anonymous search cannot see groups.
-const STUDENT_UID_RE = new RegExp(process.env.LDAP_STUDENT_UID_PATTERN || '^[a-z]{1,6}[0-9]{1,6}-[0-9]{4}$');
+const STUDENT_UID_RE = new RegExp(
+  process.env.LDAP_STUDENT_UID_PATTERN || '^[a-z]{1,6}[0-9]{1,6}-[0-9]{4}$',
+);
 
 export function ldapEnabled(): boolean {
   return bool(process.env.LDAP_ENABLED) && !!URL && !!BASE_DN;
@@ -110,7 +121,12 @@ export async function lookupLdapStudent(rawIndex: string): Promise<LdapProfile |
   const uid = indexToUid(rawIndex);
   if (!UID_RE.test(uid)) return null;
 
-  const client = new Client({ url: URL, timeout: TIMEOUT, connectTimeout: TIMEOUT, tlsOptions: tlsOptions() });
+  const client = new Client({
+    url: URL,
+    timeout: TIMEOUT,
+    connectTimeout: TIMEOUT,
+    tlsOptions: tlsOptions(),
+  });
   try {
     if (BIND_DN && BIND_PASSWORD) await client.bind(BIND_DN, BIND_PASSWORD);
     // uid passed UID_RE (no parentheses, asterisks or backslashes), so it is safe in the filter.
@@ -131,7 +147,9 @@ export async function lookupLdapStudent(rawIndex: string): Promise<LdapProfile |
       return null;
     }
     const name = first(e.displayName) || first(e.cn) || null;
-    const email = (first(e.mail) || (DOMAIN ? `${uid}@${DOMAIN}` : `${uid}@ldap.local`)).toLowerCase();
+    const email = (
+      first(e.mail) || (DOMAIN ? `${uid}@${DOMAIN}` : `${uid}@ldap.local`)
+    ).toLowerCase();
     return { uid, name, email, role: 'student', indexNumber: uid };
   } catch (err) {
     const code = (err as { code?: number })?.code;
@@ -149,13 +167,21 @@ export async function lookupLdapStudent(rawIndex: string): Promise<LdapProfile |
 
 // Returns the profile on valid credentials, null on bad credentials / unknown user.
 // Throws LdapUnavailableError if the directory can't be reached (so the route can 502, not 401).
-export async function authenticateLdap(rawUid: string, password: string): Promise<LdapProfile | null> {
+export async function authenticateLdap(
+  rawUid: string,
+  password: string,
+): Promise<LdapProfile | null> {
   if (!ldapEnabled()) return null;
   const uid = (rawUid || '').trim().toLowerCase();
   if (!UID_RE.test(uid) || !password) return null;
 
   const userDN = DN_TEMPLATE.replace('{uid}', uid).replace('{base}', BASE_DN);
-  const client = new Client({ url: URL, timeout: TIMEOUT, connectTimeout: TIMEOUT, tlsOptions: tlsOptions() });
+  const client = new Client({
+    url: URL,
+    timeout: TIMEOUT,
+    connectTimeout: TIMEOUT,
+    tlsOptions: tlsOptions(),
+  });
 
   try {
     await client.bind(userDN, password); // throws on bad password / missing DN
@@ -166,7 +192,9 @@ export async function authenticateLdap(rawUid: string, password: string): Promis
     });
     const e = (searchEntries[0] || {}) as Record<string, unknown>;
     const name = first(e.displayName) || first(e.cn) || null;
-    const email = (first(e.mail) || (DOMAIN ? `${uid}@${DOMAIN}` : `${uid}@ldap.local`)).toLowerCase();
+    const email = (
+      first(e.mail) || (DOMAIN ? `${uid}@${DOMAIN}` : `${uid}@ldap.local`)
+    ).toLowerCase();
     const role = roleFor(groupCns(e.memberOf));
     return { uid, name, email, role, indexNumber: role === 'student' ? uid : null };
   } catch (err) {

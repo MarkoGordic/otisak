@@ -2,10 +2,7 @@
 // ========================================
 
 import { query } from './client';
-import type {
-  OtisakExamWithSubject,
-  OtisakEnrollment,
-} from './otisak-types';
+import type { OtisakExamWithSubject, OtisakEnrollment } from './otisak-types';
 
 // ========================================
 // ENROLLMENTS
@@ -15,12 +12,12 @@ export async function enrollUserInExam(examId: string, userId: string): Promise<
   const result = await query<OtisakEnrollment>(
     `INSERT INTO otisak_enrollments (exam_id, user_id)
      VALUES ($1, $2) ON CONFLICT (exam_id, user_id) DO NOTHING RETURNING *`,
-    [examId, userId]
+    [examId, userId],
   );
   if (!result.rows[0]) {
     const existing = await query<OtisakEnrollment>(
       'SELECT * FROM otisak_enrollments WHERE exam_id = $1 AND user_id = $2',
-      [examId, userId]
+      [examId, userId],
     );
     return existing.rows[0];
   }
@@ -38,7 +35,7 @@ export async function getExamsForUser(userId: string): Promise<OtisakExamWithSub
        AND e.parent_exam_id IS NULL
        AND e.exam_mode = 'real'
      ORDER BY e.scheduled_at DESC NULLS LAST, e.created_at DESC`,
-    [userId]
+    [userId],
   );
   return result.rows;
 }
@@ -53,7 +50,7 @@ export async function enrollUsersByPattern(examId: string, pattern: string): Pro
      SELECT $1, u.id FROM users u
      WHERE u.index_number IS NOT NULL AND u.index_number ILIKE $2
      ON CONFLICT (exam_id, user_id) DO NOTHING`,
-    [examId, `%${pattern}%`]
+    [examId, `%${pattern}%`],
   );
   return result.rowCount ?? 0;
 }
@@ -106,7 +103,7 @@ export async function enrollByCourseAndYear(
        WHERE u.index_number IS NOT NULL
          AND LOWER(REPLACE(u.index_number, ' ', '')) = ANY($2::text[])
        ON CONFLICT (exam_id, user_id) DO NOTHING`,
-      [examId, patterns]
+      [examId, patterns],
     );
     return result.rowCount ?? 0;
   }
@@ -118,21 +115,33 @@ export async function enrollByCourseAndYear(
      WHERE u.index_number IS NOT NULL
        AND LOWER(REPLACE(u.index_number, ' ', '')) LIKE $2
      ON CONFLICT (exam_id, user_id) DO NOTHING`,
-    [examId, pattern]
+    [examId, pattern],
   );
   return result.rowCount ?? 0;
 }
 
-export async function getExamEnrollments(
-  examId: string
-): Promise<Array<{ user_id: string; name: string | null; email: string; index_number: string | null; enrolled_at: Date }>> {
+export async function getExamEnrollments(examId: string): Promise<
+  Array<{
+    user_id: string;
+    name: string | null;
+    email: string;
+    index_number: string | null;
+    enrolled_at: Date;
+  }>
+> {
   const result = await query(
     `SELECT en.user_id, u.name, u.email, u.index_number, en.enrolled_at
      FROM otisak_enrollments en
      JOIN users u ON en.user_id = u.id
      WHERE en.exam_id = $1
      ORDER BY u.name ASC`,
-    [examId]
+    [examId],
   );
-  return result.rows as Array<{ user_id: string; name: string | null; email: string; index_number: string | null; enrolled_at: Date }>;
+  return result.rows as Array<{
+    user_id: string;
+    name: string | null;
+    email: string;
+    index_number: string | null;
+    enrolled_at: Date;
+  }>;
 }

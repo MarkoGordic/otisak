@@ -4,28 +4,26 @@
 import { query } from './client';
 import { getOtisakExamById } from './otisak-exams';
 import { getExamEnrollments } from './otisak-enrollments';
-import type {
-  OtisakExamWithSubject,
-} from './otisak-types';
+import type { OtisakExamWithSubject } from './otisak-types';
 
 // ========================================
 // ADMIN: Results summary
 // ========================================
 
-export async function getExamAttemptsSummary(
-  examId: string
-): Promise<Array<{
-  user_id: string;
-  user_name: string | null;
-  user_email: string;
-  index_number: string | null;
-  total_points: number;
-  max_points: number;
-  submitted: boolean;
-  started_at: Date;
-  finished_at: Date | null;
-  time_spent_seconds: number;
-}>> {
+export async function getExamAttemptsSummary(examId: string): Promise<
+  Array<{
+    user_id: string;
+    user_name: string | null;
+    user_email: string;
+    index_number: string | null;
+    total_points: number;
+    max_points: number;
+    submitted: boolean;
+    started_at: Date;
+    finished_at: Date | null;
+    time_spent_seconds: number;
+  }>
+> {
   // Non-student attempts (assistant or admin opening the exam to test it,
   // for example) are excluded from the listing. They count as test traffic
   // and shouldn't appear as real results.
@@ -40,17 +38,24 @@ export async function getExamAttemptsSummary(
          OR a.exam_id IN (SELECT id FROM otisak_exams WHERE parent_exam_id = $1)
        )
      ORDER BY a.total_points DESC, a.started_at ASC`,
-    [examId]
+    [examId],
   );
   return result.rows as Array<{
-    user_id: string; user_name: string | null; user_email: string; index_number: string | null;
-    total_points: number; max_points: number; submitted: boolean; started_at: Date;
-    finished_at: Date | null; time_spent_seconds: number;
+    user_id: string;
+    user_name: string | null;
+    user_email: string;
+    index_number: string | null;
+    total_points: number;
+    max_points: number;
+    submitted: boolean;
+    started_at: Date;
+    finished_at: Date | null;
+    time_spent_seconds: number;
   }>;
 }
 
 export async function getTagCountsForSubject(
-  subjectId: string
+  subjectId: string,
 ): Promise<Array<{ tag: string; count: number }>> {
   const result = await query<{ tag: string; count: number }>(
     `SELECT tag, COUNT(*)::int as count
@@ -58,21 +63,27 @@ export async function getTagCountsForSubject(
      WHERE subject_id = $1
      GROUP BY tag
      ORDER BY tag ASC`,
-    [subjectId]
+    [subjectId],
   );
   return result.rows;
 }
 
 export async function getExamRoomStatus(examId: string): Promise<{
   exam: OtisakExamWithSubject | null;
-  participants: Array<{ user_id: string; name: string | null; email: string; index_number: string | null; enrolled_at: Date }>;
+  participants: Array<{
+    user_id: string;
+    name: string | null;
+    email: string;
+    index_number: string | null;
+    enrolled_at: Date;
+  }>;
   activeAttempts: number;
 }> {
   const exam = await getOtisakExamById(examId);
   const enrollments = await getExamEnrollments(examId);
   const attemptCount = await query<{ count: number }>(
     `SELECT COUNT(*)::int as count FROM otisak_attempts WHERE exam_id = $1 AND submitted = FALSE`,
-    [examId]
+    [examId],
   );
   return {
     exam,
@@ -112,13 +123,22 @@ export async function getLiveExamStats(examId: string): Promise<{
     `SELECT COUNT(*)::int AS q_count,
             COALESCE(SUM(points), 0)::numeric AS max_points
      FROM otisak_questions WHERE exam_id = $1`,
-    [examId]
+    [examId],
   );
   const total_questions = examMeta.rows[0]?.q_count ?? 0;
   const max_points = Number(examMeta.rows[0]?.max_points ?? 0);
 
   // Suspicious activity event types we count for the live UI badge.
-  const SUSPICIOUS_TYPES = ['tab_switch', 'copy_attempt', 'cut_attempt', 'paste_attempt', 'page_blur', 'mouse_leave_window', 'devtools_attempt', 'print_attempt'];
+  const SUSPICIOUS_TYPES = [
+    'tab_switch',
+    'copy_attempt',
+    'cut_attempt',
+    'paste_attempt',
+    'page_blur',
+    'mouse_leave_window',
+    'devtools_attempt',
+    'print_attempt',
+  ];
 
   const result = await query<{
     user_id: string;
@@ -178,23 +198,24 @@ export async function getLiveExamStats(examId: string): Promise<{
      WHERE a.exam_id = $1
        AND u.role = 'student'
      ORDER BY a.started_at ASC`,
-    [examId, SUSPICIOUS_TYPES]
+    [examId, SUSPICIOUS_TYPES],
   );
 
   // Normalise numeric columns coming back as strings from pg.
-  const per_student = result.rows.map((r) => ({ ...r, current_points: Number(r.current_points || 0) }));
+  const per_student = result.rows.map((r) => ({
+    ...r,
+    current_points: Number(r.current_points || 0),
+  }));
   const finished_count = per_student.filter((r) => r.submitted).length;
 
   // Room averages only count students who have actually started (started_at
   // not null). A student in the lobby with 0 points would otherwise pull the
   // average down even though they're not playing yet.
   const started = per_student.filter((r) => r.started_at);
-  const room_average_points = started.length > 0
-    ? started.reduce((s, r) => s + r.current_points, 0) / started.length
-    : 0;
-  const room_average_percent = max_points > 0
-    ? Math.round((room_average_points / max_points) * 100)
-    : 0;
+  const room_average_points =
+    started.length > 0 ? started.reduce((s, r) => s + r.current_points, 0) / started.length : 0;
+  const room_average_percent =
+    max_points > 0 ? Math.round((room_average_points / max_points) * 100) : 0;
 
   return {
     total_participants: per_student.length,
@@ -249,61 +270,88 @@ export type ExamStats = {
     zero_count: number;
     success_rate: number;
     avg_points: number;
-    pick_distribution: Array<{ answer_id: string; text: string; is_correct: boolean; count: number }> | null;
+    pick_distribution: Array<{
+      answer_id: string;
+      text: string;
+      is_correct: boolean;
+      count: number;
+    }> | null;
   }>;
 };
 
 export async function getExamStats(examId: string): Promise<ExamStats | null> {
   const examRes = await query<{
-    id: string; title: string; subject_name: string | null; status: string;
-    has_pass_threshold: boolean; pass_threshold: number;
+    id: string;
+    title: string;
+    subject_name: string | null;
+    status: string;
+    has_pass_threshold: boolean;
+    pass_threshold: number;
   }>(
     `SELECT e.id, e.title, s.name AS subject_name, e.status,
             e.has_pass_threshold, e.pass_threshold
      FROM otisak_exams e LEFT JOIN otisak_subjects s ON s.id = e.subject_id
      WHERE e.id = $1`,
-    [examId]
+    [examId],
   );
   const exam = examRes.rows[0];
   if (!exam) return null;
 
   // Submitted attempts as the analytic population. In-flight attempts would
   // skew everything (incomplete answers, partial scores).
-  const attRes = await query<{ total_points: number; max_points: number; time_spent_seconds: number }>(
+  const attRes = await query<{
+    total_points: number;
+    max_points: number;
+    time_spent_seconds: number;
+  }>(
     `SELECT total_points::numeric AS total_points,
             max_points::numeric AS max_points,
             time_spent_seconds
      FROM otisak_attempts WHERE exam_id = $1 AND submitted = TRUE`,
-    [examId]
+    [examId],
   );
   const attempts = attRes.rows.map((a) => ({
     total: Number(a.total_points || 0),
     max: Number(a.max_points || 0),
     time: Number(a.time_spent_seconds || 0),
-    pct: Number(a.max_points || 0) > 0 ? (Number(a.total_points || 0) / Number(a.max_points || 0)) * 100 : 0,
+    pct:
+      Number(a.max_points || 0) > 0
+        ? (Number(a.total_points || 0) / Number(a.max_points || 0)) * 100
+        : 0,
   }));
 
   const attempts_submitted = attempts.length;
-  const sortedPct = attempts.map((a) => a.pct).slice().sort((a, b) => a - b);
-  const avg_percent = attempts_submitted > 0
-    ? Math.round((sortedPct.reduce((s, v) => s + v, 0) / attempts_submitted))
-    : 0;
-  const median_percent = attempts_submitted > 0
-    ? Math.round(sortedPct[Math.floor((sortedPct.length - 1) / 2)])
-    : 0;
+  const sortedPct = attempts
+    .map((a) => a.pct)
+    .slice()
+    .sort((a, b) => a - b);
+  const avg_percent =
+    attempts_submitted > 0
+      ? Math.round(sortedPct.reduce((s, v) => s + v, 0) / attempts_submitted)
+      : 0;
+  const median_percent =
+    attempts_submitted > 0 ? Math.round(sortedPct[Math.floor((sortedPct.length - 1) / 2)]) : 0;
   const min_percent = attempts_submitted > 0 ? Math.round(sortedPct[0]) : 0;
   const max_percent = attempts_submitted > 0 ? Math.round(sortedPct[sortedPct.length - 1]) : 0;
-  const avg_time_seconds = attempts_submitted > 0
-    ? Math.round(attempts.reduce((s, a) => s + a.time, 0) / attempts_submitted)
-    : 0;
-  const pass_rate = exam.has_pass_threshold && attempts_submitted > 0
-    ? Math.round((attempts.filter((a) => a.pct >= Number(exam.pass_threshold)).length / attempts_submitted) * 100)
-    : null;
+  const avg_time_seconds =
+    attempts_submitted > 0
+      ? Math.round(attempts.reduce((s, a) => s + a.time, 0) / attempts_submitted)
+      : 0;
+  const pass_rate =
+    exam.has_pass_threshold && attempts_submitted > 0
+      ? Math.round(
+          (attempts.filter((a) => a.pct >= Number(exam.pass_threshold)).length /
+            attempts_submitted) *
+            100,
+        )
+      : null;
 
   // 10% buckets [0,10), [10,20), … [90,100]. Last bucket is inclusive on
   // both ends so a perfect 100% lands inside.
   const score_buckets = Array.from({ length: 10 }, (_, i) => ({
-    from: i * 10, to: (i + 1) * 10, count: 0,
+    from: i * 10,
+    to: (i + 1) * 10,
+    count: 0,
   }));
   for (const a of attempts) {
     const idx = Math.min(9, Math.max(0, Math.floor(a.pct / 10)));
@@ -339,14 +387,20 @@ export async function getExamStats(examId: string): Promise<ExamStats | null> {
      WHERE q.exam_id = $1
      GROUP BY q.id, q.position, q.type, q.text, q.points
      ORDER BY q.position ASC`,
-    [examId]
+    [examId],
   );
 
   // Pick distribution for multi-choice. UNNEST(selected_answer_ids) gives
   // one row per pick; group by answer_id and count. Skipped for compound
   // types where the answer lives in text_answer JSON (ordering/matching/
   // fill_blank) and for open_text.
-  const distRes = await query<{ question_id: string; answer_id: string; text: string; is_correct: boolean; count: number }>(
+  const distRes = await query<{
+    question_id: string;
+    answer_id: string;
+    text: string;
+    is_correct: boolean;
+    count: number;
+  }>(
     `SELECT q.id AS question_id,
             a.id AS answer_id,
             a.text,
@@ -361,9 +415,12 @@ export async function getExamStats(examId: string): Promise<ExamStats | null> {
        AND q.type IN ('text', 'code', 'image')
      GROUP BY q.id, a.id, a.text, a.is_correct, a.position
      ORDER BY q.position ASC, a.position ASC`,
-    [examId]
+    [examId],
   );
-  const distByQuestion = new Map<string, Array<{ answer_id: string; text: string; is_correct: boolean; count: number }>>();
+  const distByQuestion = new Map<
+    string,
+    Array<{ answer_id: string; text: string; is_correct: boolean; count: number }>
+  >();
   for (const row of distRes.rows) {
     const list = distByQuestion.get(row.question_id) ?? [];
     list.push({
@@ -378,7 +435,11 @@ export async function getExamStats(examId: string): Promise<ExamStats | null> {
   const per_question = perQ.rows.map((q) => {
     const attempts_for_q = Number(q.attempts_for_q || 0);
     const correct_count = Number(q.correct_count || 0);
-    const compound = q.type === 'ordering' || q.type === 'matching' || q.type === 'fill_blank' || q.type === 'open_text';
+    const compound =
+      q.type === 'ordering' ||
+      q.type === 'matching' ||
+      q.type === 'fill_blank' ||
+      q.type === 'open_text';
     return {
       question_id: q.question_id,
       position: q.position,
@@ -390,9 +451,10 @@ export async function getExamStats(examId: string): Promise<ExamStats | null> {
       partial_count: Number(q.partial_count || 0),
       zero_count: Number(q.zero_count || 0),
       success_rate: attempts_for_q > 0 ? Math.round((correct_count / attempts_for_q) * 100) : 0,
-      avg_points: attempts_for_q > 0
-        ? Math.round((Number(q.sum_points || 0) / attempts_for_q) * 100) / 100
-        : 0,
+      avg_points:
+        attempts_for_q > 0
+          ? Math.round((Number(q.sum_points || 0) / attempts_for_q) * 100) / 100
+          : 0,
       pick_distribution: compound ? null : (distByQuestion.get(q.question_id) ?? []),
     };
   });

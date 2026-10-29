@@ -36,8 +36,14 @@ export default function SubjectsPage() {
     (async () => {
       const res = await fetch('/api/auth/session', { credentials: 'include' });
       const data = await res.json();
-      if (!data.authenticated || (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor')) {
-        navigate('/dashboard', { replace: true }); return;
+      if (
+        !data.authenticated ||
+        (data.user?.role !== 'admin' &&
+          data.user?.role !== 'assistant' &&
+          data.user?.role !== 'professor')
+      ) {
+        navigate('/dashboard', { replace: true });
+        return;
       }
       setUser({ name: data.user?.name, role: data.user?.role, avatar_url: data.user?.avatar_url });
     })();
@@ -46,24 +52,39 @@ export default function SubjectsPage() {
   const loadSubjects = useCallback(async () => {
     try {
       const res = await fetch('/api/otisak/subjects', { credentials: 'include' });
-      if (res.ok) { const d = await res.json(); setSubjects(d.subjects || []); }
-    } catch {}
-    finally { setLoading(false); }
+      if (res.ok) {
+        const d = await res.json();
+        setSubjects(d.subjects || []);
+      }
+    } catch {
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  useEffect(() => { if (user) loadSubjects(); }, [user, loadSubjects]);
+  useEffect(() => {
+    if (user) loadSubjects();
+  }, [user, loadSubjects]);
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
     setCreating(true);
     try {
       const res = await fetch('/api/otisak/subjects', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ name: newName, code: newCode || undefined, description: newDesc || undefined }),
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          name: newName,
+          code: newCode || undefined,
+          description: newDesc || undefined,
+        }),
       });
       if (res.ok) {
         setShowCreate(false);
-        setNewName(''); setNewCode(''); setNewDesc('');
+        setNewName('');
+        setNewCode('');
+        setNewDesc('');
         toast.success(t('subjects.createSuccess'));
         loadSubjects();
       } else {
@@ -78,7 +99,10 @@ export default function SubjectsPage() {
   };
 
   const startEdit = (s: Subject) => {
-    setEditingId(s.id); setEditName(s.name); setEditCode(s.code || ''); setEditDesc(s.description || '');
+    setEditingId(s.id);
+    setEditName(s.name);
+    setEditCode(s.code || '');
+    setEditDesc(s.description || '');
   };
 
   const handleSaveEdit = async () => {
@@ -86,8 +110,15 @@ export default function SubjectsPage() {
     setSavingEdit(true);
     try {
       const res = await fetch('/api/otisak/subjects', {
-        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, credentials: 'include',
-        body: JSON.stringify({ id: editingId, name: editName, code: editCode || undefined, description: editDesc || undefined }),
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: editingId,
+          name: editName,
+          code: editCode || undefined,
+          description: editDesc || undefined,
+        }),
       });
       if (res.ok) {
         toast.success(t('subjects.saveSuccess'));
@@ -108,7 +139,10 @@ export default function SubjectsPage() {
     if (!confirm(t('subjects.deleteConfirm'))) return;
     setDeletingId(id);
     try {
-      const res = await fetch(`/api/otisak/subjects?id=${id}`, { method: 'DELETE', credentials: 'include' });
+      const res = await fetch(`/api/otisak/subjects?id=${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
       if (res.ok) {
         toast.success(t('subjects.deleteSuccess'));
         loadSubjects();
@@ -124,7 +158,11 @@ export default function SubjectsPage() {
   };
 
   if (!user || loading) {
-    return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
   }
 
   return (
@@ -141,53 +179,125 @@ export default function SubjectsPage() {
                   <BookMarked className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
-                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">{t('subjects.title')}</h1>
-                  <p className="text-sm text-[var(--text-secondary)]">{subjects.length} {t('subjects.count')}</p>
+                  <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
+                    {t('subjects.title')}
+                  </h1>
+                  <p className="text-sm text-[var(--text-secondary)]">
+                    {subjects.length} {t('subjects.count')}
+                  </p>
                 </div>
               </div>
-              <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => setShowCreate(true)}>{t('subjects.add')}</Button>
+              <Button
+                variant="primary"
+                leftIcon={<Plus size={16} />}
+                onClick={() => setShowCreate(true)}
+              >
+                {t('subjects.add')}
+              </Button>
             </div>
 
             {subjects.length === 0 ? (
-              <EmptyState icon={<BookMarked size={32} strokeWidth={1.5} />} title={t('subjects.noSubjects')} description={t('subjects.noSubjectsDesc')} actionLabel={t('subjects.add')} onAction={() => setShowCreate(true)} />
+              <EmptyState
+                icon={<BookMarked size={32} strokeWidth={1.5} />}
+                title={t('subjects.noSubjects')}
+                description={t('subjects.noSubjectsDesc')}
+                actionLabel={t('subjects.add')}
+                onAction={() => setShowCreate(true)}
+              />
             ) : (
               <div className="space-y-2">
                 {subjects.map((s, idx) => (
-                  <motion.div key={s.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.03 }}
-                    className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-4 hover:border-[var(--text-muted)] transition-colors">
+                  <motion.div
+                    key={s.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.03 }}
+                    className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-4 hover:border-[var(--text-muted)] transition-colors"
+                  >
                     {editingId === s.id ? (
                       <div className="space-y-3">
-                        <input value={editName} onChange={(e) => setEditName(e.target.value)}
-                          className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.namePlaceholder')} />
+                        <input
+                          value={editName}
+                          onChange={(e) => setEditName(e.target.value)}
+                          className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                          placeholder={t('subjects.namePlaceholder')}
+                        />
                         <div className="flex gap-3">
-                          <input value={editCode} onChange={(e) => setEditCode(e.target.value)}
-                            className="w-32 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.codePlaceholder')} />
-                          <input value={editDesc} onChange={(e) => setEditDesc(e.target.value)}
-                            className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.descPlaceholder')} />
+                          <input
+                            value={editCode}
+                            onChange={(e) => setEditCode(e.target.value)}
+                            className="w-32 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                            placeholder={t('subjects.codePlaceholder')}
+                          />
+                          <input
+                            value={editDesc}
+                            onChange={(e) => setEditDesc(e.target.value)}
+                            className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                            placeholder={t('subjects.descPlaceholder')}
+                          />
                         </div>
                         <div className="flex gap-2">
-                          <Button variant="primary" size="sm" leftIcon={<Check size={14} />} loading={savingEdit} onClick={handleSaveEdit}>{t('subjects.save')}</Button>
-                          <Button variant="secondary" size="sm" leftIcon={<X size={14} />} onClick={() => setEditingId(null)} disabled={savingEdit}>{t('subjects.cancel')}</Button>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            leftIcon={<Check size={14} />}
+                            loading={savingEdit}
+                            onClick={handleSaveEdit}
+                          >
+                            {t('subjects.save')}
+                          </Button>
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            leftIcon={<X size={14} />}
+                            onClick={() => setEditingId(null)}
+                            disabled={savingEdit}
+                          >
+                            {t('subjects.cancel')}
+                          </Button>
                         </div>
                       </div>
                     ) : (
                       <div className="flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2">
-                            <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">{s.name}</h3>
-                            {s.code && <span className="text-xs font-mono text-accent bg-accent-light px-2 py-0.5 rounded">{s.code}</span>}
+                            <h3 className="text-base font-display font-semibold text-[var(--text-primary)]">
+                              {s.name}
+                            </h3>
+                            {s.code && (
+                              <span className="text-xs font-mono text-accent bg-accent-light px-2 py-0.5 rounded">
+                                {s.code}
+                              </span>
+                            )}
                           </div>
-                          {s.description && <p className="text-xs text-[var(--text-muted)] mt-1">{s.description}</p>}
+                          {s.description && (
+                            <p className="text-xs text-[var(--text-muted)] mt-1">{s.description}</p>
+                          )}
                         </div>
                         <div className="flex items-center gap-1">
                           {user.role === 'admin' && (
-                            <Button variant="ghost" size="sm" leftIcon={<UserPlus size={14} />} onClick={() => setAssignmentsSubject(s)}>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              leftIcon={<UserPlus size={14} />}
+                              onClick={() => setAssignmentsSubject(s)}
+                            >
                               {t('subjects.assistants')}
                             </Button>
                           )}
-                          <Button variant="ghost" size="sm" onClick={() => startEdit(s)}><Pencil size={14} /></Button>
+                          <Button variant="ghost" size="sm" onClick={() => startEdit(s)}>
+                            <Pencil size={14} />
+                          </Button>
                           {user.role === 'admin' && (
-                            <Button variant="ghost" size="sm" loading={deletingId === s.id} onClick={() => handleDelete(s.id)} className="text-danger hover:bg-danger-light"><Trash2 size={14} /></Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              loading={deletingId === s.id}
+                              onClick={() => handleDelete(s.id)}
+                              className="text-danger hover:bg-danger-light"
+                            >
+                              <Trash2 size={14} />
+                            </Button>
                           )}
                         </div>
                       </div>
@@ -197,22 +307,46 @@ export default function SubjectsPage() {
               </div>
             )}
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
+          <div className="px-4 pb-6 pt-2 flex justify-center">
+            <AppCopyright />
+          </div>
         </main>
       </div>
 
       {showCreate && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{t('subjects.add')}</h2>
+            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">
+              {t('subjects.add')}
+            </h2>
             <div className="space-y-3">
-              <input value={newName} onChange={(e) => setNewName(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.namePlaceholder')} autoFocus />
-              <input value={newCode} onChange={(e) => setNewCode(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.codePlaceholder')} />
-              <input value={newDesc} onChange={(e) => setNewDesc(e.target.value)} className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm" placeholder={t('subjects.descPlaceholder')} />
+              <input
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                placeholder={t('subjects.namePlaceholder')}
+                autoFocus
+              />
+              <input
+                value={newCode}
+                onChange={(e) => setNewCode(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                placeholder={t('subjects.codePlaceholder')}
+              />
+              <input
+                value={newDesc}
+                onChange={(e) => setNewDesc(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
+                placeholder={t('subjects.descPlaceholder')}
+              />
             </div>
             <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreate(false)} disabled={creating}>{t('subjects.cancel')}</Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>{t('subjects.create')}</Button>
+              <Button variant="secondary" onClick={() => setShowCreate(false)} disabled={creating}>
+                {t('subjects.cancel')}
+              </Button>
+              <Button variant="primary" loading={creating} onClick={handleCreate}>
+                {t('subjects.create')}
+              </Button>
             </div>
           </div>
         </div>
@@ -246,7 +380,13 @@ type AllUserRow = {
   role: string;
 };
 
-function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: string }; onClose: () => void }) {
+function AssignmentsModal({
+  subject,
+  onClose,
+}: {
+  subject: { id: string; name: string };
+  onClose: () => void;
+}) {
   const { t } = useLang();
   const toast = useToast();
   const [assignments, setAssignments] = useState<AssignmentRow[]>([]);
@@ -262,19 +402,33 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
         fetch(`/api/admin/subjects/${subject.id}/assignments`, { credentials: 'include' }),
         fetch('/api/admin/users', { credentials: 'include' }),
       ]);
-      if (a.ok) { const d = await a.json(); setAssignments(d.assignments || []); }
-      if (u.ok) { const d = await u.json(); setUsers((d.users as AllUserRow[]) || []); }
-    } finally { setLoading(false); }
+      if (a.ok) {
+        const d = await a.json();
+        setAssignments(d.assignments || []);
+      }
+      if (u.ok) {
+        const d = await u.json();
+        setUsers((d.users as AllUserRow[]) || []);
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [subject.id]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const assignedIds = new Set(assignments.map((a) => a.user_id));
   // Anyone with role 'assistant' (or 'admin' for completeness) who isn't
   // already assigned to this subject. Filter is plain substring over name
   // and email - the user list is small (one screen of staff).
   const candidates = users
-    .filter((u) => (u.role === 'assistant' || u.role === 'professor' || u.role === 'admin') && !assignedIds.has(u.id))
+    .filter(
+      (u) =>
+        (u.role === 'assistant' || u.role === 'professor' || u.role === 'admin') &&
+        !assignedIds.has(u.id),
+    )
     .filter((u) => {
       const q = search.trim().toLowerCase();
       if (!q) return true;
@@ -290,7 +444,8 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
         credentials: 'include',
         body: JSON.stringify({
           user_id: userId,
-          role: users.find((u) => u.id === userId)?.role === 'professor' ? 'professor' : 'assistant',
+          role:
+            users.find((u) => u.id === userId)?.role === 'professor' ? 'professor' : 'assistant',
         }),
       });
       if (res.ok) {
@@ -332,28 +487,54 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-lg p-6 max-h-[90vh] flex flex-col">
         <div className="flex items-start justify-between mb-1">
-          <h2 className="text-lg font-display font-semibold text-[var(--text-primary)]">{t('subjects.assistantsTitle')}</h2>
-          <button onClick={onClose} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"><X size={16} /></button>
+          <h2 className="text-lg font-display font-semibold text-[var(--text-primary)]">
+            {t('subjects.assistantsTitle')}
+          </h2>
+          <button
+            onClick={onClose}
+            className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+          >
+            <X size={16} />
+          </button>
         </div>
         <p className="text-xs text-[var(--text-muted)] mb-4 truncate">{subject.name}</p>
 
         {loading ? (
-          <div className="flex items-center justify-center py-8"><Loader2 size={20} className="animate-spin text-accent" /></div>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 size={20} className="animate-spin text-accent" />
+          </div>
         ) : (
           <div className="flex-1 overflow-y-auto space-y-4 pr-1">
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('subjects.assistantsTitle')}</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                {t('subjects.assistantsTitle')}
+              </h3>
               {assignments.length === 0 ? (
-                <p className="text-sm text-[var(--text-muted)] py-2">{t('subjects.noAssistants')}</p>
+                <p className="text-sm text-[var(--text-muted)] py-2">
+                  {t('subjects.noAssistants')}
+                </p>
               ) : (
                 <ul className="space-y-1">
                   {assignments.map((a) => (
-                    <li key={a.user_id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2">
+                    <li
+                      key={a.user_id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2"
+                    >
                       <div className="min-w-0">
-                        <div className="text-sm text-[var(--text-primary)] truncate">{a.name || a.email}</div>
-                        <div className="text-[11px] text-[var(--text-muted)] truncate">{a.email}</div>
+                        <div className="text-sm text-[var(--text-primary)] truncate">
+                          {a.name || a.email}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] truncate">
+                          {a.email}
+                        </div>
                       </div>
-                      <Button variant="ghost" size="sm" loading={pendingUserId === a.user_id} onClick={() => handleUnassign(a.user_id)} className="text-danger">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        loading={pendingUserId === a.user_id}
+                        onClick={() => handleUnassign(a.user_id)}
+                        className="text-danger"
+                      >
                         {t('subjects.unassign')}
                       </Button>
                     </li>
@@ -363,7 +544,9 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
             </div>
 
             <div>
-              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t('subjects.pickAssistant')}</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] mb-2">
+                {t('subjects.pickAssistant')}
+              </h3>
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -375,12 +558,25 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
               ) : (
                 <ul className="space-y-1 max-h-56 overflow-y-auto">
                   {candidates.slice(0, 30).map((u) => (
-                    <li key={u.id} className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2">
+                    <li
+                      key={u.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-[var(--border-subtle)] px-3 py-2"
+                    >
                       <div className="min-w-0">
-                        <div className="text-sm text-[var(--text-primary)] truncate">{u.name || u.email}</div>
-                        <div className="text-[11px] text-[var(--text-muted)] truncate">{u.email}</div>
+                        <div className="text-sm text-[var(--text-primary)] truncate">
+                          {u.name || u.email}
+                        </div>
+                        <div className="text-[11px] text-[var(--text-muted)] truncate">
+                          {u.email}
+                        </div>
                       </div>
-                      <Button variant="ghost" size="sm" loading={pendingUserId === u.id} onClick={() => handleAssign(u.id)} className="text-accent">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        loading={pendingUserId === u.id}
+                        onClick={() => handleAssign(u.id)}
+                        className="text-accent"
+                      >
                         {t('subjects.assign')}
                       </Button>
                     </li>
@@ -392,7 +588,9 @@ function AssignmentsModal({ subject, onClose }: { subject: { id: string; name: s
         )}
 
         <div className="flex justify-end mt-4">
-          <Button variant="secondary" onClick={onClose}>{t('subjects.close')}</Button>
+          <Button variant="secondary" onClick={onClose}>
+            {t('subjects.close')}
+          </Button>
         </div>
       </div>
     </div>

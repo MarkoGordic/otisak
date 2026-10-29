@@ -4,7 +4,13 @@ import { base64Url, timingSafeEqual } from '../crypto';
 import { seal, unseal, createSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
 import { requireAuth } from '../middleware';
 import { getElpisConfig, elpisLoginEnabled, isElpisConfigured, ElpisConfig } from '../elpisId';
-import { findUserByElpisId, linkElpisId, unlinkElpisId, updateLastLogin, syncProfileFromElpis } from '../db/users';
+import {
+  findUserByElpisId,
+  linkElpisId,
+  unlinkElpisId,
+  updateLastLogin,
+  syncProfileFromElpis,
+} from '../db/users';
 
 // ---------------------------------------------------------------------------
 // "Continue with ELPIS ID" — OAuth 2.0 Authorization Code + PKCE against the
@@ -89,7 +95,12 @@ function clearOAuthCookie(res: Response): void {
   res.clearCookie(OAUTH_COOKIE, { path: '/api/auth/elpis' });
 }
 
-function buildAuthorizeUrl(cfg: ElpisConfig, redirectUri: string, state: string, challenge: string): string {
+function buildAuthorizeUrl(
+  cfg: ElpisConfig,
+  redirectUri: string,
+  state: string,
+  challenge: string,
+): string {
   const p = new URLSearchParams({
     response_type: 'code',
     client_id: cfg.clientId,
@@ -142,7 +153,9 @@ async function exchangeAndFetchUser(
 }
 
 function landingFor(role: string): string {
-  return role === 'admin' || role === 'assistant' || role === 'professor' ? '/admin/home' : '/dashboard';
+  return role === 'admin' || role === 'assistant' || role === 'professor'
+    ? '/admin/home'
+    : '/dashboard';
 }
 
 // --- Public status ------------------------------------------------------------
@@ -160,7 +173,8 @@ router.get('/status', async (_req: Request, res: Response, next: NextFunction) =
 // --- Begin login -------------------------------------------------------------
 router.get('/login', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!(await elpisLoginEnabled())) return res.status(404).json({ error: 'ELPIS ID login is not enabled' });
+    if (!(await elpisLoginEnabled()))
+      return res.status(404).json({ error: 'ELPIS ID login is not enabled' });
     const cfg = getElpisConfig()!;
 
     const redirectUri = loginRedirectUri(req, cfg);
@@ -169,7 +183,13 @@ router.get('/login', async (req: Request, res: Response, next: NextFunction) => 
     const returnTo = safeReturnTo(req.query.returnTo);
 
     setOAuthCookie(req, res, {
-      v: 1, mode: 'login', state, verifier, redirectUri, returnTo, exp: Date.now() + OAUTH_TTL_MS,
+      v: 1,
+      mode: 'login',
+      state,
+      verifier,
+      redirectUri,
+      returnTo,
+      exp: Date.now() + OAUTH_TTL_MS,
     });
     return res.redirect(302, buildAuthorizeUrl(cfg, redirectUri, state, challenge));
   } catch (error) {
@@ -210,28 +230,33 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
     // Pull-side profile re-sync: refresh name/email/avatar from ELPIS ID on
     // every login so the local copy can't drift between webhook deliveries.
     // The session cookie below is minted from the refreshed row.
-    const user = (await syncProfileFromElpis(info.sub, {
-      name: info.name,
-      email: info.email,
-      avatarUrl: info.picture,
-    })) || linked;
+    const user =
+      (await syncProfileFromElpis(info.sub, {
+        name: info.name,
+        email: info.email,
+        avatarUrl: info.picture,
+      })) || linked;
 
     await updateLastLogin(user.id);
     const isHttps = req.secure || req.headers['x-forwarded-proto'] === 'https';
-    res.cookie(SESSION_COOKIE, createSessionCookie({
-      id: user.id,
-      email: user.email,
-      name: user.name || undefined,
-      role: user.role,
-      avatar_url: user.avatar_url || undefined,
-      index_number: user.index_number || undefined,
-    }), {
-      httpOnly: true,
-      secure: isHttps,
-      sameSite: 'lax',
-      maxAge: DEFAULT_TTL_MS,
-      path: '/',
-    });
+    res.cookie(
+      SESSION_COOKIE,
+      createSessionCookie({
+        id: user.id,
+        email: user.email,
+        name: user.name || undefined,
+        role: user.role,
+        avatar_url: user.avatar_url || undefined,
+        index_number: user.index_number || undefined,
+      }),
+      {
+        httpOnly: true,
+        secure: isHttps,
+        sameSite: 'lax',
+        maxAge: DEFAULT_TTL_MS,
+        path: '/',
+      },
+    );
 
     return res.redirect(302, sealed.returnTo || landingFor(user.role));
   } catch (error) {
@@ -256,8 +281,14 @@ router.get('/link', requireAuth, async (req: Request, res: Response, next: NextF
     const returnTo = safeReturnTo(req.query.returnTo);
 
     setOAuthCookie(req, res, {
-      v: 1, mode: 'link', state, verifier, redirectUri, returnTo,
-      linkUserId: req.user!.id, exp: Date.now() + OAUTH_TTL_MS,
+      v: 1,
+      mode: 'link',
+      state,
+      verifier,
+      redirectUri,
+      returnTo,
+      linkUserId: req.user!.id,
+      exp: Date.now() + OAUTH_TTL_MS,
     });
     return res.redirect(302, buildAuthorizeUrl(cfg, redirectUri, state, challenge));
   } catch (error) {
@@ -266,43 +297,50 @@ router.get('/link', requireAuth, async (req: Request, res: Response, next: NextF
 });
 
 // --- Self-link callback ------------------------------------------------------
-router.get('/link/callback', requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const cfg = getElpisConfig();
-    const sealed = unseal<OAuthState>(req.cookies?.[OAUTH_COOKIE] || '');
-    clearOAuthCookie(res);
-
-    // Where to send the user afterwards — back where they started self-linking.
-    const back = (sealed && sealed.returnTo) || '/dashboard';
-    const withParam = (p: string) => (back.includes('?') ? `${back}&${p}` : `${back}?${p}`);
-
-    if (!cfg) return res.redirect(302, withParam('elpis_error=disabled'));
-    if (!sealed || sealed.mode !== 'link' || sealed.exp < Date.now()) {
-      return res.redirect(302, '/dashboard?elpis_error=state');
-    }
-    // The user completing the link must be the one who started it.
-    if (sealed.linkUserId !== req.user!.id) return res.redirect(302, withParam('elpis_error=state'));
-    if (req.query.error) return res.redirect(302, withParam('elpis_error=denied'));
-    if (typeof req.query.state !== 'string' || !timingSafeEqual(req.query.state, sealed.state)) {
-      return res.redirect(302, withParam('elpis_error=state'));
-    }
-    if (typeof req.query.code !== 'string') return res.redirect(302, withParam('elpis_error=code'));
-
-    let info: UserInfo;
+router.get(
+  '/link/callback',
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
     try {
-      info = await exchangeAndFetchUser(cfg, req.query.code, sealed.redirectUri, sealed.verifier);
-    } catch (e) {
-      req.log?.warn({ err: (e as Error).message }, 'elpis: link exchange failed');
-      return res.redirect(302, withParam('elpis_error=exchange'));
-    }
+      const cfg = getElpisConfig();
+      const sealed = unseal<OAuthState>(req.cookies?.[OAUTH_COOKIE] || '');
+      clearOAuthCookie(res);
 
-    const result = await linkElpisId(req.user!.id, info.sub);
-    if (result === 'already_linked_other') return res.redirect(302, withParam('elpis_error=taken'));
-    return res.redirect(302, withParam('elpis_linked=1'));
-  } catch (error) {
-    return next(error);
-  }
-});
+      // Where to send the user afterwards — back where they started self-linking.
+      const back = (sealed && sealed.returnTo) || '/dashboard';
+      const withParam = (p: string) => (back.includes('?') ? `${back}&${p}` : `${back}?${p}`);
+
+      if (!cfg) return res.redirect(302, withParam('elpis_error=disabled'));
+      if (!sealed || sealed.mode !== 'link' || sealed.exp < Date.now()) {
+        return res.redirect(302, '/dashboard?elpis_error=state');
+      }
+      // The user completing the link must be the one who started it.
+      if (sealed.linkUserId !== req.user!.id)
+        return res.redirect(302, withParam('elpis_error=state'));
+      if (req.query.error) return res.redirect(302, withParam('elpis_error=denied'));
+      if (typeof req.query.state !== 'string' || !timingSafeEqual(req.query.state, sealed.state)) {
+        return res.redirect(302, withParam('elpis_error=state'));
+      }
+      if (typeof req.query.code !== 'string')
+        return res.redirect(302, withParam('elpis_error=code'));
+
+      let info: UserInfo;
+      try {
+        info = await exchangeAndFetchUser(cfg, req.query.code, sealed.redirectUri, sealed.verifier);
+      } catch (e) {
+        req.log?.warn({ err: (e as Error).message }, 'elpis: link exchange failed');
+        return res.redirect(302, withParam('elpis_error=exchange'));
+      }
+
+      const result = await linkElpisId(req.user!.id, info.sub);
+      if (result === 'already_linked_other')
+        return res.redirect(302, withParam('elpis_error=taken'));
+      return res.redirect(302, withParam('elpis_linked=1'));
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
 
 // --- Unlink own ELPIS ID -----------------------------------------------------
 router.post('/unlink', requireAuth, async (req: Request, res: Response, next: NextFunction) => {

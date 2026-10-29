@@ -27,10 +27,7 @@ type SealedPayload = {
 
 // The well-known placeholder that ships in docker-compose.yml. Treat as empty
 // because anyone reading the repo would already know it.
-const KNOWN_DEFAULT_SECRETS = new Set([
-  '',
-  'change-me-to-a-random-64-char-string-in-production',
-]);
+const KNOWN_DEFAULT_SECRETS = new Set(['', 'change-me-to-a-random-64-char-string-in-production']);
 
 function getSecret(): string {
   const raw = process.env.SESSION_SECRET || '';
@@ -44,7 +41,7 @@ export function assertSessionSecretIsSafe(): void {
   if (!getSecret()) {
     throw new Error(
       'SESSION_SECRET must be set to a non-default value of at least 16 characters. ' +
-      'Generate one with: openssl rand -hex 32',
+        'Generate one with: openssl rand -hex 32',
     );
   }
 }

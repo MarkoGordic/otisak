@@ -14,12 +14,12 @@ import { query } from './client';
 export async function isSubjectManageableByUser(
   userId: string,
   subjectId: string,
-  isAdmin: boolean
+  isAdmin: boolean,
 ): Promise<boolean> {
   if (isAdmin) {
     const subject = await query<{ id: string }>(
       'SELECT id FROM otisak_subjects WHERE id = $1 LIMIT 1',
-      [subjectId]
+      [subjectId],
     );
     return subject.rows.length > 0;
   }
@@ -29,7 +29,7 @@ export async function isSubjectManageableByUser(
      FROM subject_assignments sa
      WHERE sa.user_id = $1 AND sa.subject_id = $2
      LIMIT 1`,
-    [userId, subjectId]
+    [userId, subjectId],
   );
   return assignment.rows.length > 0;
 }
@@ -39,7 +39,7 @@ export async function isSubjectManageableByUser(
 export async function getAssignedSubjectIds(userId: string): Promise<string[]> {
   const result = await query<{ subject_id: string }>(
     'SELECT subject_id FROM subject_assignments WHERE user_id = $1',
-    [userId]
+    [userId],
   );
   return result.rows.map((r) => r.subject_id);
 }
@@ -52,12 +52,12 @@ export async function getAssignedSubjectIds(userId: string): Promise<string[]> {
 export async function canUserManageExam(
   userId: string,
   examId: string,
-  isAdmin: boolean
+  isAdmin: boolean,
 ): Promise<boolean> {
   if (isAdmin) return true;
   const result = await query<{ subject_id: string | null }>(
     'SELECT subject_id FROM otisak_exams WHERE id = $1 LIMIT 1',
-    [examId]
+    [examId],
   );
   const row = result.rows[0];
   if (!row) return false;
@@ -85,7 +85,7 @@ export async function listSubjectAssignments(subjectId: string): Promise<Subject
      JOIN users u ON u.id = sa.user_id
      WHERE sa.subject_id = $1
      ORDER BY u.name NULLS LAST, u.email`,
-    [subjectId]
+    [subjectId],
   );
   return result.rows;
 }
@@ -94,13 +94,13 @@ export async function assignUserToSubject(
   userId: string,
   subjectId: string,
   role: 'professor' | 'assistant',
-  assignedBy: string
+  assignedBy: string,
 ): Promise<boolean> {
   const result = await query(
     `INSERT INTO subject_assignments (user_id, subject_id, role, assigned_by)
      VALUES ($1, $2, $3, $4)
      ON CONFLICT (user_id, subject_id) DO UPDATE SET role = EXCLUDED.role`,
-    [userId, subjectId, role, assignedBy]
+    [userId, subjectId, role, assignedBy],
   );
   return (result.rowCount ?? 0) > 0;
 }
@@ -108,7 +108,7 @@ export async function assignUserToSubject(
 export async function unassignUserFromSubject(userId: string, subjectId: string): Promise<boolean> {
   const result = await query(
     'DELETE FROM subject_assignments WHERE user_id = $1 AND subject_id = $2',
-    [userId, subjectId]
+    [userId, subjectId],
   );
   return (result.rowCount ?? 0) > 0;
 }

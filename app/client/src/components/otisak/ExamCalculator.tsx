@@ -25,7 +25,8 @@ function evaluate(raw: string): number {
       if (!ops.length) return NaN;
       ops.pop();
     } else {
-      while (ops.length && ops[ops.length - 1] !== '(' && prec[ops[ops.length - 1]] >= prec[tk]) out.push(ops.pop()!);
+      while (ops.length && ops[ops.length - 1] !== '(' && prec[ops[ops.length - 1]] >= prec[tk])
+        out.push(ops.pop()!);
       ops.push(tk);
     }
   }
@@ -58,7 +59,11 @@ function formatNum(n: number): string {
 
 // Pretty operators for the display only; the stored expression keeps ASCII.
 function pretty(expr: string): string {
-  return expr.replace(/\*/g, ' × ').replace(/\//g, ' ÷ ').replace(/-/g, ' − ').replace(/\+/g, ' + ');
+  return expr
+    .replace(/\*/g, ' × ')
+    .replace(/\//g, ' ÷ ')
+    .replace(/-/g, ' − ')
+    .replace(/\+/g, ' + ');
 }
 
 const OPS = ['+', '-', '*', '/'];
@@ -66,11 +71,26 @@ const OPS = ['+', '-', '*', '/'];
 type Key = { label: string; val: string; kind: 'num' | 'op' | 'eq' | 'fn' };
 
 const KEYS: Key[] = [
-  { label: 'C', val: 'C', kind: 'fn' }, { label: '(', val: '(', kind: 'fn' }, { label: ')', val: ')', kind: 'fn' }, { label: '÷', val: '/', kind: 'op' },
-  { label: '7', val: '7', kind: 'num' }, { label: '8', val: '8', kind: 'num' }, { label: '9', val: '9', kind: 'num' }, { label: '×', val: '*', kind: 'op' },
-  { label: '4', val: '4', kind: 'num' }, { label: '5', val: '5', kind: 'num' }, { label: '6', val: '6', kind: 'num' }, { label: '−', val: '-', kind: 'op' },
-  { label: '1', val: '1', kind: 'num' }, { label: '2', val: '2', kind: 'num' }, { label: '3', val: '3', kind: 'num' }, { label: '+', val: '+', kind: 'op' },
-  { label: '0', val: '0', kind: 'num' }, { label: '.', val: '.', kind: 'num' }, { label: 'back', val: 'back', kind: 'fn' }, { label: '=', val: '=', kind: 'eq' },
+  { label: 'C', val: 'C', kind: 'fn' },
+  { label: '(', val: '(', kind: 'fn' },
+  { label: ')', val: ')', kind: 'fn' },
+  { label: '÷', val: '/', kind: 'op' },
+  { label: '7', val: '7', kind: 'num' },
+  { label: '8', val: '8', kind: 'num' },
+  { label: '9', val: '9', kind: 'num' },
+  { label: '×', val: '*', kind: 'op' },
+  { label: '4', val: '4', kind: 'num' },
+  { label: '5', val: '5', kind: 'num' },
+  { label: '6', val: '6', kind: 'num' },
+  { label: '−', val: '-', kind: 'op' },
+  { label: '1', val: '1', kind: 'num' },
+  { label: '2', val: '2', kind: 'num' },
+  { label: '3', val: '3', kind: 'num' },
+  { label: '+', val: '+', kind: 'op' },
+  { label: '0', val: '0', kind: 'num' },
+  { label: '.', val: '.', kind: 'num' },
+  { label: 'back', val: 'back', kind: 'fn' },
+  { label: '=', val: '=', kind: 'eq' },
 ];
 
 export function ExamCalculator({ isDark }: { isDark: boolean }) {
@@ -101,12 +121,14 @@ export function ExamCalculator({ isDark }: { isDark: boolean }) {
 
   const keyClass = (kind: Key['kind']) => {
     if (kind === 'eq') return 'bg-indigo-600 text-white hover:bg-indigo-500 shadow-sm';
-    if (kind === 'op') return isDark
-      ? 'bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/20'
-      : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200';
-    if (kind === 'fn') return isDark
-      ? 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10'
-      : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200';
+    if (kind === 'op')
+      return isDark
+        ? 'bg-indigo-500/15 text-indigo-300 hover:bg-indigo-500/25 border border-indigo-500/20'
+        : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100 border border-indigo-200';
+    if (kind === 'fn')
+      return isDark
+        ? 'bg-white/5 text-gray-400 hover:bg-white/10 border border-white/10'
+        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 border border-slate-200';
     return isDark
       ? 'bg-white/[0.07] text-gray-100 hover:bg-white/[0.12] border border-white/5'
       : 'bg-white text-slate-800 hover:bg-slate-50 border border-slate-200';
@@ -115,12 +137,18 @@ export function ExamCalculator({ isDark }: { isDark: boolean }) {
   return (
     <div className="flex flex-col gap-3">
       {/* Display */}
-      <div className={`rounded-2xl px-4 py-4 text-right border ${isDark ? 'bg-indigo-500/[0.06] border-indigo-500/15' : 'bg-indigo-50/50 border-indigo-200'}`}>
-        <div className={`min-h-[20px] text-sm font-mono break-all ${isDark ? 'text-indigo-200/60' : 'text-indigo-700/60'}`}>
+      <div
+        className={`rounded-2xl px-4 py-4 text-right border ${isDark ? 'bg-indigo-500/[0.06] border-indigo-500/15' : 'bg-indigo-50/50 border-indigo-200'}`}
+      >
+        <div
+          className={`min-h-[20px] text-sm font-mono break-all ${isDark ? 'text-indigo-200/60' : 'text-indigo-700/60'}`}
+        >
           {expr ? pretty(expr) : '0'}
         </div>
-        <div className={`min-h-[36px] text-3xl font-bold font-mono tabular-nums break-all ${isDark ? 'text-white' : 'text-slate-900'}`}>
-          {live !== '' ? live : (expr ? '' : '0')}
+        <div
+          className={`min-h-[36px] text-3xl font-bold font-mono tabular-nums break-all ${isDark ? 'text-white' : 'text-slate-900'}`}
+        >
+          {live !== '' ? live : expr ? '' : '0'}
         </div>
       </div>
       {/* Keypad */}

@@ -1,8 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
-  content: [
-    './src/**/*.{js,ts,jsx,tsx,mdx}',
-  ],
+  content: ['./src/**/*.{js,ts,jsx,tsx,mdx}'],
   theme: {
     extend: {
       fontFamily: {
@@ -53,17 +51,17 @@ module.exports = {
         },
       },
       borderRadius: {
-        'sm': '6px',
+        sm: '6px',
         DEFAULT: '10px',
-        'lg': '14px',
-        'xl': '20px',
-        'full': '9999px',
+        lg: '14px',
+        xl: '20px',
+        full: '9999px',
       },
       boxShadow: {
-        'sm': 'var(--shadow-sm)',
-        'md': 'var(--shadow-md)',
-        'lg': 'var(--shadow-lg)',
-        'focus': 'var(--shadow-focus)',
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+        focus: 'var(--shadow-focus)',
       },
     },
   },

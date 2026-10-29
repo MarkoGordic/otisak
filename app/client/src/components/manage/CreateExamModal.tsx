@@ -52,7 +52,9 @@ export function CreateExamModal({
         }),
       });
       if (res.ok) {
-        toast.success(mode === 'practice' ? t('practiceAdmin.createSuccess') : t('manage.createSuccess'));
+        toast.success(
+          mode === 'practice' ? t('practiceAdmin.createSuccess') : t('manage.createSuccess'),
+        );
         onCreated();
         onClose();
       } else {
@@ -69,10 +71,14 @@ export function CreateExamModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">{title}</h2>
+        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">
+          {title}
+        </h2>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.examTitle')}</label>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
+              {t('manage.examTitle')}
+            </label>
             <input
               value={newTitle}
               onChange={(e) => setNewTitle(e.target.value)}
@@ -85,19 +91,28 @@ export function CreateExamModal({
               {t('manage.subject')} {requireSubject && <span className="text-danger">*</span>}
             </label>
             <Dropdown
-              options={requireSubject
-                ? subjects.map((s) => ({ value: s.id, label: s.name }))
-                : [{ value: '', label: t('manage.noSubject') }, ...subjects.map((s) => ({ value: s.id, label: s.name }))]}
+              options={
+                requireSubject
+                  ? subjects.map((s) => ({ value: s.id, label: s.name }))
+                  : [
+                      { value: '', label: t('manage.noSubject') },
+                      ...subjects.map((s) => ({ value: s.id, label: s.name })),
+                    ]
+              }
               value={newSubjectId}
               onChange={setNewSubjectId}
               placeholder={requireSubject ? t('manage.subjectPlaceholder') : undefined}
             />
             {requireSubject && (
-              <p className="text-[11px] text-[var(--text-muted)] mt-1">{t('practiceAdmin.subjectRequired')}</p>
+              <p className="text-[11px] text-[var(--text-muted)] mt-1">
+                {t('practiceAdmin.subjectRequired')}
+              </p>
             )}
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">{t('manage.duration')}</label>
+            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
+              {t('manage.duration')}
+            </label>
             <input
               type="number"
               value={newDuration}
@@ -107,7 +122,9 @@ export function CreateExamModal({
           </div>
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">
-          <Button variant="secondary" onClick={onClose} disabled={creating}>{t('manage.cancel')}</Button>
+          <Button variant="secondary" onClick={onClose} disabled={creating}>
+            {t('manage.cancel')}
+          </Button>
           <Button
             variant="primary"
             loading={creating}

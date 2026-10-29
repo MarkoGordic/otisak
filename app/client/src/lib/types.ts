@@ -2,7 +2,14 @@
 // These are simplified versions used for rendering - actual data comes from API as JSON
 
 export type OtisakExamMode = 'real' | 'practice';
-export type OtisakQuestionType = 'text' | 'code' | 'image' | 'open_text' | 'ordering' | 'matching' | 'fill_blank';
+export type OtisakQuestionType =
+  | 'text'
+  | 'code'
+  | 'image'
+  | 'open_text'
+  | 'ordering'
+  | 'matching'
+  | 'fill_blank';
 export type OtisakAiGradingStatus = 'pending' | 'grading' | 'graded' | 'error';
 export type OtisakAttemptAiStatus = 'pending' | 'grading' | 'graded' | 'partial';
 

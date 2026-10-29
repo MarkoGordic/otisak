@@ -1,8 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
-  Loader2, ArrowLeft, BarChart3, Trophy, Clock, BookMarked, User,
-  FileText, CheckCircle2, ExternalLink,
+  Loader2,
+  ArrowLeft,
+  BarChart3,
+  Trophy,
+  Clock,
+  BookMarked,
+  User,
+  FileText,
+  CheckCircle2,
+  ExternalLink,
 } from 'lucide-react';
 
 import { formatDateSr as formatDate, formatDurationLong as formatDuration } from '../lib/format';
@@ -58,13 +66,27 @@ export default function UserProfilePage() {
     (async () => {
       try {
         const sres = await fetch('/api/auth/session', { credentials: 'include' });
-        if (!sres.ok) { navigate('/login', { replace: true }); return; }
+        if (!sres.ok) {
+          navigate('/login', { replace: true });
+          return;
+        }
         const sdata = await sres.json();
-        if (!sdata.authenticated || (sdata.user?.role !== 'admin' && sdata.user?.role !== 'assistant' && sdata.user?.role !== 'professor')) {
+        if (
+          !sdata.authenticated ||
+          (sdata.user?.role !== 'admin' &&
+            sdata.user?.role !== 'assistant' &&
+            sdata.user?.role !== 'professor')
+        ) {
           navigate('/dashboard', { replace: true });
           return;
         }
-        if (!cancelled) setMe({ id: sdata.user.id, name: sdata.user.name, role: sdata.user.role, avatar_url: sdata.user.avatar_url });
+        if (!cancelled)
+          setMe({
+            id: sdata.user.id,
+            name: sdata.user.name,
+            role: sdata.user.role,
+            avatar_url: sdata.user.avatar_url,
+          });
 
         const res = await fetch(`/api/otisak/users/${userId}/profile`, { credentials: 'include' });
         if (cancelled) return;
@@ -83,7 +105,9 @@ export default function UserProfilePage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [userId, navigate, t]);
 
   if (loading || !me) {
@@ -112,13 +136,19 @@ export default function UserProfilePage() {
             <div className="w-10 h-10 rounded-xl bg-accent-light flex items-center justify-center">
               <User className="w-5 h-5 text-accent" strokeWidth={1.75} />
             </div>
-            <h1 className="text-lg font-display font-bold text-[var(--text-primary)]">{t('userProfile.title')}</h1>
+            <h1 className="text-lg font-display font-bold text-[var(--text-primary)]">
+              {t('userProfile.title')}
+            </h1>
           </div>
         </header>
 
         <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6">
           {error ? (
-            <EmptyState icon={<User size={32} strokeWidth={1.5} />} title={error} description={t('userProfile.loadFailed')} />
+            <EmptyState
+              icon={<User size={32} strokeWidth={1.5} />}
+              title={error}
+              description={t('userProfile.loadFailed')}
+            />
           ) : profile ? (
             <>
               {/* Identity card */}
@@ -126,22 +156,46 @@ export default function UserProfilePage() {
                 <div className="flex items-start gap-4">
                   <div className="w-14 h-14 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
                     {profile.user.avatar_url ? (
-                      <img src={profile.user.avatar_url} alt="" className="w-14 h-14 rounded-xl object-cover" />
+                      <img
+                        src={profile.user.avatar_url}
+                        alt=""
+                        className="w-14 h-14 rounded-xl object-cover"
+                      />
                     ) : (
-                      <span className="text-accent text-xl font-bold">{(profile.user.name || profile.user.email).charAt(0).toUpperCase()}</span>
+                      <span className="text-accent text-xl font-bold">
+                        {(profile.user.name || profile.user.email).charAt(0).toUpperCase()}
+                      </span>
                     )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2 mb-1">
-                      <h2 className="text-xl font-display font-bold text-[var(--text-primary)] truncate">{profile.user.name || profile.user.email}</h2>
-                      <Badge variant={profile.user.is_active ? 'success' : 'neutral'} size="sm" dot>{profile.user.is_active ? t('userProfile.active') : t('userProfile.inactive')}</Badge>
-                      <Badge variant="accent" size="sm">{profile.user.role}</Badge>
+                      <h2 className="text-xl font-display font-bold text-[var(--text-primary)] truncate">
+                        {profile.user.name || profile.user.email}
+                      </h2>
+                      <Badge variant={profile.user.is_active ? 'success' : 'neutral'} size="sm" dot>
+                        {profile.user.is_active
+                          ? t('userProfile.active')
+                          : t('userProfile.inactive')}
+                      </Badge>
+                      <Badge variant="accent" size="sm">
+                        {profile.user.role}
+                      </Badge>
                     </div>
-                    <div className="text-sm text-[var(--text-secondary)] truncate">{profile.user.email}</div>
+                    <div className="text-sm text-[var(--text-secondary)] truncate">
+                      {profile.user.email}
+                    </div>
                     <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-[var(--text-muted)]">
-                      {profile.user.index_number && <span className="font-mono">{profile.user.index_number}</span>}
-                      <span>&middot; {t('userProfile.memberSince')}: {formatDate(profile.user.created_at)}</span>
-                      <span>&middot; {t('userProfile.lastLogin')}: {profile.user.last_login_at ? formatDate(profile.user.last_login_at) : '-'}</span>
+                      {profile.user.index_number && (
+                        <span className="font-mono">{profile.user.index_number}</span>
+                      )}
+                      <span>
+                        &middot; {t('userProfile.memberSince')}:{' '}
+                        {formatDate(profile.user.created_at)}
+                      </span>
+                      <span>
+                        &middot; {t('userProfile.lastLogin')}:{' '}
+                        {profile.user.last_login_at ? formatDate(profile.user.last_login_at) : '-'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -149,21 +203,57 @@ export default function UserProfilePage() {
 
               {/* Stat tiles */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-                <StatCard icon={<BarChart3 size={20} strokeWidth={1.75} />} iconBg="var(--accent-light)" iconColor="var(--accent)" value={profile.stats.attempts_submitted} label={t('userProfile.stat.attempts')} />
-                <StatCard icon={<Trophy size={20} strokeWidth={1.75} />} iconBg="var(--success-light)" iconColor="var(--success)" value={profile.stats.passed_count} label={t('userProfile.stat.passed')} />
-                <StatCard icon={<CheckCircle2 size={20} strokeWidth={1.75} />} iconBg="var(--warning-light)" iconColor="var(--warning)" value={`${profile.stats.avg_percent}%`} label={t('userProfile.stat.avg')} />
-                <StatCard icon={<Clock size={20} strokeWidth={1.75} />} iconBg="var(--info-light)" iconColor="var(--info)" value={formatDuration(profile.stats.total_time_seconds)} label={t('userProfile.stat.time')} />
-                <StatCard icon={<BookMarked size={20} strokeWidth={1.75} />} iconBg="var(--accent-light)" iconColor="var(--accent)" value={profile.stats.subjects_distinct} label={t('userProfile.stat.subjects')} />
+                <StatCard
+                  icon={<BarChart3 size={20} strokeWidth={1.75} />}
+                  iconBg="var(--accent-light)"
+                  iconColor="var(--accent)"
+                  value={profile.stats.attempts_submitted}
+                  label={t('userProfile.stat.attempts')}
+                />
+                <StatCard
+                  icon={<Trophy size={20} strokeWidth={1.75} />}
+                  iconBg="var(--success-light)"
+                  iconColor="var(--success)"
+                  value={profile.stats.passed_count}
+                  label={t('userProfile.stat.passed')}
+                />
+                <StatCard
+                  icon={<CheckCircle2 size={20} strokeWidth={1.75} />}
+                  iconBg="var(--warning-light)"
+                  iconColor="var(--warning)"
+                  value={`${profile.stats.avg_percent}%`}
+                  label={t('userProfile.stat.avg')}
+                />
+                <StatCard
+                  icon={<Clock size={20} strokeWidth={1.75} />}
+                  iconBg="var(--info-light)"
+                  iconColor="var(--info)"
+                  value={formatDuration(profile.stats.total_time_seconds)}
+                  label={t('userProfile.stat.time')}
+                />
+                <StatCard
+                  icon={<BookMarked size={20} strokeWidth={1.75} />}
+                  iconBg="var(--accent-light)"
+                  iconColor="var(--accent)"
+                  value={profile.stats.subjects_distinct}
+                  label={t('userProfile.stat.subjects')}
+                />
               </div>
 
               {/* History */}
               <div className="bg-[var(--bg-elevated)] border border-[var(--border-default)] rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-[var(--border-subtle)] flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">{t('userProfile.history')}</h3>
-                  <span className="text-xs text-[var(--text-muted)]">{profile.attempts.length} {t('userProfile.attempts')}</span>
+                  <h3 className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
+                    {t('userProfile.history')}
+                  </h3>
+                  <span className="text-xs text-[var(--text-muted)]">
+                    {profile.attempts.length} {t('userProfile.attempts')}
+                  </span>
                 </div>
                 {profile.attempts.length === 0 ? (
-                  <div className="p-6 text-sm text-[var(--text-muted)] text-center">{t('userProfile.empty')}</div>
+                  <div className="p-6 text-sm text-[var(--text-muted)] text-center">
+                    {t('userProfile.empty')}
+                  </div>
                 ) : (
                   <div className="divide-y divide-[var(--border-subtle)]">
                     {profile.attempts.map((a) => {
@@ -171,38 +261,70 @@ export default function UserProfilePage() {
                       const max = Number(a.max_points || 0);
                       const pct = max > 0 ? Math.round((total / max) * 100) : 0;
                       const noThreshold = a.has_pass_threshold === false;
-                      const passed = !noThreshold && a.submitted && pct >= Number(a.pass_threshold ?? 50);
+                      const passed =
+                        !noThreshold && a.submitted && pct >= Number(a.pass_threshold ?? 50);
                       return (
-                        <div key={a.id} className="flex items-center px-5 py-3 hover:bg-[var(--bg-tertiary)] transition-colors">
+                        <div
+                          key={a.id}
+                          className="flex items-center px-5 py-3 hover:bg-[var(--bg-tertiary)] transition-colors"
+                        >
                           <div className="flex-1 min-w-0 pr-4">
                             <div className="flex items-center gap-2">
-                              <FileText size={14} className="text-[var(--text-muted)] flex-shrink-0" />
-                              <span className="text-sm font-medium text-[var(--text-primary)] truncate">{a.exam_title}</span>
+                              <FileText
+                                size={14}
+                                className="text-[var(--text-muted)] flex-shrink-0"
+                              />
+                              <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                                {a.exam_title}
+                              </span>
                             </div>
                             <div className="text-xs text-[var(--text-muted)] mt-0.5 truncate">
-                              {a.subject_name ?? '-'} &middot; {formatDate(a.started_at)} &middot; {formatDuration(Number(a.time_spent_seconds || 0))}
+                              {a.subject_name ?? '-'} &middot; {formatDate(a.started_at)} &middot;{' '}
+                              {formatDuration(Number(a.time_spent_seconds || 0))}
                             </div>
                           </div>
                           <div className="w-24 text-right">
                             {a.submitted ? (
                               <>
-                                <div className={`text-base font-mono font-bold ${noThreshold ? 'text-accent' : passed ? 'text-success' : 'text-danger'}`}>{total}/{max}</div>
+                                <div
+                                  className={`text-base font-mono font-bold ${noThreshold ? 'text-accent' : passed ? 'text-success' : 'text-danger'}`}
+                                >
+                                  {total}/{max}
+                                </div>
                                 <div className="text-[11px] text-[var(--text-muted)]">{pct}%</div>
                               </>
                             ) : (
-                              <span className="text-xs text-[var(--text-muted)]">{t('userProfile.notSubmitted')}</span>
+                              <span className="text-xs text-[var(--text-muted)]">
+                                {t('userProfile.notSubmitted')}
+                              </span>
                             )}
                           </div>
                           <div className="w-24 text-center hidden sm:block">
-                            {!a.submitted
-                              ? <Badge variant="warning" size="sm" dot>{t('userProfile.inProgress')}</Badge>
-                              : noThreshold
-                                ? <Badge variant="neutral" size="sm">&#8212;</Badge>
-                                : <Badge variant={passed ? 'success' : 'danger'} size="sm">{passed ? t('userProfile.passed') : t('userProfile.failed')}</Badge>}
+                            {!a.submitted ? (
+                              <Badge variant="warning" size="sm" dot>
+                                {t('userProfile.inProgress')}
+                              </Badge>
+                            ) : noThreshold ? (
+                              <Badge variant="neutral" size="sm">
+                                &#8212;
+                              </Badge>
+                            ) : (
+                              <Badge variant={passed ? 'success' : 'danger'} size="sm">
+                                {passed ? t('userProfile.passed') : t('userProfile.failed')}
+                              </Badge>
+                            )}
                           </div>
                           <div className="w-20 flex justify-end">
                             {a.submitted && (
-                              <Button variant="ghost" size="sm" className="text-accent" rightIcon={<ExternalLink size={14} />} onClick={() => navigate(`/manage/${a.exam_id}/report/${profile.user.id}`)}>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="text-accent"
+                                rightIcon={<ExternalLink size={14} />}
+                                onClick={() =>
+                                  navigate(`/manage/${a.exam_id}/report/${profile.user.id}`)
+                                }
+                              >
                                 {t('userProfile.openReport')}
                               </Button>
                             )}

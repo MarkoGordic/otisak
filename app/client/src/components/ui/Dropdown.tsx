@@ -1,4 +1,3 @@
-
 import { ChevronDown } from 'lucide-react';
 
 export function Dropdown({
@@ -20,13 +19,20 @@ export function Dropdown({
         className="w-full h-9 pl-3 pr-8 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm appearance-none cursor-pointer focus:border-accent focus:ring-0 transition-colors"
       >
         {placeholder && (
-          <option value="" disabled>{placeholder}</option>
+          <option value="" disabled>
+            {placeholder}
+          </option>
         )}
         {options.map((opt) => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
         ))}
       </select>
-      <ChevronDown size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+      <ChevronDown
+        size={14}
+        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+      />
     </div>
   );
 }

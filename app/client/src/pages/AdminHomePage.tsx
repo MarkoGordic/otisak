@@ -2,8 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  Loader2, Plus, Radio, Clock, GraduationCap, FileText, Activity,
-  ArrowRight, AlertTriangle, CalendarIcon, Upload, ClipboardCheck,
+  Loader2,
+  Plus,
+  Radio,
+  Clock,
+  GraduationCap,
+  FileText,
+  Activity,
+  ArrowRight,
+  AlertTriangle,
+  CalendarIcon,
+  Upload,
+  ClipboardCheck,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -48,15 +58,29 @@ export default function AdminHomePage() {
     (async () => {
       try {
         const sessionRes = await fetch('/api/auth/session', { credentials: 'include' });
-        if (!sessionRes.ok) { navigate('/login', { replace: true }); return; }
+        if (!sessionRes.ok) {
+          navigate('/login', { replace: true });
+          return;
+        }
         const data = await sessionRes.json();
-        if (!data.authenticated) { navigate('/login', { replace: true }); return; }
-        if (data.user?.role !== 'admin' && data.user?.role !== 'assistant' && data.user?.role !== 'professor') {
+        if (!data.authenticated) {
+          navigate('/login', { replace: true });
+          return;
+        }
+        if (
+          data.user?.role !== 'admin' &&
+          data.user?.role !== 'assistant' &&
+          data.user?.role !== 'professor'
+        ) {
           navigate('/dashboard', { replace: true });
           return;
         }
         if (!mounted) return;
-        setUser({ name: data.user?.name, role: data.user?.role, avatar_url: data.user?.avatar_url });
+        setUser({
+          name: data.user?.name,
+          role: data.user?.role,
+          avatar_url: data.user?.avatar_url,
+        });
 
         const [examsRes, usersRes, gradingRes] = await Promise.all([
           fetch('/api/otisak/exams', { credentials: 'include' }),
@@ -83,11 +107,17 @@ export default function AdminHomePage() {
         if (mounted) setLoading(false);
       }
     })();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [navigate]);
 
   if (!user || loading) {
-    return <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-accent" /></div>;
+    return (
+      <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    );
   }
 
   const isAdmin = user.role === 'admin';
@@ -117,17 +147,26 @@ export default function AdminHomePage() {
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-display font-bold text-[var(--text-primary)] leading-tight">
-                  {greeting}, {user.name?.split(' ')[0] || t(isAdmin ? 'users.admin' : 'users.assistant')}
+                  {greeting},{' '}
+                  {user.name?.split(' ')[0] || t(isAdmin ? 'users.admin' : 'users.assistant')}
                 </h1>
                 <p className="text-sm text-[var(--text-secondary)] mt-1">
                   {t('adminHome.subtitle')}
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                <Button variant="secondary" leftIcon={<Upload size={14} />} onClick={() => navigate('/manage')}>
+                <Button
+                  variant="secondary"
+                  leftIcon={<Upload size={14} />}
+                  onClick={() => navigate('/manage')}
+                >
                   {t('manage.importJson')}
                 </Button>
-                <Button variant="primary" leftIcon={<Plus size={16} />} onClick={() => navigate('/manage')}>
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={16} />}
+                  onClick={() => navigate('/manage')}
+                >
                   {t('manage.newExam')}
                 </Button>
               </div>
@@ -188,7 +227,9 @@ export default function AdminHomePage() {
                       </button>
                     ))}
                     {emptyDrafts.length > 4 && (
-                      <span className="text-xs text-[var(--text-muted)]">+{emptyDrafts.length - 4}</span>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        +{emptyDrafts.length - 4}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -203,7 +244,9 @@ export default function AdminHomePage() {
                     {t('adminHome.toGrade')}
                   </h2>
                   <span className="text-xs text-[var(--text-muted)]">
-                    {t('adminHome.toGradeTotal', { count: toGrade.reduce((s, e) => s + e.pending, 0) })}
+                    {t('adminHome.toGradeTotal', {
+                      count: toGrade.reduce((s, e) => s + e.pending, 0),
+                    })}
                   </span>
                 </div>
                 <div className="space-y-2">
@@ -221,17 +264,25 @@ export default function AdminHomePage() {
                           <ClipboardCheck size={16} className="text-warning" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium text-[var(--text-primary)] truncate">{g.title}</div>
+                          <div className="text-sm font-medium text-[var(--text-primary)] truncate">
+                            {g.title}
+                          </div>
                           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--text-muted)] mt-0.5">
                             {g.subject_name && <span>{g.subject_name}</span>}
-                            <span className="text-warning font-medium">{t('adminHome.toGradeAnswers', { count: g.pending })}</span>
-                            <span>{t('adminHome.toGradeStudents', { count: g.students_pending })}</span>
+                            <span className="text-warning font-medium">
+                              {t('adminHome.toGradeAnswers', { count: g.pending })}
+                            </span>
+                            <span>
+                              {t('adminHome.toGradeStudents', { count: g.students_pending })}
+                            </span>
                           </div>
                           <div className="w-full max-w-[240px] h-1 mt-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
                             <div className="h-full bg-success" style={{ width: `${pct}%` }} />
                           </div>
                         </div>
-                        <span className="text-xs text-accent flex-shrink-0">{t('adminHome.gradeNow')}</span>
+                        <span className="text-xs text-accent flex-shrink-0">
+                          {t('adminHome.gradeNow')}
+                        </span>
                         <ArrowRight size={14} className="text-[var(--text-muted)] flex-shrink-0" />
                       </button>
                     );
@@ -243,7 +294,9 @@ export default function AdminHomePage() {
             {/* Currently active exams */}
             <section>
               <div className="flex items-center justify-between mb-3">
-                <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">{t('adminHome.activeExams')}</h2>
+                <h2 className="text-xs uppercase tracking-widest text-[var(--text-muted)] font-semibold">
+                  {t('adminHome.activeExams')}
+                </h2>
                 <button
                   type="button"
                   onClick={() => navigate('/manage')}
@@ -255,8 +308,15 @@ export default function AdminHomePage() {
 
               {activeExamList.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-[var(--border-default)] bg-[var(--bg-elevated)] p-10 text-center">
-                  <p className="text-sm text-[var(--text-secondary)] mb-3">{t('adminHome.noActiveExams')}</p>
-                  <Button variant="primary" size="sm" leftIcon={<Plus size={14} />} onClick={() => navigate('/manage')}>
+                  <p className="text-sm text-[var(--text-secondary)] mb-3">
+                    {t('adminHome.noActiveExams')}
+                  </p>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    leftIcon={<Plus size={14} />}
+                    onClick={() => navigate('/manage')}
+                  >
                     {t('manage.newExam')}
                   </Button>
                 </div>
@@ -274,30 +334,53 @@ export default function AdminHomePage() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-sm font-medium text-[var(--text-primary)] truncate">{exam.title}</span>
-                          <span className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full border ${
-                            exam.status === 'active' ? 'bg-success-light text-success border-[var(--border-default)]' :
-                            exam.status === 'draft' ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border-[var(--border-default)]' :
-                            exam.status === 'scheduled' ? 'bg-warning-light text-warning border-[var(--border-default)]' :
-                            'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border-[var(--border-default)]'
-                          }`}>{t(`manage.${exam.status}`) || exam.status}</span>
-                          {Array.isArray(exam.tags) && exam.tags.slice(0, 3).map((tg) => (
-                            <span key={tg} className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-[10px]">
-                              {tg}
-                            </span>
-                          ))}
+                          <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                            {exam.title}
+                          </span>
+                          <span
+                            className={`text-[10px] uppercase tracking-widest px-2 py-0.5 rounded-full border ${
+                              exam.status === 'active'
+                                ? 'bg-success-light text-success border-[var(--border-default)]'
+                                : exam.status === 'draft'
+                                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border-[var(--border-default)]'
+                                  : exam.status === 'scheduled'
+                                    ? 'bg-warning-light text-warning border-[var(--border-default)]'
+                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] border-[var(--border-default)]'
+                            }`}
+                          >
+                            {t(`manage.${exam.status}`) || exam.status}
+                          </span>
+                          {Array.isArray(exam.tags) &&
+                            exam.tags.slice(0, 3).map((tg) => (
+                              <span
+                                key={tg}
+                                className="px-1.5 py-0.5 rounded bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-[10px]"
+                              >
+                                {tg}
+                              </span>
+                            ))}
                         </div>
                         <div className="flex flex-wrap items-center gap-3 text-xs text-[var(--text-muted)]">
                           {exam.subject_name && <span>{exam.subject_name}</span>}
-                          <span className="flex items-center gap-1"><Clock size={11} />{exam.duration_minutes} {t('manage.minShort')}</span>
+                          <span className="flex items-center gap-1">
+                            <Clock size={11} />
+                            {exam.duration_minutes} {t('manage.minShort')}
+                          </span>
                           {typeof exam.question_count === 'number' && (
-                            <span className="flex items-center gap-1"><FileText size={11} />{exam.question_count} {t('manage.questionsShort')}</span>
+                            <span className="flex items-center gap-1">
+                              <FileText size={11} />
+                              {exam.question_count} {t('manage.questionsShort')}
+                            </span>
                           )}
                           {exam.scheduled_at && (
                             <span className="flex items-center gap-1">
                               <CalendarIcon size={11} />
                               {new Date(exam.scheduled_at).toLocaleString('sr-RS', {
-                                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
                               })}
                             </span>
                           )}
@@ -307,7 +390,10 @@ export default function AdminHomePage() {
                         {exam.status === 'active' && (
                           <span
                             role="button"
-                            onClick={(e) => { e.stopPropagation(); navigate(`/manage/${exam.id}`); }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/manage/${exam.id}`);
+                            }}
                             className="text-xs text-accent hover:text-accent-hover px-2 py-1 rounded hover:bg-accent-light"
                           >
                             {t('manage.room')}
@@ -321,7 +407,9 @@ export default function AdminHomePage() {
               )}
             </section>
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center"><AppCopyright /></div>
+          <div className="px-4 pb-6 pt-2 flex justify-center">
+            <AppCopyright />
+          </div>
         </main>
       </div>
     </div>
@@ -332,7 +420,11 @@ export default function AdminHomePage() {
 // display tile (used for the assistant role's student count, which they can't
 // drill into).
 function StatTile({
-  icon, value, label, tone, onClick,
+  icon,
+  value,
+  label,
+  tone,
+  onClick,
 }: {
   icon: React.ReactNode;
   value: number | string;
@@ -353,12 +445,19 @@ function StatTile({
       onClick={onClick}
       className={`bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-4 flex items-center gap-3 text-left ${onClick ? 'hover:border-accent transition-colors cursor-pointer' : ''}`}
     >
-      <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: p.iconBg, color: p.iconColor }}>
+      <div
+        className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0"
+        style={{ background: p.iconBg, color: p.iconColor }}
+      >
         {icon}
       </div>
       <div className="min-w-0">
-        <div className="text-2xl font-display font-bold text-[var(--text-primary)] leading-none">{value}</div>
-        <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mt-1 truncate">{label}</div>
+        <div className="text-2xl font-display font-bold text-[var(--text-primary)] leading-none">
+          {value}
+        </div>
+        <div className="text-[11px] text-[var(--text-muted)] uppercase tracking-wider mt-1 truncate">
+          {label}
+        </div>
       </div>
     </Comp>
   );

@@ -20,9 +20,9 @@ type ToastInput = Omit<Toast, 'id'> | string;
 type Ctx = {
   push: (input: ToastInput) => number;
   success: (msg: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => number;
-  info:    (msg: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => number;
+  info: (msg: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => number;
   warning: (msg: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => number;
-  error:   (msg: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => number;
+  error: (msg: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => number;
   dismiss: (id: number) => void;
 };
 
@@ -42,27 +42,55 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
   const dismiss = useCallback((id: number) => {
     const t = timersRef.current.get(id);
-    if (t) { clearTimeout(t); timersRef.current.delete(id); }
+    if (t) {
+      clearTimeout(t);
+      timersRef.current.delete(id);
+    }
     setToasts((arr) => arr.filter((x) => x.id !== id));
   }, []);
 
-  const push = useCallback((input: ToastInput): number => {
-    const t: Toast =
-      typeof input === 'string'
-        ? { id: nextId++, kind: 'info', message: input, duration: 3500 }
-        : { id: nextId++, kind: input.kind ?? 'info', duration: input.duration ?? 3500, message: input.message, title: input.title };
-    setToasts((arr) => [...arr, t]);
-    if (t.duration && t.duration > 0) {
-      const handle = setTimeout(() => dismiss(t.id), t.duration);
-      timersRef.current.set(t.id, handle);
-    }
-    return t.id;
-  }, [dismiss]);
+  const push = useCallback(
+    (input: ToastInput): number => {
+      const t: Toast =
+        typeof input === 'string'
+          ? { id: nextId++, kind: 'info', message: input, duration: 3500 }
+          : {
+              id: nextId++,
+              kind: input.kind ?? 'info',
+              duration: input.duration ?? 3500,
+              message: input.message,
+              title: input.title,
+            };
+      setToasts((arr) => [...arr, t]);
+      if (t.duration && t.duration > 0) {
+        const handle = setTimeout(() => dismiss(t.id), t.duration);
+        timersRef.current.set(t.id, handle);
+      }
+      return t.id;
+    },
+    [dismiss],
+  );
 
-  const success = useCallback((message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => push({ ...opts, kind: 'success', message }), [push]);
-  const info    = useCallback((message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => push({ ...opts, kind: 'info',    message }), [push]);
-  const warning = useCallback((message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => push({ ...opts, kind: 'warning', message }), [push]);
-  const error   = useCallback((message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) => push({ ...opts, kind: 'error',   message }), [push]);
+  const success = useCallback(
+    (message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) =>
+      push({ ...opts, kind: 'success', message }),
+    [push],
+  );
+  const info = useCallback(
+    (message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) =>
+      push({ ...opts, kind: 'info', message }),
+    [push],
+  );
+  const warning = useCallback(
+    (message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) =>
+      push({ ...opts, kind: 'warning', message }),
+    [push],
+  );
+  const error = useCallback(
+    (message: string, opts?: Omit<Toast, 'id' | 'kind' | 'message'>) =>
+      push({ ...opts, kind: 'error', message }),
+    [push],
+  );
 
   // Cleanup all timers on unmount.
   useEffect(() => {
@@ -97,12 +125,40 @@ function ToastViewport({ toasts, dismiss }: { toasts: Toast[]; dismiss: (id: num
   );
 }
 
-const KIND_STYLES: Record<ToastKind, { iconBg: string; iconColor: string; ring: string; icon: React.ReactNode }> = {
-  success: { iconBg: 'var(--success-light)', iconColor: 'var(--success)', ring: 'var(--success)', icon: <CheckCircle2 size={18} /> },
-  info:    { iconBg: 'var(--accent-light)',  iconColor: 'var(--accent)',  ring: 'var(--accent)',  icon: <Info size={18} /> },
-  warning: { iconBg: 'var(--warning-light)', iconColor: 'var(--warning)', ring: 'var(--warning)', icon: <AlertTriangle size={18} /> },
-  error:   { iconBg: 'var(--danger-light)',  iconColor: 'var(--danger)',  ring: 'var(--danger)',  icon: <XCircle size={18} /> },
-  message: { iconBg: 'var(--accent-light)',  iconColor: 'var(--accent)',  ring: 'var(--accent)',  icon: <Megaphone size={18} /> },
+const KIND_STYLES: Record<
+  ToastKind,
+  { iconBg: string; iconColor: string; ring: string; icon: React.ReactNode }
+> = {
+  success: {
+    iconBg: 'var(--success-light)',
+    iconColor: 'var(--success)',
+    ring: 'var(--success)',
+    icon: <CheckCircle2 size={18} />,
+  },
+  info: {
+    iconBg: 'var(--accent-light)',
+    iconColor: 'var(--accent)',
+    ring: 'var(--accent)',
+    icon: <Info size={18} />,
+  },
+  warning: {
+    iconBg: 'var(--warning-light)',
+    iconColor: 'var(--warning)',
+    ring: 'var(--warning)',
+    icon: <AlertTriangle size={18} />,
+  },
+  error: {
+    iconBg: 'var(--danger-light)',
+    iconColor: 'var(--danger)',
+    ring: 'var(--danger)',
+    icon: <XCircle size={18} />,
+  },
+  message: {
+    iconBg: 'var(--accent-light)',
+    iconColor: 'var(--accent)',
+    ring: 'var(--accent)',
+    icon: <Megaphone size={18} />,
+  },
 };
 
 function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
@@ -122,12 +178,21 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       {/* Left accent rail */}
       <div className="absolute left-0 top-0 bottom-0 w-1" style={{ background: s.ring }} />
       <div className="flex items-start gap-3 p-3.5 pl-4">
-        <div className="mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.iconBg, color: s.iconColor }}>
+        <div
+          className="mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: s.iconBg, color: s.iconColor }}
+        >
           {s.icon}
         </div>
         <div className="flex-1 min-w-0 pt-px">
-          {toast.title && <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">{toast.title}</div>}
-          <div className={`text-[13px] leading-snug break-words whitespace-pre-wrap ${toast.title ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}>
+          {toast.title && (
+            <div className="text-[13px] font-semibold text-[var(--text-primary)] mb-0.5">
+              {toast.title}
+            </div>
+          )}
+          <div
+            className={`text-[13px] leading-snug break-words whitespace-pre-wrap ${toast.title ? 'text-[var(--text-secondary)]' : 'text-[var(--text-primary)]'}`}
+          >
             {toast.message}
           </div>
         </div>

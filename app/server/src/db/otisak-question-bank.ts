@@ -72,13 +72,7 @@ export interface UpdateOtisakQuestionBankQuestionInput {
 }
 
 function normalizeTags(tags: string[]): string[] {
-  return Array.from(
-    new Set(
-      tags
-        .map((tag) => tag.trim())
-        .filter(Boolean)
-    )
-  );
+  return Array.from(new Set(tags.map((tag) => tag.trim()).filter(Boolean)));
 }
 
 async function getAnswersForQuestionIds(questionIds: string[]) {
@@ -91,7 +85,7 @@ async function getAnswersForQuestionIds(questionIds: string[]) {
      FROM otisak_question_bank_answers
      WHERE question_id = ANY($1::uuid[])
      ORDER BY position ASC, id ASC`,
-    [questionIds]
+    [questionIds],
   );
 
   const byQuestionId = new Map<string, OtisakQuestionBankAnswer[]>();
@@ -104,13 +98,16 @@ async function getAnswersForQuestionIds(questionIds: string[]) {
   return byQuestionId;
 }
 
-export async function getManageableOtisakSubjects(userId: string, isAdmin: boolean): Promise<ManageableOtisakSubject[]> {
+export async function getManageableOtisakSubjects(
+  userId: string,
+  isAdmin: boolean,
+): Promise<ManageableOtisakSubject[]> {
   if (isAdmin) {
     const result = await query<ManageableOtisakSubject>(
       `SELECT s.id, s.name, s.code, s.description, NULL::text as assignment_role,
               (SELECT COUNT(*)::int FROM otisak_question_bank q WHERE q.subject_id = s.id) AS question_count
        FROM otisak_subjects s
-       ORDER BY s.name ASC`
+       ORDER BY s.name ASC`,
     );
     return result.rows;
   }
@@ -122,7 +119,7 @@ export async function getManageableOtisakSubjects(userId: string, isAdmin: boole
      JOIN otisak_subjects s ON s.id = sa.subject_id
      WHERE sa.user_id = $1
      ORDER BY s.name ASC`,
-    [userId]
+    [userId],
   );
   return result.rows;
 }
@@ -139,7 +136,12 @@ export async function getOtisakQuestionBankQuestions(params: {
   tag?: string;
   limit?: number;
   offset?: number;
-}): Promise<{ questions: OtisakQuestionBankQuestion[]; total: number; limit: number; offset: number }> {
+}): Promise<{
+  questions: OtisakQuestionBankQuestion[];
+  total: number;
+  limit: number;
+  offset: number;
+}> {
   const values: unknown[] = [params.subjectId];
   const conditions = ['q.subject_id = $1'];
 
@@ -171,7 +173,7 @@ export async function getOtisakQuestionBankQuestions(params: {
     `SELECT COUNT(*)::text as total
      FROM otisak_question_bank q
      WHERE ${conditions.join(' AND ')}`,
-    values
+    values,
   );
 
   const total = Number(countResult.rows[0]?.total || 0);
@@ -217,7 +219,7 @@ export async function getOtisakQuestionBankQuestions(params: {
      ORDER BY q.updated_at DESC
      LIMIT $${limitIndex}
      OFFSET $${offsetIndex}`,
-    selectValues
+    selectValues,
   );
 
   const questionIds = questionRows.rows.map((row) => row.id);
@@ -249,7 +251,9 @@ export async function getOtisakQuestionBankQuestions(params: {
   };
 }
 
-export async function getOtisakQuestionBankQuestionById(questionId: string): Promise<OtisakQuestionBankQuestion | null> {
+export async function getOtisakQuestionBankQuestionById(
+  questionId: string,
+): Promise<OtisakQuestionBankQuestion | null> {
   const result = await query<{
     id: string;
     subject_id: string;
@@ -285,7 +289,7 @@ export async function getOtisakQuestionBankQuestionById(questionId: string): Pro
      JOIN otisak_subjects s ON s.id = q.subject_id
      WHERE q.id = $1
      LIMIT 1`,
-    [questionId]
+    [questionId],
   );
 
   const row = result.rows[0];
@@ -316,7 +320,7 @@ export async function getOtisakQuestionBankQuestionById(questionId: string): Pro
 
 export async function createOtisakQuestionBankQuestion(
   input: CreateOtisakQuestionBankQuestionInput,
-  actorUserId: string
+  actorUserId: string,
 ): Promise<OtisakQuestionBankQuestion> {
   input = { ...input, image_url: await internDataUrl(input.image_url, actorUserId) };
   return transaction(async (client) => {
@@ -361,7 +365,7 @@ export async function createOtisakQuestionBankQuestion(
         input.image_url || null,
         input.ai_grading_instructions || null,
         actorUserId,
-      ]
+      ],
     );
 
     const question = questionResult.rows[0];
@@ -373,14 +377,14 @@ export async function createOtisakQuestionBankQuestion(
         `INSERT INTO otisak_question_bank_answers (question_id, text, is_correct, position)
          VALUES ($1, $2, $3, $4)
          RETURNING id, question_id, text, is_correct, position`,
-        [question.id, answer.text, answer.is_correct, answer.position ?? i]
+        [question.id, answer.text, answer.is_correct, answer.position ?? i],
       );
       answers.push(answerResult.rows[0]);
     }
 
     const subjectResult = await client.query<{ name: string; code: string | null }>(
       'SELECT name, code FROM otisak_subjects WHERE id = $1 LIMIT 1',
-      [question.subject_id]
+      [question.subject_id],
     );
 
     return {
@@ -406,13 +410,13 @@ export async function createOtisakQuestionBankQuestion(
 export async function updateOtisakQuestionBankQuestion(
   questionId: string,
   input: UpdateOtisakQuestionBankQuestionInput,
-  actorUserId: string
+  actorUserId: string,
 ): Promise<OtisakQuestionBankQuestion | null> {
   input = { ...input, image_url: await internDataUrl(input.image_url, actorUserId) };
   return transaction(async (client) => {
     const existing = await client.query<{ id: string }>(
       'SELECT id FROM otisak_question_bank WHERE id = $1 LIMIT 1',
-      [questionId]
+      [questionId],
     );
 
     if (!existing.rows[0]) {
@@ -447,20 +451,19 @@ export async function updateOtisakQuestionBankQuestion(
         input.image_url || null,
         input.ai_grading_instructions || null,
         actorUserId,
-      ]
+      ],
     );
 
-    await client.query(
-      'DELETE FROM otisak_question_bank_answers WHERE question_id = $1',
-      [questionId]
-    );
+    await client.query('DELETE FROM otisak_question_bank_answers WHERE question_id = $1', [
+      questionId,
+    ]);
 
     for (let i = 0; i < input.answers.length; i++) {
       const answer = input.answers[i];
       await client.query(
         `INSERT INTO otisak_question_bank_answers (question_id, text, is_correct, position)
          VALUES ($1, $2, $3, $4)`,
-        [questionId, answer.text, answer.is_correct, answer.position ?? i]
+        [questionId, answer.text, answer.is_correct, answer.position ?? i],
       );
     }
 
@@ -498,7 +501,7 @@ export async function updateOtisakQuestionBankQuestion(
        JOIN otisak_subjects s ON s.id = q.subject_id
        WHERE q.id = $1
        LIMIT 1`,
-      [questionId]
+      [questionId],
     );
 
     const row = updated.rows[0];
@@ -511,7 +514,7 @@ export async function updateOtisakQuestionBankQuestion(
        FROM otisak_question_bank_answers
        WHERE question_id = $1
        ORDER BY position ASC, id ASC`,
-      [questionId]
+      [questionId],
     );
 
     return {
@@ -535,10 +538,7 @@ export async function updateOtisakQuestionBankQuestion(
 }
 
 export async function deleteOtisakQuestionBankQuestion(questionId: string): Promise<boolean> {
-  const result = await query(
-    'DELETE FROM otisak_question_bank WHERE id = $1',
-    [questionId]
-  );
+  const result = await query('DELETE FROM otisak_question_bank WHERE id = $1', [questionId]);
   return (result.rowCount || 0) > 0;
 }
 
@@ -562,7 +562,7 @@ export async function bulkDeleteOtisakQuestionBankQuestions(params: {
 
   const result = await query(
     `DELETE FROM otisak_question_bank WHERE ${conditions.join(' AND ')}`,
-    values
+    values,
   );
   return result.rowCount || 0;
 }
@@ -629,7 +629,7 @@ export async function exportOtisakQuestionBankQuestions(params: {
      JOIN otisak_subjects s ON s.id = q.subject_id
      WHERE ${conditions.join(' AND ')}
      ORDER BY q.updated_at DESC`,
-    values
+    values,
   );
 
   const questionIds = questionRows.rows.map((row) => row.id);

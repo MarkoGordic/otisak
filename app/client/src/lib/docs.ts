@@ -15,7 +15,7 @@ const RAW_FILES = import.meta.glob<string>('../../../docs/**/*.md', {
 
 const IMAGE_FILES = import.meta.glob<string>(
   '../../../docs/**/*.{png,jpg,jpeg,gif,svg,webp,avif}',
-  { query: '?url', import: 'default', eager: true }
+  { query: '?url', import: 'default', eager: true },
 );
 
 export type DocsLanguage = 'sr' | 'en';
@@ -35,7 +35,16 @@ export type DocsPage = {
 // so admins/assistants read it the way the system is meant to be used (subjects
 // first, then users, then exams, then practice, then running tests). The JSON
 // reference goes last: it's looked up, not read through.
-const FILE_ORDER = ['README', 'subjects', 'users', 'exams', 'practice', 'running-tests', 'json-format', 'ai-konverzija'];
+const FILE_ORDER = [
+  'README',
+  'subjects',
+  'users',
+  'exams',
+  'practice',
+  'running-tests',
+  'json-format',
+  'ai-konverzija',
+];
 
 // Fallback titles used when a doc has no first H1.
 const FALLBACK_TITLE: Record<string, { sr: string; en: string }> = {
@@ -96,17 +105,15 @@ function buildPages(): DocsPage[] {
 const ALL_PAGES = buildPages();
 
 export function getPages(language: DocsLanguage): DocsPage[] {
-  return ALL_PAGES
-    .filter((p) => p.language === language)
-    .sort((a, b) => {
-      const ai = FILE_ORDER.indexOf(a.fileName);
-      const bi = FILE_ORDER.indexOf(b.fileName);
-      // Anything not in FILE_ORDER gets pushed to the end, alphabetically.
-      const aRank = ai === -1 ? FILE_ORDER.length : ai;
-      const bRank = bi === -1 ? FILE_ORDER.length : bi;
-      if (aRank !== bRank) return aRank - bRank;
-      return a.fileName.localeCompare(b.fileName);
-    });
+  return ALL_PAGES.filter((p) => p.language === language).sort((a, b) => {
+    const ai = FILE_ORDER.indexOf(a.fileName);
+    const bi = FILE_ORDER.indexOf(b.fileName);
+    // Anything not in FILE_ORDER gets pushed to the end, alphabetically.
+    const aRank = ai === -1 ? FILE_ORDER.length : ai;
+    const bRank = bi === -1 ? FILE_ORDER.length : bi;
+    if (aRank !== bRank) return aRank - bRank;
+    return a.fileName.localeCompare(b.fileName);
+  });
 }
 
 export function findPage(language: DocsLanguage, slug: string): DocsPage | undefined {
@@ -138,7 +145,10 @@ export function resolveImage(page: DocsPage, src: string): string | null {
   const segments: string[] = [...startFolder];
   for (const part of trimmed.split('/')) {
     if (part === '' || part === '.') continue;
-    if (part === '..') { segments.pop(); continue; }
+    if (part === '..') {
+      segments.pop();
+      continue;
+    }
     segments.push(part);
   }
   const literalKey = segments.join('/');

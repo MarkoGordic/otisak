@@ -32,20 +32,35 @@ export default function LoginPage() {
     const elpisErr = params.get('elpis_error');
     if (elpisErr) {
       const known = ['not_linked', 'denied', 'state', 'code', 'exchange', 'disabled'];
-      setError(t(known.includes(elpisErr) ? `login.elpis.error.${elpisErr}` : 'login.elpis.error.generic'));
+      setError(
+        t(known.includes(elpisErr) ? `login.elpis.error.${elpisErr}` : 'login.elpis.error.generic'),
+      );
     }
 
     let alive = true;
     fetch('/api/auth/elpis/status', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive && d?.enabled) setElpisEnabled(true); })
-      .catch(() => { /* feature stays hidden on any error */ });
+      .then((d) => {
+        if (alive && d?.enabled) setElpisEnabled(true);
+      })
+      .catch(() => {
+        /* feature stays hidden on any error */
+      });
     // When LDAP is enabled it is the default login (staff + students use IPA credentials).
     fetch('/api/auth/ldap/status', { credentials: 'include' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (alive && d?.enabled) { setLdapEnabled(true); setMode('ldap'); } })
-      .catch(() => { /* feature stays hidden on any error */ });
-    return () => { alive = false; };
+      .then((d) => {
+        if (alive && d?.enabled) {
+          setLdapEnabled(true);
+          setMode('ldap');
+        }
+      })
+      .catch(() => {
+        /* feature stays hidden on any error */
+      });
+    return () => {
+      alive = false;
+    };
   }, [t]);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -71,7 +86,11 @@ export default function LoginPage() {
       const role = data?.user?.role;
       // Admin/assistant land on the dedicated admin home; everyone else
       // (legacy student logins, future roles) goes to the student dashboard.
-      navigate(role === 'admin' || role === 'assistant' || role === 'professor' ? '/admin/home' : '/dashboard');
+      navigate(
+        role === 'admin' || role === 'assistant' || role === 'professor'
+          ? '/admin/home'
+          : '/dashboard',
+      );
     } catch {
       setError(t('login.error.network'));
     } finally {
@@ -99,27 +118,34 @@ export default function LoginPage() {
       {/* Theme & Language toggles */}
       <ToggleCluster variant="glass" position="fixed" />
 
-
       <div className="w-full max-w-[420px] relative z-10">
         {/* Logo */}
         <div className="text-center mb-8">
           <OtisakLogo className="w-16 h-16 sm:w-20 sm:h-20 mx-auto drop-shadow-[0_0_15px_rgba(59,130,246,0.4)] mb-5" />
-          <h1 className={`text-4xl font-light tracking-[0.15em] ${isDark ? 'text-white drop-shadow-lg' : 'text-slate-900'}`}>
+          <h1
+            className={`text-4xl font-light tracking-[0.15em] ${isDark ? 'text-white drop-shadow-lg' : 'text-slate-900'}`}
+          >
             OTISAK
           </h1>
-          <span className={`block text-xs mt-2 tracking-[0.4em] uppercase font-medium ${isDark ? 'text-blue-400/80' : 'text-blue-600/70'}`}>
+          <span
+            className={`block text-xs mt-2 tracking-[0.4em] uppercase font-medium ${isDark ? 'text-blue-400/80' : 'text-blue-600/70'}`}
+          >
             v 2.0
           </span>
         </div>
 
         {/* Login Card */}
-        <div className={`backdrop-blur-xl rounded-2xl border p-7 sm:p-8 ${isDark ? 'bg-[#0d1117]/80 border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.3)]' : 'bg-white/95 border-slate-200 shadow-[0_8px_40px_rgba(15,23,42,0.08)]'}`}>
+        <div
+          className={`backdrop-blur-xl rounded-2xl border p-7 sm:p-8 ${isDark ? 'bg-[#0d1117]/80 border-white/10 shadow-[0_0_60px_rgba(0,0,0,0.3)]' : 'bg-white/95 border-slate-200 shadow-[0_8px_40px_rgba(15,23,42,0.08)]'}`}
+        >
           <h2 className={`text-lg font-medium mb-6 ${isDark ? 'text-white' : 'text-slate-900'}`}>
             {t('login.title')}
           </h2>
 
           {error && (
-            <div className={`flex items-center gap-2 p-3 mb-4 rounded-lg text-sm border ${isDark ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-red-50 border-red-200 text-red-700'}`}>
+            <div
+              className={`flex items-center gap-2 p-3 mb-4 rounded-lg text-sm border ${isDark ? 'bg-red-500/10 border-red-500/20 text-red-400' : 'bg-red-50 border-red-200 text-red-700'}`}
+            >
               <AlertCircle size={16} />
               {error}
             </div>
@@ -128,7 +154,10 @@ export default function LoginPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {mode === 'ldap' ? (
               <div>
-                <label htmlFor="username" className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}>
+                <label
+                  htmlFor="username"
+                  className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}
+                >
                   {t('login.ldap.username')}
                 </label>
                 <input
@@ -147,7 +176,10 @@ export default function LoginPage() {
               </div>
             ) : (
               <div>
-                <label htmlFor="email" className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}>
+                <label
+                  htmlFor="email"
+                  className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}
+                >
                   {t('login.email')}
                 </label>
                 <input
@@ -164,7 +196,10 @@ export default function LoginPage() {
             )}
 
             <div>
-              <label htmlFor="password" className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}>
+              <label
+                htmlFor="password"
+                className={`block text-sm font-medium mb-1.5 ${isDark ? 'text-gray-400' : 'text-slate-700'}`}
+              >
                 {t('login.password')}
               </label>
               <div className="relative">
@@ -207,7 +242,10 @@ export default function LoginPage() {
           {ldapEnabled && (
             <button
               type="button"
-              onClick={() => { setMode(mode === 'ldap' ? 'local' : 'ldap'); setError(''); }}
+              onClick={() => {
+                setMode(mode === 'ldap' ? 'local' : 'ldap');
+                setError('');
+              }}
               className={`mt-4 w-full text-center text-xs transition-colors ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-slate-400 hover:text-slate-700'}`}
             >
               {mode === 'ldap' ? t('login.ldap.useLocal') : t('login.ldap.useFtn')}
@@ -218,7 +256,9 @@ export default function LoginPage() {
             <>
               <div className="flex items-center gap-3 my-5">
                 <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
-                <span className={`text-[11px] uppercase tracking-widest ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+                <span
+                  className={`text-[11px] uppercase tracking-widest ${isDark ? 'text-gray-500' : 'text-slate-400'}`}
+                >
                   {t('login.elpis.or')}
                 </span>
                 <div className={`flex-1 h-px ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
@@ -231,13 +271,19 @@ export default function LoginPage() {
                     : 'bg-white border-slate-200 text-slate-900 hover:border-slate-300 hover:shadow-sm'
                 }`}
               >
-                <Fingerprint size={18} className={isDark ? 'text-blue-400' : 'text-blue-600'} strokeWidth={1.75} />
+                <Fingerprint
+                  size={18}
+                  className={isDark ? 'text-blue-400' : 'text-blue-600'}
+                  strokeWidth={1.75}
+                />
                 {t('login.elpis.continue')}
               </a>
             </>
           )}
 
-          <p className={`mt-5 text-[11px] leading-relaxed text-center ${isDark ? 'text-gray-500' : 'text-slate-400'}`}>
+          <p
+            className={`mt-5 text-[11px] leading-relaxed text-center ${isDark ? 'text-gray-500' : 'text-slate-400'}`}
+          >
             {t('login.disclaimer')}
           </p>
         </div>

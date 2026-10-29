@@ -2,11 +2,7 @@ import { createHmac, timingSafeEqual as safeEqual } from 'crypto';
 
 export function base64Url(input: Buffer | string) {
   const buffer = typeof input === 'string' ? Buffer.from(input) : input;
-  return buffer
-    .toString('base64')
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/, '');
+  return buffer.toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 export function signValue(value: string, secret: string) {

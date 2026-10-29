@@ -103,7 +103,11 @@ export function useExamTimer({
   };
 }
 
-export function formatTimer({ hours, minutes, seconds }: Pick<ExamTimerState, 'hours' | 'minutes' | 'seconds'>): string {
+export function formatTimer({
+  hours,
+  minutes,
+  seconds,
+}: Pick<ExamTimerState, 'hours' | 'minutes' | 'seconds'>): string {
   const pad = (n: number) => n.toString().padStart(2, '0');
   return hours > 0 ? `${hours}:${pad(minutes)}:${pad(seconds)}` : `${pad(minutes)}:${pad(seconds)}`;
 }

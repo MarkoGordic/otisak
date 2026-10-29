@@ -23,7 +23,7 @@ import type {
 export async function generateQuestionsFromBank(
   examId: string,
   subjectId: string,
-  tagRules: OtisakExamTagRule[]
+  tagRules: OtisakExamTagRule[],
 ): Promise<OtisakQuestionWithAnswers[]> {
   const generatedQuestions: OtisakQuestionWithAnswers[] = [];
   const usedBankQuestionIds = new Set<string>();
@@ -35,8 +35,12 @@ export async function generateQuestionsFromBank(
     const isWildcard = rule.tag === '*';
 
     const bankQuestions = await query<{
-      id: string; type: string; text: string;
-      code_snippet: string | null; code_language: string | null; image_url: string | null;
+      id: string;
+      type: string;
+      text: string;
+      code_snippet: string | null;
+      code_language: string | null;
+      image_url: string | null;
     }>(
       `SELECT id, type, text, code_snippet, code_language, image_url
        FROM otisak_question_bank
@@ -46,8 +50,12 @@ export async function generateQuestionsFromBank(
        ORDER BY RANDOM()
        LIMIT $${isWildcard ? 2 : 3}`,
       isWildcard
-        ? (excludeIds.length > 0 ? [subjectId, extraFactor, excludeIds] : [subjectId, extraFactor])
-        : (excludeIds.length > 0 ? [subjectId, rule.tag, extraFactor, excludeIds] : [subjectId, rule.tag, extraFactor])
+        ? excludeIds.length > 0
+          ? [subjectId, extraFactor, excludeIds]
+          : [subjectId, extraFactor]
+        : excludeIds.length > 0
+          ? [subjectId, rule.tag, extraFactor, excludeIds]
+          : [subjectId, rule.tag, extraFactor],
     );
 
     let picked = 0;
@@ -67,14 +75,14 @@ export async function generateQuestionsFromBank(
       const qResult = await query<OtisakQuestion>(
         `INSERT INTO otisak_questions (exam_id, type, text, content, points, position, bank_question_id)
          VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [examId, bq.type, bq.text, content, rule.points_per_question, position, bq.id]
+        [examId, bq.type, bq.text, content, rule.points_per_question, position, bq.id],
       );
       const question = qResult.rows[0];
 
       const bankAnswers = await query<{ text: string; is_correct: boolean; position: number }>(
         `SELECT text, is_correct, position FROM otisak_question_bank_answers
          WHERE question_id = $1 ORDER BY position ASC`,
-        [bq.id]
+        [bq.id],
       );
 
       const answers: OtisakAnswer[] = [];
@@ -82,7 +90,7 @@ export async function generateQuestionsFromBank(
         const aResult = await query<OtisakAnswer>(
           `INSERT INTO otisak_answers (question_id, text, is_correct, position)
            VALUES ($1, $2, $3, $4) RETURNING *`,
-          [question.id, ba.text, ba.is_correct, ba.position]
+          [question.id, ba.text, ba.is_correct, ba.position],
         );
         answers.push(aResult.rows[0]);
       }
@@ -94,7 +102,7 @@ export async function generateQuestionsFromBank(
 
 export async function copyQuestionsFromTemplate(
   templateExamId: string,
-  childExamId: string
+  childExamId: string,
 ): Promise<OtisakQuestionWithAnswers[]> {
   const templateQuestions = await getOtisakQuestions(templateExamId);
   const copiedQuestions: OtisakQuestionWithAnswers[] = [];
@@ -108,9 +116,16 @@ export async function copyQuestionsFromTemplate(
          (exam_id, type, text, content, points, position, multi_answer, explanation, ai_grading_instructions)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
       [
-        childExamId, tq.type, tq.text, tq.content, tq.points, tq.position,
-        tq.multi_answer, tq.explanation, tq.ai_grading_instructions,
-      ]
+        childExamId,
+        tq.type,
+        tq.text,
+        tq.content,
+        tq.points,
+        tq.position,
+        tq.multi_answer,
+        tq.explanation,
+        tq.ai_grading_instructions,
+      ],
     );
     const question = qResult.rows[0];
 
@@ -119,7 +134,7 @@ export async function copyQuestionsFromTemplate(
       const aResult = await query<OtisakAnswer>(
         `INSERT INTO otisak_answers (question_id, text, is_correct, position)
          VALUES ($1, $2, $3, $4) RETURNING *`,
-        [question.id, ta.text, ta.is_correct, ta.position]
+        [question.id, ta.text, ta.is_correct, ta.position],
       );
       answers.push(aResult.rows[0]);
     }
@@ -135,7 +150,7 @@ export async function copyQuestionsFromTemplate(
 export async function createPracticeInstance(
   templateExamId: string,
   userId: string,
-  meta?: { ip_address?: string; user_agent?: string }
+  meta?: { ip_address?: string; user_agent?: string },
 ): Promise<{ exam: OtisakExam; attempt: OtisakAttempt; questions: OtisakQuestionWithAnswers[] }> {
   const template = await getOtisakExamById(templateExamId);
   if (!template) throw new Error('Template exam not found');
@@ -155,13 +170,25 @@ export async function createPracticeInstance(
     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'practice', 'active', $11, TRUE, FALSE, $12, $13, $14, $15, $16, $17, $18)
     RETURNING *`,
     [
-      template.title, template.subject_id, template.description, template.duration_minutes,
-      true, template.shuffle_questions, template.shuffle_answers, template.pass_threshold,
+      template.title,
+      template.subject_id,
+      template.description,
+      template.duration_minutes,
+      true,
+      template.shuffle_questions,
+      template.shuffle_answers,
+      template.pass_threshold,
       template.has_pass_threshold,
-      template.created_by, templateExamId,
-      template.negative_points_enabled, template.negative_points_value, template.negative_points_threshold,
-      template.partial_scoring, template.allow_notes, template.allow_calculator, template.tags ?? [],
-    ]
+      template.created_by,
+      templateExamId,
+      template.negative_points_enabled,
+      template.negative_points_value,
+      template.negative_points_threshold,
+      template.partial_scoring,
+      template.allow_notes,
+      template.allow_calculator,
+      template.tags ?? [],
+    ],
   );
   const childExam = childResult.rows[0];
 

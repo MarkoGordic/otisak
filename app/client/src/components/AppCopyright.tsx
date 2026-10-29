@@ -1,5 +1,3 @@
-
-
 import { Heart } from 'lucide-react';
 import { useLang } from './LangProvider';
 

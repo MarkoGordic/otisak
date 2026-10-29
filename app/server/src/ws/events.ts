@@ -48,7 +48,7 @@ async function isUserAllowedOnExam(examId: string, userId: string, role: string)
      ) OR EXISTS (
        SELECT 1 FROM exam_requests WHERE exam_id = $1 AND user_id = $2 AND status = 'pending'
      ) AS ok`,
-    [examId, userId]
+    [examId, userId],
   );
   return !!result.rows[0]?.ok;
 }
@@ -89,7 +89,11 @@ export function broadcastExamEvent(examId: string, event: { type: string; [k: st
 
 // Push to every socket of a single user within one exam (a student may have more
 // than one tab open). Used for assistant->one-student direct messages.
-export function broadcastToExamUser(examId: string, userId: string, event: { type: string; [k: string]: unknown }) {
+export function broadcastToExamUser(
+  examId: string,
+  userId: string,
+  event: { type: string; [k: string]: unknown },
+) {
   const subscribers = examSubscriptions.get(examId);
   if (!subscribers) return;
   const message = JSON.stringify(event);
@@ -122,7 +126,11 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
         return;
       }
       ws.isAlive = false;
-      try { ws.ping(); } catch { /* socket already broken */ }
+      try {
+        ws.ping();
+      } catch {
+        /* socket already broken */
+      }
     });
   }, HEARTBEAT_MS);
 
@@ -131,7 +139,9 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
   wss.on('connection', async (rawWs, req) => {
     const ws = rawWs as Heartbeatable;
     ws.isAlive = true;
-    ws.on('pong', () => { ws.isAlive = true; });
+    ws.on('pong', () => {
+      ws.isAlive = true;
+    });
 
     try {
       const cookies = parseCookies(req.headers.cookie);
@@ -162,7 +172,12 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
         try {
           const data = JSON.parse(raw.toString());
 
-          if (data.type === 'events' && data.attempt_id && data.exam_id && Array.isArray(data.events)) {
+          if (
+            data.type === 'events' &&
+            data.attempt_id &&
+            data.exam_id &&
+            Array.isArray(data.events)
+          ) {
             await logEvents(data.attempt_id, user.id, data.exam_id, data.events);
 
             // Broadcast to admin room subscribers
@@ -228,7 +243,10 @@ export function setupWebSocket(server: http.Server): WebSocketServer {
             }
             const stillAdmin = Array.from(subs).some((other) => {
               const meta = wsUserMap.get(other);
-              return meta && (meta.role === 'admin' || meta.role === 'assistant' || meta.role === 'professor');
+              return (
+                meta &&
+                (meta.role === 'admin' || meta.role === 'assistant' || meta.role === 'professor')
+              );
             });
             if (!stillAdmin) unmarkExamMonitored(examId);
           }

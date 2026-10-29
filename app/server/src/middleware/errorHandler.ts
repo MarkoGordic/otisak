@@ -16,7 +16,11 @@ function toAppError(err: unknown): AppError {
   // Body parsers reject an oversized body before any handler runs. Without
   // this it would surface as an opaque 500.
   if (e?.type === 'entity.too.large') {
-    return new AppError('Request body too large', { statusCode: 413, code: 'PAYLOAD_TOO_LARGE', expose: true });
+    return new AppError('Request body too large', {
+      statusCode: 413,
+      code: 'PAYLOAD_TOO_LARGE',
+      expose: true,
+    });
   }
   if (e?.code === '23505') {
     return new ConflictError('Resource already exists', 'DUPLICATE');
@@ -30,12 +34,7 @@ function toAppError(err: unknown): AppError {
 // parameters so Express treats it as error-handling middleware. Assigns an
 // error id, records the error through the reportError sink, and returns a safe
 // JSON body the client can correlate by requestId/errorId.
-export function errorHandler(
-  err: unknown,
-  req: Request,
-  res: Response,
-  _next: NextFunction,
-): void {
+export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction): void {
   const appErr = toAppError(err);
   const errorId = randomUUID();
 

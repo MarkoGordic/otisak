@@ -57,7 +57,14 @@ export interface OtisakExamWithSubject extends OtisakExam {
   question_count: number;
 }
 
-export type OtisakQuestionType = 'text' | 'code' | 'image' | 'open_text' | 'ordering' | 'matching' | 'fill_blank';
+export type OtisakQuestionType =
+  | 'text'
+  | 'code'
+  | 'image'
+  | 'open_text'
+  | 'ordering'
+  | 'matching'
+  | 'fill_blank';
 
 export interface OtisakQuestion {
   id: string;

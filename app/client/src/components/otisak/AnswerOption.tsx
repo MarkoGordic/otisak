@@ -1,4 +1,3 @@
-
 import { Check } from 'lucide-react';
 import { useTheme } from '../ThemeProvider';
 
@@ -43,10 +42,18 @@ export function AnswerOption({
   else if (isRight) bgClass = isDark ? 'bg-green-900/20' : 'bg-green-50';
   else if (isWrong) bgClass = isDark ? 'bg-red-900/20' : 'bg-red-50';
 
-  const labelChipBase = selected ? 'bg-blue-600 text-white' : isDark ? 'bg-[#2a2d3d] text-gray-400' : 'bg-slate-100 text-slate-500';
+  const labelChipBase = selected
+    ? 'bg-blue-600 text-white'
+    : isDark
+      ? 'bg-[#2a2d3d] text-gray-400'
+      : 'bg-slate-100 text-slate-500';
   const textColor = selected
-    ? (isDark ? 'text-white' : 'text-blue-900')
-    : (isDark ? 'text-gray-300' : 'text-slate-700');
+    ? isDark
+      ? 'text-white'
+      : 'text-blue-900'
+    : isDark
+      ? 'text-gray-300'
+      : 'text-slate-700';
 
   return (
     <button
@@ -76,9 +83,7 @@ export function AnswerOption({
         )}
       </div>
 
-      <span className={`text-xs sm:text-sm ${textColor}`}>
-        {text}
-      </span>
+      <span className={`text-xs sm:text-sm ${textColor}`}>{text}</span>
     </button>
   );
 }

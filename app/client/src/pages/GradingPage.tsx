@@ -38,7 +38,8 @@ type GradingData = {
 
 type Filter = 'pending' | 'graded' | 'all';
 
-const itemKey = (it: Pick<GradingItem, 'attempt_id' | 'question_id'>) => `${it.attempt_id}:${it.question_id}`;
+const itemKey = (it: Pick<GradingItem, 'attempt_id' | 'question_id'>) =>
+  `${it.attempt_id}:${it.question_id}`;
 
 // Manual grading of open-text answers for one exam. Answers are grouped by
 // question so the grader reads one question's answers in a row; the header
@@ -62,18 +63,38 @@ export default function GradingPage() {
     (async () => {
       try {
         const sres = await fetch('/api/auth/session', { credentials: 'include' });
-        if (!sres.ok) { navigate('/login', { replace: true }); return; }
+        if (!sres.ok) {
+          navigate('/login', { replace: true });
+          return;
+        }
         const sdata = await sres.json();
-        if (!sdata.authenticated || (sdata.user?.role !== 'admin' && sdata.user?.role !== 'assistant' && sdata.user?.role !== 'professor')) {
+        if (
+          !sdata.authenticated ||
+          (sdata.user?.role !== 'admin' &&
+            sdata.user?.role !== 'assistant' &&
+            sdata.user?.role !== 'professor')
+        ) {
           navigate('/dashboard', { replace: true });
           return;
         }
-        if (!cancelled) setMe({ id: sdata.user.id, name: sdata.user.name, role: sdata.user.role, avatar_url: sdata.user.avatar_url });
+        if (!cancelled)
+          setMe({
+            id: sdata.user.id,
+            name: sdata.user.name,
+            role: sdata.user.role,
+            avatar_url: sdata.user.avatar_url,
+          });
 
         const res = await fetch(`/api/otisak/exams/${examId}/grading`, { credentials: 'include' });
         if (cancelled) return;
         if (!res.ok) {
-          setError(res.status === 403 ? t('grading.forbidden') : res.status === 404 ? t('grading.notFound') : t('grading.loadFailed'));
+          setError(
+            res.status === 403
+              ? t('grading.forbidden')
+              : res.status === 404
+                ? t('grading.notFound')
+                : t('grading.loadFailed'),
+          );
           return;
         }
         setData(await res.json());
@@ -83,7 +104,9 @@ export default function GradingPage() {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [examId, navigate, t]);
 
   const items = data?.items ?? [];
@@ -92,8 +115,8 @@ export default function GradingPage() {
 
   // Filtered answers grouped by question, in exam order.
   const groups = useMemo(() => {
-    const visible = items.filter((i) =>
-      filter === 'all' || i.status === filter || keepVisible.has(itemKey(i)),
+    const visible = items.filter(
+      (i) => filter === 'all' || i.status === filter || keepVisible.has(itemKey(i)),
     );
     const byQuestion = new Map<string, { question: GradingItem; answers: GradingItem[] }>();
     for (const it of visible) {
@@ -110,10 +133,13 @@ export default function GradingPage() {
   };
 
   const onGraded = (updated: GradingItem) => {
-    setData((prev) => prev && {
-      ...prev,
-      items: prev.items.map((i) => (itemKey(i) === itemKey(updated) ? updated : i)),
-    });
+    setData(
+      (prev) =>
+        prev && {
+          ...prev,
+          items: prev.items.map((i) => (itemKey(i) === itemKey(updated) ? updated : i)),
+        },
+    );
     setKeepVisible((prev) => new Set(prev).add(itemKey(updated)));
   };
 
@@ -150,7 +176,8 @@ export default function GradingPage() {
                 {data?.exam.title || t('grading.title')}
               </h1>
               <div className="text-xs text-[var(--text-muted)] truncate">
-                {t('grading.title')}{data?.exam.subject_name ? <> &middot; {data.exam.subject_name}</> : null}
+                {t('grading.title')}
+                {data?.exam.subject_name ? <> &middot; {data.exam.subject_name}</> : null}
               </div>
             </div>
             {items.length > 0 && (
@@ -159,7 +186,10 @@ export default function GradingPage() {
                   {t('grading.progress', { graded: gradedCount, total: items.length })}
                 </div>
                 <div className="w-40 h-1.5 mt-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-                  <div className="h-full bg-success transition-all" style={{ width: `${progress}%` }} />
+                  <div
+                    className="h-full bg-success transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
               </div>
             )}
@@ -168,9 +198,17 @@ export default function GradingPage() {
 
         <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6">
           {error ? (
-            <EmptyState icon={<ClipboardCheck size={32} strokeWidth={1.5} />} title={error} description={t('grading.loadFailed')} />
+            <EmptyState
+              icon={<ClipboardCheck size={32} strokeWidth={1.5} />}
+              title={error}
+              description={t('grading.loadFailed')}
+            />
           ) : items.length === 0 ? (
-            <EmptyState icon={<ClipboardCheck size={32} strokeWidth={1.5} />} title={t('grading.empty')} description={t('grading.emptyDesc')} />
+            <EmptyState
+              icon={<ClipboardCheck size={32} strokeWidth={1.5} />}
+              title={t('grading.empty')}
+              description={t('grading.emptyDesc')}
+            />
           ) : (
             <>
               {/* Mobile progress (the header one is hidden on small screens) */}
@@ -179,7 +217,10 @@ export default function GradingPage() {
                   {t('grading.progress', { graded: gradedCount, total: items.length })}
                 </div>
                 <div className="w-full h-1.5 mt-1.5 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-                  <div className="h-full bg-success transition-all" style={{ width: `${progress}%` }} />
+                  <div
+                    className="h-full bg-success transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
                 </div>
               </div>
 
@@ -204,23 +245,37 @@ export default function GradingPage() {
               ) : (
                 <div className="space-y-8">
                   {groups.map(({ question, answers }) => {
-                    const left = items.filter((i) => i.question_id === question.question_id && i.status === 'pending').length;
+                    const left = items.filter(
+                      (i) => i.question_id === question.question_id && i.status === 'pending',
+                    ).length;
                     return (
                       <section key={question.question_id}>
                         <div className="rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 mb-3">
                           <div className="flex items-center gap-2 mb-2 flex-wrap">
-                            <Badge variant="neutral" size="sm">{t('grading.maxPoints', { points: question.max_points })}</Badge>
-                            {left > 0
-                              ? <Badge variant="warning" size="sm">{t('grading.leftForQuestion', { count: left })}</Badge>
-                              : <Badge variant="success" size="sm">{t('grading.questionDone')}</Badge>}
+                            <Badge variant="neutral" size="sm">
+                              {t('grading.maxPoints', { points: question.max_points })}
+                            </Badge>
+                            {left > 0 ? (
+                              <Badge variant="warning" size="sm">
+                                {t('grading.leftForQuestion', { count: left })}
+                              </Badge>
+                            ) : (
+                              <Badge variant="success" size="sm">
+                                {t('grading.questionDone')}
+                              </Badge>
+                            )}
                           </div>
-                          <p className="text-sm text-[var(--text-primary)] whitespace-pre-wrap">{question.question_text}</p>
+                          <p className="text-sm text-[var(--text-primary)] whitespace-pre-wrap">
+                            {question.question_text}
+                          </p>
                           {question.grading_instructions && (
                             <div className="mt-3 flex gap-2 rounded-lg bg-[var(--bg-tertiary)] px-3 py-2 text-xs text-[var(--text-secondary)]">
                               <Info size={14} className="flex-shrink-0 mt-0.5" />
                               <div>
                                 <span className="font-semibold">{t('grading.instructions')}: </span>
-                                <span className="whitespace-pre-wrap">{question.grading_instructions}</span>
+                                <span className="whitespace-pre-wrap">
+                                  {question.grading_instructions}
+                                </span>
                               </div>
                             </div>
                           )}
@@ -228,7 +283,13 @@ export default function GradingPage() {
 
                         <div className="space-y-3 sm:pl-4">
                           {answers.map((it) => (
-                            <GradeCard key={itemKey(it)} examId={examId!} item={it} graderName={me.name ?? null} onGraded={onGraded} />
+                            <GradeCard
+                              key={itemKey(it)}
+                              examId={examId!}
+                              item={it}
+                              graderName={me.name ?? null}
+                              onGraded={onGraded}
+                            />
                           ))}
                         </div>
                       </section>
@@ -244,7 +305,12 @@ export default function GradingPage() {
   );
 }
 
-function GradeCard({ examId, item, graderName, onGraded }: {
+function GradeCard({
+  examId,
+  item,
+  graderName,
+  onGraded,
+}: {
   examId: string;
   item: GradingItem;
   graderName: string | null;
@@ -258,8 +324,12 @@ function GradeCard({ examId, item, graderName, onGraded }: {
 
   const graded = item.status === 'graded';
   const parsed = Number(points.replace(',', '.'));
-  const valid = points.trim() !== '' && Number.isFinite(parsed) && parsed >= 0 && parsed <= item.max_points;
-  const dirty = !graded || parsed !== item.points_awarded || (feedback.trim() || null) !== (item.feedback || null);
+  const valid =
+    points.trim() !== '' && Number.isFinite(parsed) && parsed >= 0 && parsed <= item.max_points;
+  const dirty =
+    !graded ||
+    parsed !== item.points_awarded ||
+    (feedback.trim() || null) !== (item.feedback || null);
 
   const save = async () => {
     if (!valid) return;
@@ -269,7 +339,12 @@ function GradeCard({ examId, item, graderName, onGraded }: {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attempt_id: item.attempt_id, question_id: item.question_id, points: parsed, feedback }),
+        body: JSON.stringify({
+          attempt_id: item.attempt_id,
+          question_id: item.question_id,
+          points: parsed,
+          feedback,
+        }),
       });
       if (!res.ok) {
         const d = await res.json().catch(() => ({}));
@@ -293,15 +368,27 @@ function GradeCard({ examId, item, graderName, onGraded }: {
   };
 
   return (
-    <div className={`rounded-xl border p-4 bg-[var(--bg-elevated)] ${graded ? 'border-[var(--border-default)]' : 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]'}`}>
+    <div
+      className={`rounded-xl border p-4 bg-[var(--bg-elevated)] ${graded ? 'border-[var(--border-default)]' : 'border-[color-mix(in_srgb,var(--warning)_40%,transparent)]'}`}
+    >
       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
         <div className="min-w-0">
-          <span className="text-sm font-medium text-[var(--text-primary)]">{item.student_name || item.student_email}</span>
-          {item.student_index && <span className="ml-2 text-xs text-[var(--text-muted)]">{item.student_index}</span>}
+          <span className="text-sm font-medium text-[var(--text-primary)]">
+            {item.student_name || item.student_email}
+          </span>
+          {item.student_index && (
+            <span className="ml-2 text-xs text-[var(--text-muted)]">{item.student_index}</span>
+          )}
         </div>
-        {graded
-          ? <Badge variant="success" size="sm">{t('grading.gradedBadge', { points: item.points_awarded, max: item.max_points })}</Badge>
-          : <Badge variant="warning" size="sm">{t('grading.pendingBadge')}</Badge>}
+        {graded ? (
+          <Badge variant="success" size="sm">
+            {t('grading.gradedBadge', { points: item.points_awarded, max: item.max_points })}
+          </Badge>
+        ) : (
+          <Badge variant="warning" size="sm">
+            {t('grading.pendingBadge')}
+          </Badge>
+        )}
       </div>
 
       <div className="rounded-lg bg-[var(--bg-tertiary)] px-3 py-2.5 text-sm text-[var(--text-primary)] whitespace-pre-wrap break-words mb-3">
@@ -318,7 +405,9 @@ function GradeCard({ examId, item, graderName, onGraded }: {
             step="any"
             value={points}
             onChange={(e) => setPoints(e.target.value)}
-            onKeyDown={(e) => { if (e.key === 'Enter') save(); }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') save();
+            }}
             aria-label={t('grading.points')}
             placeholder={t('grading.points')}
             className="w-20 h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-primary)] tabular-nums focus:outline-none focus:border-accent"

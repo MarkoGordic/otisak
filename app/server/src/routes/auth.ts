@@ -1,8 +1,20 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import { findUserByEmail, findUserById, updateLastLogin, createUser, updateUserPasswordHash } from '../db/users';
-import { createSessionCookie, isSessionRevoked, parseSessionCookie, SESSION_COOKIE, DEFAULT_TTL_MS } from '../session';
+import {
+  findUserByEmail,
+  findUserById,
+  updateLastLogin,
+  createUser,
+  updateUserPasswordHash,
+} from '../db/users';
+import {
+  createSessionCookie,
+  isSessionRevoked,
+  parseSessionCookie,
+  SESSION_COOKIE,
+  DEFAULT_TTL_MS,
+} from '../session';
 import { requireAuth, requireRole } from '../middleware';
 
 const router = Router();
@@ -140,70 +152,80 @@ const passwordChangeLimiter = rateLimit({
   message: { error: 'Too many password change attempts. Try again in 15 minutes.' },
 });
 
-router.patch('/password', passwordChangeLimiter, requireAuth, async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { current_password, new_password } = req.body || {};
-    if (typeof current_password !== 'string' || typeof new_password !== 'string') {
-      return res.status(400).json({ error: 'current_password and new_password are required' });
-    }
-    if (new_password.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
-    if (new_password === current_password) {
-      return res.status(400).json({ error: 'New password must differ from the current one' });
-    }
+router.patch(
+  '/password',
+  passwordChangeLimiter,
+  requireAuth,
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { current_password, new_password } = req.body || {};
+      if (typeof current_password !== 'string' || typeof new_password !== 'string') {
+        return res.status(400).json({ error: 'current_password and new_password are required' });
+      }
+      if (new_password.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
+      if (new_password === current_password) {
+        return res.status(400).json({ error: 'New password must differ from the current one' });
+      }
 
-    // Re-fetch the user so we get the full row including password_hash. The
-    // session middleware only attaches the user identity, not the hash.
-    const fresh = await findUserById(req.user!.id);
-    if (!fresh) return res.status(404).json({ error: 'User not found' });
+      // Re-fetch the user so we get the full row including password_hash. The
+      // session middleware only attaches the user identity, not the hash.
+      const fresh = await findUserById(req.user!.id);
+      if (!fresh) return res.status(404).json({ error: 'User not found' });
 
-    const valid = await bcrypt.compare(current_password, fresh.password_hash);
-    if (!valid) return res.status(400).json({ error: 'Current password is wrong' });
+      const valid = await bcrypt.compare(current_password, fresh.password_hash);
+      if (!valid) return res.status(400).json({ error: 'Current password is wrong' });
 
-    const hash = await bcrypt.hash(new_password, 10);
-    await updateUserPasswordHash(fresh.id, hash);
-    return res.json({ success: true });
-  } catch (error) {
-    return next(error);
-  }
-});
+      const hash = await bcrypt.hash(new_password, 10);
+      await updateUserPasswordHash(fresh.id, hash);
+      return res.json({ success: true });
+    } catch (error) {
+      return next(error);
+    }
+  },
+);
 
 // POST /auth/register - admin only
-router.post('/register', requireAuth, requireRole(['admin']), async (req: Request, res: Response, next: NextFunction) => {
-  try {
-    const { email, password, name, role, index_number } = req.body;
+router.post(
+  '/register',
+  requireAuth,
+  requireRole(['admin']),
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { email, password, name, role, index_number } = req.body;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password are required' });
+      if (!email || !password) {
+        return res.status(400).json({ error: 'Email and password are required' });
+      }
+
+      const existing = await findUserByEmail(email);
+      if (existing) {
+        return res.status(409).json({ error: 'User with this email already exists' });
+      }
+
+      const password_hash = await bcrypt.hash(password, 12);
+      const user = await createUser({
+        email,
+        password_hash,
+        name,
+        role: role || 'student',
+        index_number,
+      });
+
+      return res.json({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          role: user.role,
+          index_number: user.index_number,
+        },
+      });
+    } catch (error) {
+      return next(error);
     }
-
-    const existing = await findUserByEmail(email);
-    if (existing) {
-      return res.status(409).json({ error: 'User with this email already exists' });
-    }
-
-    const password_hash = await bcrypt.hash(password, 12);
-    const user = await createUser({
-      email,
-      password_hash,
-      name,
-      role: role || 'student',
-      index_number,
-    });
-
-    return res.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        index_number: user.index_number,
-      },
-    });
-  } catch (error) {
-    return next(error);
-  }
-});
+  },
+);
 
 export default router;

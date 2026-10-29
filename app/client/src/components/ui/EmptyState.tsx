@@ -21,9 +21,7 @@ export function EmptyState({
       <h3 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-2">
         {title}
       </h3>
-      <p className="text-sm text-[var(--text-secondary)] max-w-sm mb-6">
-        {description}
-      </p>
+      <p className="text-sm text-[var(--text-secondary)] max-w-sm mb-6">{description}</p>
       {actionLabel && onAction && (
         <button
           onClick={onAction}

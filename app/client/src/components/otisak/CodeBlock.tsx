@@ -13,9 +13,12 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
   const [hljs, setHljs] = useState<any>(hljsCache);
 
   useEffect(() => {
-    if (hljsCache) { setHljs(hljsCache); return; }
+    if (hljsCache) {
+      setHljs(hljsCache);
+      return;
+    }
     // Slim curated build (core + common languages) loaded as one on-demand chunk.
-    import('../../lib/hljs').then(mod => {
+    import('../../lib/hljs').then((mod) => {
       hljsCache = mod.default;
       setHljs(mod.default);
     });
@@ -44,7 +47,9 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
   return (
     <div className="w-full bg-[#1e1e2e] rounded-lg overflow-hidden border border-gray-700/50 my-4 sm:my-6 shadow-lg">
       <div className="flex items-center justify-between px-3 sm:px-4 py-2 bg-[#181825] border-b border-gray-700/30">
-        <span className="text-[10px] sm:text-xs text-gray-500 font-mono uppercase tracking-wider">{detectedLang}</span>
+        <span className="text-[10px] sm:text-xs text-gray-500 font-mono uppercase tracking-wider">
+          {detectedLang}
+        </span>
         <div className="flex gap-1.5">
           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-red-500/60" />
           <div className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full bg-yellow-500/60" />
