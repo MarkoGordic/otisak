@@ -5,7 +5,7 @@ Two languages:
 - 🇷🇸 **Srpski (latinica)** → [`sr/`](sr/README.md)
 - 🇬🇧 **English** → [`en/`](en/README.md)
 
-Each language has six topic pages:
+Each language has the same six topic pages:
 
 1. Managing exams (`exams.md`)
 2. Practice exams (`practice.md`)
@@ -14,7 +14,9 @@ Each language has six topic pages:
 5. Managing subjects (`subjects.md`)
 6. Exam JSON format (`json-format.md`)
 
-In the running app, the same content lives at [`/docs`](../README.md#documentation) with a language switcher.
+Serbian also has a seventh page, `ai-konverzija.md`: a prompt to hand an AI assistant so it converts existing questions into an importable file.
+
+In the running app, the same content lives at `/docs` with a language switcher.
 
 Images live in `assets/` and can be referenced from any doc with a relative path:
 

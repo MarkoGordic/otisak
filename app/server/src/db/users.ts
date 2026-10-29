@@ -54,7 +54,7 @@ export async function findUserByElpisId(sub: string): Promise<User | null> {
 }
 
 // Which user (if any) currently owns this ELPIS ID link, regardless of active
-// state — used to reject linking a `sub` that is already taken by someone else.
+// state - used to reject linking a `sub` that is already taken by someone else.
 export async function findUserIdByElpisId(sub: string): Promise<string | null> {
   if (!sub) return null;
   const result = await query<{ id: string }>('SELECT id FROM users WHERE elpis_id = $1 LIMIT 1', [
@@ -165,10 +165,10 @@ export async function createUser(data: {
   name?: string;
   role?: string;
   index_number?: string;
-  // Optional pre-linked ELPIS ID (OIDC `sub`) — set when an account is
+  // Optional pre-linked ELPIS ID (OIDC `sub`) - set when an account is
   // provisioned from the ELPIS main platform's federation endpoint.
   elpis_id?: string;
-  // Optional pre-linked FreeIPA/LDAP login (uid) — set when an account is
+  // Optional pre-linked FreeIPA/LDAP login (uid) - set when an account is
   // provisioned on first LDAP login.
   ldap_uid?: string;
 }): Promise<User> {
@@ -191,14 +191,6 @@ export async function createUser(data: {
 // --- FreeIPA / LDAP account linking -----------------------------------------
 // users.ldap_uid is the IPA login (uid). Unlike ELPIS ID, LDAP login auto-provisions: on first
 // sign-in we create (or link, by email) an OTISAK account, so the whole IPA directory can log in.
-
-export async function findUserByLdapUid(uid: string): Promise<User | null> {
-  const result = await query<User>(
-    'SELECT * FROM users WHERE ldap_uid = $1 AND is_active = TRUE LIMIT 1',
-    [uid],
-  );
-  return result.rows[0] || null;
-}
 
 // Returns the account for an authenticated LDAP user, or null if a matching account exists but is
 // deactivated (the caller must then refuse the login - we do NOT silently reactivate a blocked user).

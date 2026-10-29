@@ -10,12 +10,12 @@ import { verifyServiceToken } from '../lib/elpisServiceToken';
 import { terminateUserSockets } from '../ws/events';
 
 // ---------------------------------------------------------------------------
-// Cross-app "Person 360" federation endpoints — the write side lets the ELPIS
+// Cross-app "Person 360" federation endpoints - the write side lets the ELPIS
 // main platform provision / link / unlink otisak accounts by ELPIS ID; the read
 // side exposes a metadata-only summary for the 360 aggregator. All are guarded
 // by an ELPIS ID `client_credentials` SERVICE token (scope=client), never a
 // user session. The target user is always the `:elpisId` path / body value (the
-// OIDC `sub`) — never the token `sub` (which is the caller's client_id).
+// OIDC `sub`) - never the token `sub` (which is the caller's client_id).
 //
 // This router is only mounted when isElpisConfigured() is true.
 // ---------------------------------------------------------------------------
@@ -59,12 +59,12 @@ function requireServiceToken(opts: { requireAllowedClient?: boolean } = {}) {
 type LinkRow = { id: string; email: string; role: string; is_active: boolean };
 
 // --- Push webhooks from ELPIS ID ----------------------------------------------
-// POST /integration/events — HMAC-signed events (NOT service-token guarded; the
+// POST /integration/events - HMAC-signed events (NOT service-token guarded; the
 // signature over the raw request bytes IS the authentication). Dormant (404)
 // unless ELPIS_ID_WEBHOOK_SECRET is set. Handlers are idempotent, do their small
 // DB write inline, and always 2xx on unknown users/events so the sender's retry
 // queue drains. is_active is never flipped from here: local-password logins
-// coexist with ELPIS ID state by design — revocation is a session cutoff only.
+// coexist with ELPIS ID state by design - revocation is a session cutoff only.
 
 const WEBHOOK_MAX_SKEW_S = 300; // reject deliveries older/newer than 5 min
 
@@ -173,7 +173,7 @@ router.post('/events', async (req: Request, res: Response, next: NextFunction) =
         return res.json({ ok: true });
       default:
         // user.enabled / app_access.granted / grant.revoked / future events:
-        // no local action in otisak — acknowledge so the sender does not retry.
+        // no local action in otisak - acknowledge so the sender does not retry.
         return res.json({ ok: true, ignored: true });
     }
   } catch (error) {
@@ -186,7 +186,7 @@ router.post('/events', async (req: Request, res: Response, next: NextFunction) =
 // elpis_id. Order: (1) sub already linked → no-op; (2) email matches an existing
 // unlinked otisak user → link it; (3) otherwise create a new OAuth-only account
 // (random unusable password). This is provisioning by a trusted admin platform,
-// NOT login — so linking an existing account by email here is intentional.
+// NOT login - so linking an existing account by email here is intentional.
 router.post(
   '/users',
   requireServiceToken({ requireAllowedClient: true }),
@@ -237,7 +237,7 @@ router.post(
       }
 
       // (3) Create a new pre-linked, OAuth-only account. password_hash is NOT NULL,
-      // so we store a random unusable hash — these accounts sign in via ELPIS ID.
+      // so we store a random unusable hash - these accounts sign in via ELPIS ID.
       const emailToUse = normEmail || `${sub}@elpis.local`;
       const password_hash = await bcrypt.hash(base64Url(randomBytes(24)), 10);
       try {
@@ -267,7 +267,7 @@ router.post(
   },
 );
 
-// DELETE /integration/users/:elpisId/link — detach the ELPIS ID from whichever
+// DELETE /integration/users/:elpisId/link - detach the ELPIS ID from whichever
 // otisak account holds it (the local account itself is left intact).
 router.delete(
   '/users/:elpisId/link',
@@ -286,7 +286,7 @@ router.delete(
   },
 );
 
-// GET /integration/users/:elpisId/summary — Person 360 metadata (counts only,
+// GET /integration/users/:elpisId/summary - Person 360 metadata (counts only,
 // NEVER exam content). Shape matches the morava/elpis-stage federation contract
 // so it drops straight into the elpis aggregator.
 router.get(

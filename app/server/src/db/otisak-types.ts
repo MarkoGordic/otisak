@@ -249,18 +249,3 @@ export interface OtisakExamResults {
     ai_feedback: string | null;
   }>;
 }
-
-export type AiProvider = 'claude' | 'openai';
-export type AiGradingMode = 'immediate' | 'deferred';
-
-export interface OtisakExamAiSettings {
-  id: string;
-  exam_id: string;
-  ai_provider: AiProvider;
-  api_key_encrypted: string | null;
-  grading_mode: AiGradingMode;
-  allow_student_api_keys: boolean;
-  max_student_credits: number;
-  created_at: Date;
-  updated_at: Date;
-}

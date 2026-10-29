@@ -3,6 +3,7 @@ import {
   getOtisakQuestionBankQuestions,
   createOtisakQuestionBankQuestion,
   deleteOtisakQuestionBankQuestion,
+  type OtisakQuestionBankType,
 } from '../db/otisak-question-bank';
 import { isSubjectManageableByUser } from '../db/auth-helpers';
 import { query } from '../db/client';
@@ -25,7 +26,7 @@ router.get('/', async (req: Request, res: Response) => {
     const result = await getOtisakQuestionBankQuestions({
       subjectId: subject_id as string,
       search: search as string | undefined,
-      type: type as any,
+      type: type as OtisakQuestionBankType | undefined,
       tag: tag as string | undefined,
       limit: limit ? Number(limit) : undefined,
       offset: offset ? Number(offset) : undefined,

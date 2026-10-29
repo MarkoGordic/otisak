@@ -2,3 +2,5 @@ dist
 node_modules
 *.tsbuildinfo
 package-lock.json
+vite.config.d.ts
+vite.config.d.ts.map

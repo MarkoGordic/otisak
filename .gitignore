@@ -8,3 +8,9 @@ dist/
 # their editor; they're build artefacts, not source.
 app/client/vite.config.d.ts
 app/client/vite.config.d.ts.map
+
+# Server-specific compose overrides (LDAP, CA mounts, ...) can carry secrets.
+docker-compose.override.yml
+
+# OS junk
+.DS_Store

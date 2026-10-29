@@ -530,18 +530,6 @@ export async function finishAttempt(
   });
 }
 
-export async function forceFinishAttemptById(attemptId: string): Promise<OtisakAttempt | null> {
-  const attemptCheck = await query<OtisakAttempt>(
-    'SELECT * FROM otisak_attempts WHERE id = $1 AND submitted = FALSE',
-    [attemptId],
-  );
-  if (!attemptCheck.rows[0]) return null;
-  const timeSpent = Math.floor(
-    (Date.now() - new Date(attemptCheck.rows[0].started_at).getTime()) / 1000,
-  );
-  return finishAttempt(attemptId, timeSpent);
-}
-
 // Seeded PRNG (mulberry32)
 function seededRandom(seed: number): () => number {
   let s = seed | 0;

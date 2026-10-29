@@ -4,7 +4,7 @@ import { logger } from './logger';
 import type { UserRole } from '../db/types';
 
 // Direct FreeIPA/LDAP authentication. We bind AS the user (uid=<login>,cn=users,...) with the
-// supplied password — a successful bind proves the credentials, no service/bind account needed.
+// supplied password - a successful bind proves the credentials, no service/bind account needed.
 // While bound, we self-read the entry (cn/mail/memberOf) to provision an OTISAK account and derive
 // the role from IPA group membership. Enable by setting LDAP_ENABLED + LDAP_URL + LDAP_BASE_DN.
 

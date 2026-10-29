@@ -8,7 +8,6 @@ import type {
   OtisakExamMode,
   OtisakExamWithSubject,
   CreateOtisakExamInput,
-  OtisakExamAiSettings,
 } from './otisak-types';
 
 // ========================================
@@ -443,48 +442,4 @@ export async function getSelfServicePracticeExams(
   sql += ' ORDER BY e.created_at DESC';
   const result = await query<OtisakExamWithSubject>(sql, params);
   return result.rows;
-}
-
-// ========================================
-// AI GRADING SETTINGS
-// ========================================
-
-export async function getExamAiSettings(examId: string): Promise<OtisakExamAiSettings | null> {
-  const result = await query<OtisakExamAiSettings>(
-    'SELECT * FROM otisak_exam_ai_settings WHERE exam_id = $1',
-    [examId],
-  );
-  return result.rows[0] || null;
-}
-
-export async function upsertExamAiSettings(
-  examId: string,
-  data: {
-    ai_provider?: string;
-    api_key_encrypted?: string;
-    grading_mode?: string;
-    allow_student_api_keys?: boolean;
-    max_student_credits?: number;
-  },
-): Promise<OtisakExamAiSettings> {
-  const result = await query<OtisakExamAiSettings>(
-    `INSERT INTO otisak_exam_ai_settings (exam_id, ai_provider, api_key_encrypted, grading_mode, allow_student_api_keys, max_student_credits)
-     VALUES ($1, $2, $3, $4, $5, $6)
-     ON CONFLICT (exam_id) DO UPDATE SET
-       ai_provider = COALESCE($2, otisak_exam_ai_settings.ai_provider),
-       api_key_encrypted = COALESCE($3, otisak_exam_ai_settings.api_key_encrypted),
-       grading_mode = COALESCE($4, otisak_exam_ai_settings.grading_mode),
-       allow_student_api_keys = COALESCE($5, otisak_exam_ai_settings.allow_student_api_keys),
-       max_student_credits = COALESCE($6, otisak_exam_ai_settings.max_student_credits)
-     RETURNING *`,
-    [
-      examId,
-      data.ai_provider || 'claude',
-      data.api_key_encrypted || null,
-      data.grading_mode || 'deferred',
-      data.allow_student_api_keys ?? false,
-      data.max_student_credits ?? 0,
-    ],
-  );
-  return result.rows[0];
 }

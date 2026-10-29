@@ -233,7 +233,7 @@ export async function buildPrintableExamHTML(
       // For fill_blank the prompt itself carries the blanks, so it doubles as the body.
       const head = q.type === 'fill_blank' ? renderFillBlankText(q.text) : escapeHtml(q.text);
 
-      let body = '';
+      let body: string;
       if (q.type === 'open_text') body = renderOpenText(points);
       else if (q.type === 'ordering') body = renderOrdering(q, S.orderingHint);
       else if (q.type === 'matching') body = renderMatching(q, S.matchingHint);

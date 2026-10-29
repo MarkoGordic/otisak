@@ -601,7 +601,7 @@ function ReviewQuestion({
                 className={`rounded-lg border px-3 py-2 text-sm ${ok ? goodRow : badRow}`}
               >
                 <span className="font-mono mr-2">{i + 1}.</span>
-                {studentItem ?? '—'}
+                {studentItem ?? '-'}
                 {!ok && (
                   <span className="block text-[11px] mt-0.5 opacity-70">
                     {t('results.correctAnswerLabel')}: {correctItem}
@@ -628,7 +628,7 @@ function ReviewQuestion({
               key={i}
               className={`rounded-lg border px-3 py-2 text-sm ${student === undefined ? neutralRow : ok ? goodRow : badRow}`}
             >
-              {l} <span className="opacity-60">&#8594;</span> {student ?? '—'}
+              {l} <span className="opacity-60">&#8594;</span> {student ?? '-'}
               {!ok && (
                 <span className="block text-[11px] mt-0.5 opacity-70">
                   {t('results.correctAnswerLabel')}: {right[i]}
@@ -658,7 +658,7 @@ function ReviewQuestion({
               key={i}
               className={`inline-flex items-baseline gap-1 mx-1 px-2 py-0.5 rounded border text-xs font-medium ${ok ? goodRow : badRow}`}
             >
-              {student || '—'}
+              {student || '-'}
               {!ok && <span className="opacity-70">({correct})</span>}
             </span>
           );

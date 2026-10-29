@@ -11,7 +11,7 @@ import { getSetting } from './db/settings';
 //   - the /integration/* federation endpoints are not mounted.
 //
 // This keeps otisak's core universal and infra-agnostic: no ELPIS/gordic.rs
-// specifics live in committed code — only in env. Every existing deployment
+// specifics live in committed code - only in env. Every existing deployment
 // that ships zero ELPIS_ID_* vars behaves exactly as it did before.
 // ---------------------------------------------------------------------------
 

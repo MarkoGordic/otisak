@@ -60,20 +60,6 @@ export async function getActivityLog(attemptId: string): Promise<ActivityLogEntr
   return result.rows;
 }
 
-export async function getActivityLogForExam(
-  examId: string,
-  userId: string,
-): Promise<ActivityLogEntry[]> {
-  const result = await query<ActivityLogEntry>(
-    `SELECT al.* FROM exam_activity_log al
-     JOIN otisak_attempts a ON al.attempt_id = a.id
-     WHERE a.exam_id = $1 AND a.user_id = $2
-     ORDER BY al.timestamp ASC`,
-    [examId, userId],
-  );
-  return result.rows;
-}
-
 // Replace ID-shaped fields in event_data with the actual content (question text / answer text)
 // so reports are human-readable. Falls back to "(deleted)" when an id no longer resolves.
 export async function enrichActivityEventData(

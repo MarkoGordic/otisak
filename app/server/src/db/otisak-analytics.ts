@@ -54,20 +54,6 @@ export async function getExamAttemptsSummary(examId: string): Promise<
   }>;
 }
 
-export async function getTagCountsForSubject(
-  subjectId: string,
-): Promise<Array<{ tag: string; count: number }>> {
-  const result = await query<{ tag: string; count: number }>(
-    `SELECT tag, COUNT(*)::int as count
-     FROM otisak_question_bank, unnest(tags) as tag
-     WHERE subject_id = $1
-     GROUP BY tag
-     ORDER BY tag ASC`,
-    [subjectId],
-  );
-  return result.rows;
-}
-
 export async function getExamRoomStatus(examId: string): Promise<{
   exam: OtisakExamWithSubject | null;
   participants: Array<{

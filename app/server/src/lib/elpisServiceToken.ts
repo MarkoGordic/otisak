@@ -9,7 +9,7 @@ import { getElpisConfig } from '../elpisId';
 // and stays CommonJS-safe.
 //
 // Deliberately hand-rolled but narrow: only RS256 is accepted and the key is
-// always an RSA public key from the JWKS — there is no path where an attacker
+// always an RSA public key from the JWKS - there is no path where an attacker
 // could downgrade to HS256 and have a public key treated as an HMAC secret.
 // ---------------------------------------------------------------------------
 

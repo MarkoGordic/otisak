@@ -5,7 +5,7 @@ import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
 
 // Catch-all page for unknown routes. Without this, an unmatched path (e.g. a
-// stale link or a bad redirect) renders nothing at all — a blank screen.
+// stale link or a bad redirect) renders nothing at all - a blank screen.
 export default function NotFoundPage() {
   const navigate = useNavigate();
   const { theme } = useTheme();

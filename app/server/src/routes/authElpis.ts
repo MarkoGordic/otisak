@@ -13,9 +13,9 @@ import {
 } from '../db/users';
 
 // ---------------------------------------------------------------------------
-// "Continue with ELPIS ID" — OAuth 2.0 Authorization Code + PKCE against the
+// "Continue with ELPIS ID" - OAuth 2.0 Authorization Code + PKCE against the
 // ELPIS ID provider. Link-only: an ELPIS ID account (`sub`) that isn't already
-// linked to an otisak user is refused — never auto-created, never matched by
+// linked to an otisak user is refused - never auto-created, never matched by
 // email. On success we mint the SAME signed-cookie session that local login
 // uses (createSessionCookie), so ELPIS ID and local logins coexist and nobody
 // is logged out when the feature is toggled on/off.
@@ -49,7 +49,7 @@ type UserInfo = {
   picture?: string;
 };
 
-// Only allow redirecting back to a local, absolute path — never an absolute URL
+// Only allow redirecting back to a local, absolute path - never an absolute URL
 // or protocol-relative target (open-redirect guard).
 function safeReturnTo(raw: unknown): string {
   if (typeof raw !== 'string') return '';
@@ -115,7 +115,7 @@ function buildAuthorizeUrl(
 
 // Exchange the authorization code for tokens (confidential client:
 // client_secret_post) and fetch the user's identity from /oauth/userinfo. We
-// trust the server-to-server TLS token response — no local JWT verification is
+// trust the server-to-server TLS token response - no local JWT verification is
 // needed for login because otisak mints its own session afterwards.
 async function exchangeAndFetchUser(
   cfg: ElpisConfig,
@@ -306,7 +306,7 @@ router.get(
       const sealed = unseal<OAuthState>(req.cookies?.[OAUTH_COOKIE] || '');
       clearOAuthCookie(res);
 
-      // Where to send the user afterwards — back where they started self-linking.
+      // Where to send the user afterwards - back where they started self-linking.
       const back = (sealed && sealed.returnTo) || '/dashboard';
       const withParam = (p: string) => (back.includes('?') ? `${back}&${p}` : `${back}?${p}`);
 

@@ -1,107 +1,148 @@
-# Otisak Deployment
+# Postavljanje i održavanje
 
-Otisak (Automated Test and Integrated Scoring Assessment Kernel) is **not currently deployed on `gordic.rs`**. This guide covers self-hosting the standalone exam platform.
-
-## Architecture
+Uputstvo za instalaciju OTISAK-a na sopstveni server. Ceo sistem radi u dva Docker kontejnera: aplikacija (Node.js server koji poslužuje i veb interfejs) i PostgreSQL baza.
 
 ```
-[browser] -> nginx (or any reverse proxy) -> otisak-app:3000 -> otisak-db:5432
+pregledač -> reverse proxy (nginx, Caddy, Traefik...) -> app:3001 -> db:5432
 ```
 
-Self-contained: Next.js 14 app + Postgres in one compose stack. No external auth dependency (own session management). No shared volumes.
+## Preduslovi
 
-## Quick start (local / dev)
+- Linux server (ili macOS za lokalno testiranje) sa Docker-om i Docker Compose-om
+- Git
+- Za javni pristup: domen i reverse proxy sa HTTPS sertifikatom
+
+## Prvo pokretanje
 
 ```bash
-git clone <repo>
+git clone https://github.com/MarkoGordic/otisak.git
 cd otisak
-cp .env.example .env
-# fill in: DATABASE_URL password, NEXTAUTH_SECRET, AI grading keys (if used)
-
-docker compose up --build
+./deploy.sh            # ili ./deploy.sh --port 8080
 ```
 
-App at `http://localhost:3000`. DB initialized with default admin:
-- email: `admin@otisak.local`
-- password: `admin123`
+Skripta `deploy.sh`:
 
-**Change this password before any non-local deploy.**
+1. generiše `SESSION_SECRET` u `.env` (samo pri prvom pokretanju, kasnije ga ponovo koristi),
+2. upisuje izabrani port u `.env` kao `HOST_PORT` (podrazumevano `3000`),
+3. otvara port u `ufw` firewall-u, ako postoji (preskače se sa `--no-firewall`),
+4. gradi i pokreće kontejnere i čeka da baza bude spremna,
+5. ispisuje email i lozinku administratorskog naloga kreiranog pri prvom pokretanju.
 
-## Production deploy (any server)
+Lozinka administratora se ispisuje **samo jednom**, odmah je sačuvajte. Ako je propustite:
 
 ```bash
-ssh user@server
-git clone <repo> ~/otisak
-cd ~/otisak
+docker compose logs app | grep -A3 'admin account bootstrapped'
+```
 
-# 1. Env
+Sve opcije skripte: `./deploy.sh --help`.
+
+### Bez skripte
+
+```bash
 cp .env.example .env
-chmod 600 .env
-nano .env
-# Set:
-#   DATABASE_URL=postgresql://otisak:<strong-pw>@db:5432/otisak
-#   NEXTAUTH_URL=https://otisak.example.com
-#   NEXTAUTH_SECRET=$(openssl rand -hex 32)
-#   AI_GRADING_API_KEY=...   (if using AI grading)
-
-# 2. Reverse proxy: point your nginx/Traefik/Caddy at otisak-app:3000
-#    (the app listens on 3000; map 80/443 with TLS to it).
-#    Example nginx site:
-#      proxy_pass http://127.0.0.1:3000;
-#      proxy_set_header Host $host;
-#      proxy_set_header X-Real-IP $remote_addr;
-#      proxy_set_header X-Forwarded-Proto $scheme;
-
-# 3. Start
+# u .env postavite SESSION_SECRET, npr. vrednošću iz: openssl rand -hex 32
 docker compose up -d --build
-
-# 4. Change the default admin password immediately
-#    Log in as admin@otisak.local / admin123, then go to Settings → Account.
 ```
 
-## Standard deploy (code changes)
+## Reverse proxy i HTTPS
+
+Aplikacija sluša na `HOST_PORT` na hostu. Reverse proxy treba da prosleđuje sav saobraćaj na taj port, uključujući WebSocket konekcije na putanji `/ws` (preko njih radi praćenje ispita uživo). Primer za nginx:
+
+```nginx
+location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Server podrazumevano veruje jednom proxy-ju ispred sebe. Ako ih ima više, postavite `TRUST_PROXY_HOPS` kroz `docker-compose.override.yml` (primer je u odeljku o LDAP-u).
+
+## Ažuriranje na novu verziju
 
 ```bash
 cd ~/otisak
-git pull origin main
-docker compose up -d --build app
+./deploy.sh
 ```
 
-Rebuilds only `app`. DB volume untouched.
+Skripta povlači najnoviji kod, ponovo gradi aplikaciju i restartuje je. Baza ostaje netaknuta, a izmene šeme se primenjuju automatski pri pokretanju servera.
 
-## Environment
+## Administratorska lozinka
 
-`~/otisak/.env` (mode 600). Keys:
-- `DATABASE_URL` - Postgres connection string
-- `NEXTAUTH_URL` - public URL (must match the URL users hit in browser)
-- `NEXTAUTH_SECRET` - generate with `openssl rand -hex 32`
-- `AI_GRADING_API_KEY` - optional, for the AI grading feature
-- `DEFAULT_ADMIN_EMAIL` / `DEFAULT_ADMIN_PASSWORD` - created on first DB init only
-
-## DANGER ZONE
+Promena lozinke administratora bez ponovnog pokretanja sistema (kontejneri moraju biti pokrenuti):
 
 ```bash
-docker compose down -v             # destroys all DB data (users, exams, attempts)
-docker volume rm otisak_pgdata     # same - DB only
+./deploy.sh --set-admin-password
 ```
 
-`docker compose down` keeps the volume.
+## Načini prijave
 
-## Folding into ELPIS (optional, future)
+Lokalna prijava (email i lozinka) je uvek dostupna. Pored nje mogu da se uključe dva opciona načina prijave. Sve promenljive su opisane u [`.env.example`](.env.example).
 
-If you decide to deploy alongside the other ELPIS services on `gordic.rs`:
-1. Add an entry to `~/elpis/docker-compose.yml` modeled on `studynest` (Next.js app + dedicated `elpis-otisak-db`).
-2. Build context `/home/gordic/otisak`.
-3. Volume name `elpis_otisak_db_data`.
-4. Networks: `elpis_public_net`, `elpis_private_net`.
-5. Add OAuth via elpis-id if you want SSO with the rest of the platform; otherwise keep its own auth.
-6. Add Traefik route to `~/elpis/platform/traefik/dynamic.yml` for `otisak.gordic.rs`.
+### FreeIPA / LDAP
 
-## Troubleshooting
+Kada je uključena, LDAP prijava postaje podrazumevana: zaposleni i studenti se prijavljuju korisničkim imenom (studenti brojem indeksa) i lozinkom iz direktorijuma, a OTISAK nalog se kreira automatski pri prvoj prijavi. Uloga se određuje po članstvu u grupama.
 
-| Symptom | Check |
+`docker-compose.yml` ne prosleđuje `LDAP_*` promenljive u kontejner, pa se dodaju kroz `docker-compose.override.yml` pored njega, koji Docker Compose učitava automatski:
+
+```yaml
+services:
+  app:
+    environment:
+      LDAP_ENABLED: "true"
+      LDAP_URL: ldaps://ipa.example.org:636
+      LDAP_BASE_DN: dc=example,dc=org
+      LDAP_DOMAIN: example.org
+      LDAP_CA_FILE: /etc/otisak/ipa-ca.crt
+    volumes:
+      - ./ipa-ca.crt:/etc/otisak/ipa-ca.crt:ro
+```
+
+### ELPIS ID
+
+Jedinstvena prijava preko ELPIS ID servisa (OAuth 2.0 / OIDC). Prijava radi samo za ELPIS ID naloge koji su već povezani sa OTISAK nalogom. Uključuje se kroz skriptu:
+
+```bash
+./deploy.sh --elpis-id \
+  --elpis-issuer https://auth.example.org \
+  --elpis-client-id elpis_otisak_xxxxxx \
+  --elpis-client-secret eid_xxxxxxxxxxxxxxxx
+```
+
+## Rezervne kopije
+
+```bash
+# izvoz baze
+docker compose exec -T db pg_dump -U otisak otisak > otisak-$(date +%F).sql
+
+# vraćanje u praznu bazu
+docker compose exec -T db psql -U otisak -d otisak < otisak-2026-01-31.sql
+```
+
+Slike koje se dodaju u pitanja čuvaju se u bazi, pa su obuhvaćene istom kopijom.
+
+## Opasne komande
+
+Sledeće komande **trajno brišu podatke**. Pre njih napravite rezervnu kopiju.
+
+| Komanda | Šta radi |
 |---|---|
-| App returns 500 on every request | DB schema not migrated - `docker logs otisak-app --tail 50` |
-| Default admin login rejected | Already changed, or DB volume newer than initial seed |
-| AI grading fails silently | `AI_GRADING_API_KEY` missing/invalid; check app logs |
-| Postgres won't start | Volume created with old password - see `~/elpis/DEPLOYMENT.md` "Changing database passwords" |
+| `./deploy.sh --clean` | Briše bazu i slike kontejnera i sve gradi ispočetka. Kreira se novi administrator sa novom lozinkom. |
+| `./deploy.sh --seed` | Briše sve korisnike osim administratora (zajedno sa njihovim polaganjima) i učitava demo korisnike sa lozinkom `changeme`. |
+| `docker compose down -v` | Zaustavlja sistem i briše bazu. |
+
+`docker compose down` bez `-v` zaustavlja sistem i čuva podatke.
+
+## Rešavanje problema
+
+| Problem | Šta proveriti |
+|---|---|
+| Aplikacija se ne pokreće | `docker compose logs app --tail 50`. Najčešći uzrok je `SESSION_SECRET` koji nedostaje ili je prekratak. |
+| Praćenje ispita uživo ne radi iza proxy-ja | Proxy ne prosleđuje WebSocket (`Upgrade` / `Connection` zaglavlja za `/ws`). |
+| Izgubljena lozinka administratora | `./deploy.sh --set-admin-password` |
+| LDAP prijava ne radi | Da li kontejner vidi `LDAP_*` promenljive (`docker compose exec app env \| grep LDAP`) i da li je `LDAP_URL` naziv hosta koji odgovara sertifikatu. |

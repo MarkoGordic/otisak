@@ -34,7 +34,7 @@ router.use(requireAuth, requireRole(['admin']));
 router.get('/users', async (_req: Request, res: Response) => {
   try {
     const users = await getAllUsers();
-    const sanitized = users.map(({ password_hash, ...rest }) => rest);
+    const sanitized = users.map(({ password_hash: _password_hash, ...rest }) => rest);
     return res.json({ users: sanitized });
   } catch (error) {
     console.error('Get users error:', error);
@@ -80,7 +80,7 @@ router.patch('/users', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found or no changes' });
     }
 
-    const { password_hash, ...rest } = updated;
+    const { password_hash: _password_hash, ...rest } = updated;
     return res.json({ user: rest });
   } catch (error) {
     console.error('Update user error:', error);

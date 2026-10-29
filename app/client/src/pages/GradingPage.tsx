@@ -109,7 +109,7 @@ export default function GradingPage() {
     };
   }, [examId, navigate, t]);
 
-  const items = data?.items ?? [];
+  const items = useMemo(() => data?.items ?? [], [data]);
   const pendingCount = items.filter((i) => i.status === 'pending').length;
   const gradedCount = items.length - pendingCount;
 
