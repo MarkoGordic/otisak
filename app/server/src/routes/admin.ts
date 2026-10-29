@@ -13,7 +13,15 @@ import { requireAuth, requireRole } from '../middleware';
 import { query } from '../db/client';
 import { asyncHandler } from '../lib/asyncHandler';
 import { listRecentErrors, getErrorById } from '../db/error-log';
-import { NotFoundError } from '../lib/errors';
+import { ConflictError, NotFoundError } from '../lib/errors';
+import { ldapEnabled, ldapReadAccountConfigured } from '../lib/ldap';
+import {
+  getLdapSyncStatus,
+  LdapSyncBusyError,
+  ldapSyncRunning,
+  ldapSyncSettings,
+  runLdapSync,
+} from '../lib/ldapSync';
 import {
   listSubjectAssignments,
   assignUserToSubject,
@@ -67,6 +75,17 @@ router.patch('/users', async (req: Request, res: Response) => {
         return res.status(409).json({ error: 'Email already exists' });
       }
       normalizedEmail = trimmed;
+    }
+
+    // Reactivating an account the directory sync archived (it left FreeIPA or is disabled there)
+    // detaches it from the directory, so the next sync does not archive it again. It becomes a local
+    // account: give it a password to let the user sign in.
+    if (is_active === true) {
+      await query(
+        `UPDATE users SET ldap_uid = NULL, ldap_archived_at = NULL, ldap_archived_reason = NULL
+          WHERE id = $1 AND is_active = FALSE AND ldap_archived_at IS NOT NULL`,
+        [id],
+      );
     }
 
     const updated = await updateUser(id, {
@@ -403,6 +422,36 @@ router.delete('/subjects/:subjectId/assignments/:userId', async (req: Request, r
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// GET /admin/ldap-sync - directory sync configuration and the outcome of the last run.
+router.get(
+  '/ldap-sync',
+  asyncHandler(async (_req: Request, res: Response) => {
+    return res.json({
+      enabled: ldapEnabled(),
+      read_account: ldapReadAccountConfigured(),
+      running: ldapSyncRunning(),
+      ...ldapSyncSettings(),
+      last: await getLdapSyncStatus(),
+    });
+  }),
+);
+
+// POST /admin/ldap-sync - run the directory sync now. Body: { force?: boolean }. force applies an
+// archive step that the safety limit held back (see lib/ldapSync.ts).
+router.post(
+  '/ldap-sync',
+  asyncHandler(async (req: Request, res: Response) => {
+    if (!ldapEnabled()) throw new NotFoundError('LDAP is not enabled');
+    try {
+      const status = await runLdapSync({ trigger: 'manual', force: req.body?.force === true });
+      return res.json({ status });
+    } catch (err) {
+      if (err instanceof LdapSyncBusyError) throw new ConflictError('Sync already running');
+      throw err;
+    }
+  }),
+);
 
 // GET /admin/errors - recent entries from the application error log. Supports
 // keyset pagination (?before=<iso>) and filtering by ?requestId / ?source.

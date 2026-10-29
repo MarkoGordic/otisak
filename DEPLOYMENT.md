@@ -86,7 +86,9 @@ Lokalna prijava (email i lozinka) je uvek dostupna. Pored nje mogu da se uključ
 
 ### FreeIPA / LDAP
 
-Kada je uključena, LDAP prijava postaje podrazumevana: zaposleni i studenti se prijavljuju korisničkim imenom (studenti brojem indeksa) i lozinkom iz direktorijuma, a OTISAK nalog se kreira automatski pri prvoj prijavi. Uloga se određuje po članstvu u grupama.
+Kada je uključena, LDAP prijava postaje podrazumevana: zaposleni i studenti se prijavljuju korisničkim imenom (studenti brojem indeksa) i lozinkom iz direktorijuma. Uloga se određuje po članstvu u grupama.
+
+OTISAK pri tome sinhronizuje ceo imenik: svaki IPA nalog ima nalog u OTISAK-u, a ko nestane sa IPA-e ili bude onemogućen na njoj, arhivira se (deaktivira, ne briše). Sinhronizacija se pokreće automatski na svakih `LDAP_SYNC_INTERVAL_MINUTES` minuta (podrazumevano 60) i ručno sa stranice "Korisnici". Za potpunu sinhronizaciju potreban je servisni nalog za čitanje (`LDAP_BIND_DN` i `LDAP_BIND_PASSWORD`), jer bez njega IPA ne prikazuje grupe, email adrese ni onemogućene naloge.
 
 `docker-compose.yml` ne prosleđuje `LDAP_*` promenljive u kontejner, pa se dodaju kroz `docker-compose.override.yml` pored njega, koji Docker Compose učitava automatski:
 
@@ -99,6 +101,8 @@ services:
       LDAP_BASE_DN: dc=example,dc=org
       LDAP_DOMAIN: example.org
       LDAP_CA_FILE: /etc/otisak/ipa-ca.crt
+      LDAP_BIND_DN: uid=otisak,cn=sysaccounts,cn=etc,dc=example,dc=org
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD}
     volumes:
       - ./ipa-ca.crt:/etc/otisak/ipa-ca.crt:ro
 ```

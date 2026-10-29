@@ -320,6 +320,22 @@ const steps: readonly Step[] = [
     `);
     },
   ],
+
+  [
+    '020_users_ldap_sync',
+    async () => {
+      // Directory sync (lib/ldapSync.ts). ldap_synced_at: last time the account was seen in the
+      // directory. ldap_archived_at / ldap_archived_reason: set when the sync deactivated the
+      // account because it left the directory ('removed') or was disabled there ('locked'); the
+      // sync reactivates only accounts it archived itself, never ones an admin deactivated.
+      await query(`
+      ALTER TABLE users
+      ADD COLUMN IF NOT EXISTS ldap_synced_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS ldap_archived_at TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS ldap_archived_reason TEXT
+    `);
+    },
+  ],
 ];
 
 export async function runMigrations(): Promise<void> {

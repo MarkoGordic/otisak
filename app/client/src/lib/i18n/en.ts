@@ -543,6 +543,35 @@ const en = {
   'users.active': 'Active',
   'users.inactive': 'Inactive',
   'users.statusActive': 'Account active',
+  'users.filterActive': 'Active',
+  'users.filterInactive': 'Inactive and archived',
+  'users.filterAll': 'All accounts',
+  'users.badgeIpa': 'IPA',
+  'users.badgeArchived': 'Archived',
+  'users.archivedRemoved': 'Removed from IPA on {date}',
+  'users.archivedLocked': 'Disabled in IPA on {date}',
+  'users.archivedNote':
+    'The IPA sync archived this account. Reactivating it detaches it from IPA and turns it into a local account, so set a password for it.',
+  'ldapSync.title': 'IPA sync',
+  'ldapSync.run': 'Sync now',
+  'ldapSync.running': 'Syncing...',
+  'ldapSync.never': 'The sync has not run yet.',
+  'ldapSync.lastRun': 'Last sync: {time}',
+  'ldapSync.schedule': 'automatically every {minutes} min',
+  'ldapSync.manualOnly': 'manual only',
+  'ldapSync.stats':
+    '{directory} accounts in IPA · {created} new · {updated} changed · {archived} archived · {reactivated} restored',
+  'ldapSync.conflicts':
+    '{count} accounts were not linked because of conflicting data (same email or index on two accounts).',
+  'ldapSync.failed': 'The last sync failed. Nothing was changed.',
+  'ldapSync.blocked':
+    'Archiving was held back: {count} accounts are no longer in IPA, and at most {limit} may be archived at once. If this is expected, confirm the archive.',
+  'ldapSync.confirmArchive': 'Confirm archive',
+  'ldapSync.noReadAccount':
+    'Without a read account (LDAP_BIND_DN) IPA hides groups, email addresses and disabled accounts, so roles are not updated and new accounts get the student role.',
+  'ldapSync.done': 'Sync finished.',
+  'ldapSync.busy': 'A sync is already running.',
+  'ldapSync.error': 'The sync failed.',
   'users.save': 'Save',
 
   // Exam

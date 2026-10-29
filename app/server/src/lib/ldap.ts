@@ -165,6 +165,77 @@ export async function lookupLdapStudent(rawIndex: string): Promise<LdapProfile |
   }
 }
 
+// One account as the directory sync sees it. `email` is null when the entry has no mail (or the
+// search is anonymous and FreeIPA hides it); `role` is null when group membership is not visible.
+export type LdapDirectoryEntry = {
+  uid: string;
+  name: string | null;
+  email: string | null;
+  role: UserRole | null;
+  locked: boolean;
+};
+
+export function ldapFallbackEmail(uid: string): string {
+  return DOMAIN ? `${uid}@${DOMAIN}` : `${uid}@ldap.local`;
+}
+
+export function looksLikeStudentUid(uid: string): boolean {
+  return STUDENT_UID_RE.test(uid);
+}
+
+export function ldapReadAccountConfigured(): boolean {
+  return !!(BIND_DN && BIND_PASSWORD);
+}
+
+// Every account under the users container, for the directory sync (lib/ldapSync.ts). Paged, so it
+// is not cut off by the server's size limit. Any failure throws LdapUnavailableError: the caller
+// must never mistake a partial listing for the full directory, or it would archive the missing
+// accounts.
+export async function listLdapUsers(): Promise<LdapDirectoryEntry[]> {
+  const client = new Client({
+    url: URL,
+    timeout: TIMEOUT,
+    connectTimeout: TIMEOUT,
+    tlsOptions: tlsOptions(),
+  });
+  try {
+    if (BIND_DN && BIND_PASSWORD) await client.bind(BIND_DN, BIND_PASSWORD);
+    const { searchEntries } = await client.search(USERS_BASE || `cn=users,cn=accounts,${BASE_DN}`, {
+      scope: 'one',
+      filter: '(uid=*)',
+      paged: { pageSize: 500 },
+      attributes: ['uid', 'cn', 'displayName', 'mail', 'memberOf', 'nsAccountLock'],
+    });
+    const out: LdapDirectoryEntry[] = [];
+    for (const raw of searchEntries) {
+      const e = raw as Record<string, unknown>;
+      const uid = String(first(e.uid) || '')
+        .trim()
+        .toLowerCase();
+      if (!UID_RE.test(uid)) continue;
+      const groups = groupCns(e.memberOf);
+      const mail = first(e.mail);
+      out.push({
+        uid,
+        name: first(e.displayName) || first(e.cn) || null,
+        email: mail ? String(mail).trim().toLowerCase() : null,
+        role: groups.length ? roleFor(groups) : null,
+        locked: /^true$/i.test(String(first(e.nsAccountLock) || '')),
+      });
+    }
+    return out;
+  } catch (err) {
+    logger.error({ err }, 'ldap: directory listing failed');
+    throw new LdapUnavailableError('directory service unavailable');
+  } finally {
+    try {
+      await client.unbind();
+    } catch {
+      /* ignore unbind errors */
+    }
+  }
+}
+
 // Returns the profile on valid credentials, null on bad credentials / unknown user.
 // Throws LdapUnavailableError if the directory can't be reached (so the route can 502, not 401).
 export async function authenticateLdap(

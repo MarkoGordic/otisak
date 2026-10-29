@@ -541,6 +541,35 @@ const bs: Record<I18nKey, string> = {
   'users.active': 'Активан',
   'users.inactive': 'Неактиван',
   'users.statusActive': 'Налог активан',
+  'users.filterActive': 'Активни',
+  'users.filterInactive': 'Неактивни и архивирани',
+  'users.filterAll': 'Сви налози',
+  'users.badgeIpa': 'ИПА',
+  'users.badgeArchived': 'Архивиран',
+  'users.archivedRemoved': 'Уклоњен са ИПА-е {date}',
+  'users.archivedLocked': 'Онемогућен на ИПА-и {date}',
+  'users.archivedNote':
+    'Овај налог је архивирала ИПА синхронизација. Ако га поново активирате, одваја се од ИПА-е и постаје локални налог, па му поставите лозинку.',
+  'ldapSync.title': 'Синхронизација са ИПА-ом',
+  'ldapSync.run': 'Синхронизуј сада',
+  'ldapSync.running': 'Синхронизација у току...',
+  'ldapSync.never': 'Синхронизација још није покретана.',
+  'ldapSync.lastRun': 'Посљедња синхронизација: {time}',
+  'ldapSync.schedule': 'аутоматски на сваких {minutes} мин',
+  'ldapSync.manualOnly': 'само ручно',
+  'ldapSync.stats':
+    '{directory} налога на ИПА-и · {created} нових · {updated} измијењених · {archived} архивираних · {reactivated} враћених',
+  'ldapSync.conflicts':
+    '{count} налога није повезано због сукоба података (исти email или индекс на два налога).',
+  'ldapSync.failed': 'Посљедња синхронизација није успела. Ништа није промијењено.',
+  'ldapSync.blocked':
+    'Архивирање је задржано: {count} налога више није на ИПА-и, а одједном је дозвољено највише {limit}. Ако је то очекивано, потврдите архивирање.',
+  'ldapSync.confirmArchive': 'Потврди архивирање',
+  'ldapSync.noReadAccount':
+    'Без сервисног налога (LDAP_BIND_DN) ИПА не приказује групе, email адресе ни онемогућене налоге, па се улоге не ажурирају, а нови налози добијају улогу студента.',
+  'ldapSync.done': 'Синхронизација је завршена.',
+  'ldapSync.busy': 'Синхронизација је већ у току.',
+  'ldapSync.error': 'Синхронизација није успела.',
   'users.save': 'Сачувај',
 
   // Exam page

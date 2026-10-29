@@ -545,6 +545,35 @@ const sr: Record<I18nKey, string> = {
   'users.active': 'Aktivan',
   'users.inactive': 'Neaktivan',
   'users.statusActive': 'Nalog aktivan',
+  'users.filterActive': 'Aktivni',
+  'users.filterInactive': 'Neaktivni i arhivirani',
+  'users.filterAll': 'Svi nalozi',
+  'users.badgeIpa': 'IPA',
+  'users.badgeArchived': 'Arhiviran',
+  'users.archivedRemoved': 'Uklonjen sa IPA-e {date}',
+  'users.archivedLocked': 'Onemogućen na IPA-i {date}',
+  'users.archivedNote':
+    'Ovaj nalog je arhivirala IPA sinhronizacija. Ako ga ponovo aktivirate, odvaja se od IPA-e i postaje lokalni nalog, pa mu postavite lozinku.',
+  'ldapSync.title': 'Sinhronizacija sa IPA-om',
+  'ldapSync.run': 'Sinhronizuj sada',
+  'ldapSync.running': 'Sinhronizacija u toku...',
+  'ldapSync.never': 'Sinhronizacija još nije pokretana.',
+  'ldapSync.lastRun': 'Poslednja sinhronizacija: {time}',
+  'ldapSync.schedule': 'automatski na svakih {minutes} min',
+  'ldapSync.manualOnly': 'samo ručno',
+  'ldapSync.stats':
+    '{directory} naloga na IPA-i · {created} novih · {updated} izmenjenih · {archived} arhiviranih · {reactivated} vraćenih',
+  'ldapSync.conflicts':
+    '{count} naloga nije povezano zbog sukoba podataka (isti email ili indeks na dva naloga).',
+  'ldapSync.failed': 'Poslednja sinhronizacija nije uspela. Ništa nije promenjeno.',
+  'ldapSync.blocked':
+    'Arhiviranje je zadržano: {count} naloga više nije na IPA-i, a odjednom je dozvoljeno najviše {limit}. Ako je to očekivano, potvrdite arhiviranje.',
+  'ldapSync.confirmArchive': 'Potvrdi arhiviranje',
+  'ldapSync.noReadAccount':
+    'Bez servisnog naloga (LDAP_BIND_DN) IPA ne prikazuje grupe, email adrese ni onemogućene naloge, pa se uloge ne ažuriraju, a novi nalozi dobijaju ulogu studenta.',
+  'ldapSync.done': 'Sinhronizacija je završena.',
+  'ldapSync.busy': 'Sinhronizacija je već u toku.',
+  'ldapSync.error': 'Sinhronizacija nije uspela.',
   'users.save': 'Sačuvaj',
 
   // Exam page

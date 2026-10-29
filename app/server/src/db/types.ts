@@ -15,6 +15,11 @@ export interface User {
   /** Optional FreeIPA/LDAP account link - the IPA login (uid). NULL for
    *  accounts that never signed in via LDAP. Present only when LDAP is used. */
   ldap_uid: string | null;
+  /** Directory sync bookkeeping (lib/ldapSync.ts): last time the account was seen in the
+   *  directory, and when/why the sync archived (deactivated) it. NULL when never synced/archived. */
+  ldap_synced_at: Date | null;
+  ldap_archived_at: Date | null;
+  ldap_archived_reason: 'removed' | 'locked' | null;
   /** Per-user session cutoff: signed cookies minted before this instant are
    *  refused by requireAuth. Set by remote revocation (ELPIS ID webhooks);
    *  NULL when no revocation ever happened. */

@@ -39,6 +39,23 @@ U listi postojećih korisnika, klikom na ikonicu olovke pored korisnika otvara s
 
 ![Forma za izmenu korisnika](../assets/image-9.png)
 
+## Sinhronizacija sa IPA-om
+
+Kada je uključena prijava preko FreeIPA naloga, OTISAK sam održava spisak korisnika: svako ko ima nalog na IPA-i ima nalog i u OTISAK-u, i pre nego što se prvi put prijavi. Sinhronizacija se pokreće automatski (podrazumevano jednom na sat), a može se pokrenuti i ručno dugmetom "Sinhronizuj sada" na vrhu stranice "Korisnici".
+
+Pri svakoj sinhronizaciji:
+
+- Novi nalozi sa IPA-e se dodaju. Studentima se kao broj indeksa upisuje njihovo korisničko ime.
+- Postojeći nalozi (na primer, uvezeni iz CSV-a) se povezuju sa IPA nalogom po email-u ili broju indeksa, umesto da nastane duplikat.
+- Ime, email i uloga se ažuriraju prema IPA-i. Administratori se nikada ne degradiraju automatski.
+- Ko je obrisan sa IPA-e ili onemogućen na njoj, **arhivira se**: nalog se deaktivira, ali se ne briše, pa njegovi rezultati i polaganja ostaju sačuvani. Ako se nalog kasnije vrati na IPA-u, automatski se ponovo aktivira.
+
+Nalozi sa IPA-e u listi imaju oznaku "IPA", a arhivirani oznaku "Arhiviran", uz razlog i datum. Arhivirani i deaktivirani nalozi se vide kada se u filteru statusa izabere "Neaktivni i arhivirani".
+
+Ako bi se odjednom arhivirao neuobičajeno veliki broj naloga (podrazumevano više od 10%), arhiviranje se zadržava, jer to češće znači da IPA trenutno nije dostupna nego da su ljudi zaista obrisani. Ostale izmene se ipak primenjuju, a na stranici se pojavljuje upozorenje sa dugmetom "Potvrdi arhiviranje".
+
+Ako arhiviran nalog ručno ponovo aktivirate, on se odvaja od IPA-e i postaje lokalni nalog. Takvom nalogu postavite lozinku da bi korisnik mogao da se prijavi. Nalog koji je administrator ručno deaktivirao sinhronizacija nikada ne aktivira sama.
+
 ## Promena lozinke
 
 U listi postojećih korisnika, klikom na ikonicu ključa pored korisnika otvara se forma za promenu lozinke. U ovoj formi potrebno je uneti novu lozinku koja mora imati najmanje 6 karaktera. Nakon unosa nove lozinke, klikom na dugme "Sačuvaj" lozinka će biti promenjena i korisnik će moći da se prijavi novom lozinkom.

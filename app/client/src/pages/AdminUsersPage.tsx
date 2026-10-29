@@ -11,12 +11,15 @@ import {
   Pencil,
   Key,
   User,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 import { useToast } from '../components/Toast';
+import { Badge } from '../components/ui/Badge';
 
 type UserData = {
   id: string;
@@ -25,8 +28,33 @@ type UserData = {
   role: string;
   index_number: string | null;
   is_active: boolean;
+  ldap_uid: string | null;
+  ldap_archived_at: string | null;
+  ldap_archived_reason: 'removed' | 'locked' | null;
   created_at: string;
   last_login_at: string | null;
+};
+
+type StatusFilter = 'active' | 'inactive' | 'all';
+
+type LdapSyncInfo = {
+  enabled: boolean;
+  read_account: boolean;
+  running: boolean;
+  interval_minutes: number;
+  last: {
+    finished_at: string;
+    ok: boolean;
+    stats?: {
+      directory: number;
+      created: number;
+      updated: number;
+      archived: number;
+      reactivated: number;
+      conflicts: number;
+    };
+    archive_blocked?: { count: number; limit: number };
+  } | null;
 };
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
@@ -59,6 +87,7 @@ export default function AdminUsersPage() {
   const [roleFilter, setRoleFilter] = useState<
     'all' | 'student' | 'assistant' | 'professor' | 'admin'
   >('all');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
 
@@ -269,6 +298,8 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
+            <LdapSyncPanel onSynced={loadUsers} />
+
             {importing && importProgress && (
               <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4">
                 <div className="flex items-center justify-between text-sm mb-2">
@@ -364,6 +395,18 @@ export default function AdminUsersPage() {
                   <option value="professor">{t('users.professor')}</option>
                   <option value="admin">{t('users.admin')}</option>
                 </select>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => {
+                    setStatusFilter(e.target.value as StatusFilter);
+                    setPage(1);
+                  }}
+                  className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
+                >
+                  <option value="active">{t('users.filterActive')}</option>
+                  <option value="inactive">{t('users.filterInactive')}</option>
+                  <option value="all">{t('users.filterAll')}</option>
+                </select>
               </div>
             )}
 
@@ -376,6 +419,7 @@ export default function AdminUsersPage() {
                 users={users}
                 search={search}
                 roleFilter={roleFilter}
+                statusFilter={statusFilter}
                 page={page}
                 pageSize={PAGE_SIZE}
                 onPageChange={setPage}
@@ -472,6 +516,7 @@ type UserListProps = {
   users: UserData[];
   search: string;
   roleFilter: 'all' | 'student' | 'assistant' | 'professor' | 'admin';
+  statusFilter: StatusFilter;
   page: number;
   pageSize: number;
   onPageChange: (p: number) => void;
@@ -486,6 +531,7 @@ function UserListImpl({
   users,
   search,
   roleFilter,
+  statusFilter,
   page,
   pageSize,
   onPageChange,
@@ -499,6 +545,8 @@ function UserListImpl({
     const q = search.trim().toLowerCase();
     return users.filter((u) => {
       if (roleFilter !== 'all' && u.role !== roleFilter) return false;
+      if (statusFilter === 'active' && !u.is_active) return false;
+      if (statusFilter === 'inactive' && u.is_active) return false;
       if (!q) return true;
       return (
         u.email.toLowerCase().includes(q) ||
@@ -506,7 +554,7 @@ function UserListImpl({
         (u.index_number?.toLowerCase().includes(q) ?? false)
       );
     });
-  }, [users, search, roleFilter]);
+  }, [users, search, roleFilter, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const safePage = Math.min(page, totalPages);
@@ -593,10 +641,32 @@ function UserRowImpl({
   return (
     <div className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
       <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-[var(--text-primary)] truncate">
-          {user.name || user.email}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+            {user.name || user.email}
+          </span>
+          {user.ldap_uid && <Badge variant="info">{t('users.badgeIpa')}</Badge>}
+          {!user.is_active &&
+            (user.ldap_archived_at ? (
+              <Badge variant="warning">{t('users.badgeArchived')}</Badge>
+            ) : (
+              <Badge variant="neutral">{t('users.inactive')}</Badge>
+            ))}
         </div>
-        <div className="text-[11px] text-[var(--text-muted)] truncate">{user.email}</div>
+        <div className="text-[11px] text-[var(--text-muted)] truncate">
+          {user.email}
+          {!user.is_active && user.ldap_archived_at && (
+            <>
+              {' · '}
+              {t(
+                user.ldap_archived_reason === 'locked'
+                  ? 'users.archivedLocked'
+                  : 'users.archivedRemoved',
+                { date: new Date(user.ldap_archived_at).toLocaleDateString() },
+              )}
+            </>
+          )}
+        </div>
       </div>
       <div className="w-32 text-xs text-[var(--text-muted)] font-mono truncate">
         {user.index_number || '-'}
@@ -740,6 +810,9 @@ function EditUserModal({
             />
             {t('users.statusActive')}
           </label>
+          {!user.is_active && user.ldap_archived_at && (
+            <p className="text-xs text-[var(--text-muted)]">{t('users.archivedNote')}</p>
+          )}
         </div>
         <div className="flex items-center justify-end gap-3 mt-6">
           <Button variant="secondary" onClick={onClose} disabled={saving}>
@@ -811,6 +884,108 @@ function PasswordModal({ user, onClose }: { user: UserData; onClose: () => void 
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ----- IPA directory sync -----
+// Hidden unless LDAP is enabled on the server. Shows the outcome of the last run and lets the admin
+// run it now, or confirm an archive step the server's safety limit held back.
+function LdapSyncPanel({ onSynced }: { onSynced: () => void }) {
+  const { t } = useLang();
+  const toast = useToast();
+  const [info, setInfo] = useState<LdapSyncInfo | null>(null);
+  const [syncing, setSyncing] = useState(false);
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/admin/ldap-sync', { credentials: 'include' });
+      if (res.ok) setInfo(await res.json());
+    } catch {
+      /* panel just stays hidden */
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const run = async (force: boolean) => {
+    setSyncing(true);
+    try {
+      const res = await fetch('/api/admin/ldap-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ force }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (res.status === 409) toast.error(t('ldapSync.busy'));
+      else if (!res.ok || !d.status?.ok) toast.error(t('ldapSync.error'));
+      else toast.success(t('ldapSync.done'));
+      onSynced();
+    } catch {
+      toast.error(t('ldapSync.error'));
+    } finally {
+      setSyncing(false);
+      load();
+    }
+  };
+
+  if (!info?.enabled) return null;
+  const last = info.last;
+  const busy = syncing || info.running;
+
+  return (
+    <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-sm">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-medium text-[var(--text-primary)]">{t('ldapSync.title')}</div>
+          <div className="text-xs text-[var(--text-muted)]">
+            {last
+              ? t('ldapSync.lastRun', { time: new Date(last.finished_at).toLocaleString() })
+              : t('ldapSync.never')}
+            {' · '}
+            {info.interval_minutes > 0
+              ? t('ldapSync.schedule', { minutes: info.interval_minutes })
+              : t('ldapSync.manualOnly')}
+          </div>
+        </div>
+        <Button
+          variant="secondary"
+          leftIcon={<RefreshCw size={14} className={busy ? 'animate-spin' : ''} />}
+          disabled={busy}
+          onClick={() => run(false)}
+        >
+          {busy ? t('ldapSync.running') : t('ldapSync.run')}
+        </Button>
+      </div>
+
+      {last?.ok && last.stats && (
+        <div className="mt-2 text-xs text-[var(--text-secondary)]">
+          {t('ldapSync.stats', { ...last.stats })}
+        </div>
+      )}
+      {last && !last.ok && <div className="mt-2 text-xs text-danger">{t('ldapSync.failed')}</div>}
+      {last?.ok && !!last.stats?.conflicts && (
+        <div className="mt-2 text-xs text-warning">
+          {t('ldapSync.conflicts', { count: last.stats.conflicts })}
+        </div>
+      )}
+      {last?.ok && last.archive_blocked && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-warning-light p-3 text-xs text-warning">
+          <span className="flex items-start gap-2">
+            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+            {t('ldapSync.blocked', { ...last.archive_blocked })}
+          </span>
+          <Button variant="secondary" size="sm" disabled={busy} onClick={() => run(true)}>
+            {t('ldapSync.confirmArchive')}
+          </Button>
+        </div>
+      )}
+      {!info.read_account && (
+        <div className="mt-2 text-xs text-[var(--text-muted)]">{t('ldapSync.noReadAccount')}</div>
+      )}
     </div>
   );
 }

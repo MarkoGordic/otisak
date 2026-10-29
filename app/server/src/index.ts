@@ -24,6 +24,7 @@ import { IMPORT_JSON_PATH } from './routes/exam-collection';
 import { setupWebSocket } from './ws/events';
 import { startLiveStatsAggregator, stopLiveStatsAggregator } from './ws/liveStatsAggregator';
 import { startExamExpiryWatcher, stopExamExpiryWatcher } from './jobs/examExpiryWatcher';
+import { startLdapSyncJob, stopLdapSyncJob } from './lib/ldapSync';
 import { ensureBootstrapAdmin, ensureDemoExam } from './bootstrap';
 import { runMigrations } from './db/migrations';
 import { closePool } from './db/client';
@@ -226,6 +227,10 @@ async function start(): Promise<void> {
   // dropped offline would leave attempts open forever after the deadline.
   startExamExpiryWatcher();
 
+  // Directory sync: when LDAP is enabled, mirror every FreeIPA account into OTISAK on an interval
+  // (LDAP_SYNC_INTERVAL_MINUTES, default 60, 0 = manual only). See lib/ldapSync.ts.
+  startLdapSyncJob();
+
   const PORT = process.env.PORT || 3001;
   server.listen(PORT, () => {
     logger.info({ port: PORT, clientDist }, `OTISAK server running on port ${PORT}`);
@@ -245,6 +250,7 @@ async function start(): Promise<void> {
     // Stop background intervals first so they don't try to schedule queries
     // mid-pool-drain.
     stopExamExpiryWatcher();
+    stopLdapSyncJob();
     stopLiveStatsAggregator();
     server.close((err) => {
       if (err) logger.error({ err }, 'HTTP server close error');
