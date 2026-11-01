@@ -27,6 +27,7 @@ import {
 import { importExamFromJson } from '../lib/importExam';
 import { finishExamForEveryone } from '../lib/finishExam';
 import { normalizeExamTags } from '../db/otisak';
+import { query } from '../db/client';
 
 // Build the common filter set used by both admin and assistant `GET /exams` -
 // status, statuses (CSV), subject_id, exam_mode, tags (CSV), scheduled_from,
@@ -196,7 +197,30 @@ router.patch(
       }
 
       if (tag_rules && Array.isArray(tag_rules)) {
-        await setExamTagRules(id, tag_rules);
+        const rules = tag_rules
+          .map((r: { tag?: unknown; question_count?: unknown; points_per_question?: unknown }) => ({
+            tag: typeof r.tag === 'string' ? r.tag.trim() : '',
+            question_count: Math.floor(Number(r.question_count)),
+            points_per_question: Number(r.points_per_question ?? 2),
+          }))
+          .filter((r) => r.tag);
+        const invalid = rules.some(
+          (r) =>
+            !Number.isFinite(r.question_count) ||
+            r.question_count < 1 ||
+            r.question_count > 200 ||
+            !Number.isFinite(r.points_per_question) ||
+            r.points_per_question < 0,
+        );
+        if (invalid) return res.status(400).json({ error: 'Invalid tag rule' });
+        await setExamTagRules(id, rules);
+        // The editor's rule panel is the only writer of this flag after creation:
+        // rules present means each run draws from the bank, none means it doesn't.
+        await query('UPDATE otisak_exams SET uses_question_bank = $2 WHERE id = $1', [
+          id,
+          rules.length > 0,
+        ]);
+        if (!result) result = await getOtisakExamById(id);
       }
 
       if (!result) {

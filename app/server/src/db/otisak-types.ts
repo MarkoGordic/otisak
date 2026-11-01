@@ -58,6 +58,7 @@ export interface OtisakExamWithSubject extends OtisakExam {
   // Bank-drawn templates: questions drawn per run and from which tags. 0 / [] otherwise.
   bank_question_count: number;
   bank_tags: string[];
+  bank_rules: Array<{ tag: string; question_count: number; points_per_question: number }>;
   // Practice runs (per-student child exams) started from this template.
   run_count: number;
 }

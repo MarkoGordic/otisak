@@ -33,6 +33,10 @@ export async function getOtisakExams(filters?: {
               FROM otisak_exam_tag_rules r WHERE r.exam_id = e.id) as bank_question_count,
            (SELECT COALESCE(array_agg(DISTINCT r.tag), '{}')
               FROM otisak_exam_tag_rules r WHERE r.exam_id = e.id) as bank_tags,
+           (SELECT COALESCE(json_agg(json_build_object(
+                     'tag', r.tag, 'question_count', r.question_count,
+                     'points_per_question', r.points_per_question::float) ORDER BY r.position), '[]')
+              FROM otisak_exam_tag_rules r WHERE r.exam_id = e.id) as bank_rules,
            (SELECT COUNT(*)::int FROM otisak_exams c WHERE c.parent_exam_id = e.id) as run_count
     FROM otisak_exams e
     LEFT JOIN otisak_subjects s ON e.subject_id = s.id
@@ -414,7 +418,12 @@ export async function getSelfServicePracticeExams(
 ): Promise<OtisakExamWithSubject[]> {
   let sql = `
     SELECT e.*, s.name as subject_name, s.code as subject_code,
-           0 as question_count
+           (SELECT COUNT(*)::int FROM otisak_questions q WHERE q.exam_id = e.id) as question_count,
+           (SELECT COALESCE(SUM(r.question_count), 0)::int
+              FROM otisak_exam_tag_rules r WHERE r.exam_id = e.id) as bank_question_count,
+           '{}'::text[] as bank_tags,
+           '[]'::json as bank_rules,
+           0 as run_count
     FROM otisak_exams e
     LEFT JOIN otisak_subjects s ON e.subject_id = s.id
     WHERE e.exam_mode = 'practice'

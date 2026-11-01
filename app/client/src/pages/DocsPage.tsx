@@ -152,7 +152,7 @@ export default function DocsPage() {
       <div className="min-h-screen bg-[var(--bg-secondary)] flex">
         <Sidebar userName={sessionUser.name} userRole={sessionUser.role} />
         <MobileNav userRole={sessionUser.role} />
-        <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
+        <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
           <main className="flex-1 pb-20 lg:pb-8">
             <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
               <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">{content}</div>

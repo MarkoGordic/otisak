@@ -1,10 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  formatDateRelativeEn as formatDate,
-  formatDurationShort as formatDuration,
-} from '../lib/format';
+import { formatDateRelative, formatDurationShort as formatDuration } from '../lib/format';
 import {
   BarChart3,
   Fingerprint,
@@ -38,6 +35,7 @@ type UserInfo = {
   email?: string;
   index_number?: string;
   role?: string;
+  avatar_url?: string;
 };
 
 const SUBJECT_PALETTE = [
@@ -122,8 +120,11 @@ function formatCountdown(ms: number) {
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { t } = useLang();
+  const { t, locale } = useLang();
   const toast = useToast();
+  const formatDate = (d: string | Date | null) =>
+    formatDateRelative(d, locale, t('dashboard.today'));
+  const [practiceSubject, setPracticeSubject] = useState('all');
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<UserInfo | null>(null);
   const [exams, setExams] = useState<OtisakExamWithSubject[]>([]);
@@ -150,6 +151,7 @@ export default function DashboardPage() {
             email: data.user?.email,
             index_number: data.user?.index_number,
             role: data.user?.role,
+            avatar_url: data.user?.avatar_url,
           });
           // Staff have no enrolled exams - open straight on the practice tab.
           if (
@@ -234,6 +236,14 @@ export default function DashboardPage() {
     }
   };
 
+  const practiceSubjects = Array.from(
+    new Set(practiceExams.map((e) => e.subject_name).filter((x): x is string => !!x)),
+  ).sort();
+  const visiblePractice =
+    practiceSubject === 'all'
+      ? practiceExams
+      : practiceExams.filter((e) => e.subject_name === practiceSubject);
+
   const completedAttempts = attempts.filter((a) => a.submitted);
   const totalPoints = completedAttempts.reduce((s, a) => s + Number(a.total_points), 0);
   const totalMaxPoints = completedAttempts.reduce((s, a) => s + Number(a.max_points), 0);
@@ -296,12 +306,12 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
-      <Sidebar userName={user?.name} userRole={user?.role} />
+      <Sidebar userName={user?.name} userRole={user?.role} userAvatar={user?.avatar_url} />
       <MobileNav userName={user?.name} userRole={user?.role} />
 
-      <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
-        <main className="flex-1 pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
+      <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
+        <main className="flex-1 flex flex-col pb-20 lg:pb-8">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto w-full">
             {/* Header with greeting */}
             <div className="mb-8">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -320,8 +330,8 @@ export default function DashboardPage() {
                       {user.index_number && (
                         <span className="text-[var(--text-muted)]">&middot;</span>
                       )}
-                      <span className="text-sm text-[var(--text-secondary)] capitalize">
-                        {user.role}
+                      <span className="text-sm text-[var(--text-secondary)]">
+                        {t(`users.${user.role}`)}
                       </span>
                     </div>
                   </div>
@@ -437,8 +447,8 @@ export default function DashboardPage() {
                               key={exam.id}
                               initial={{ opacity: 0, x: -12 }}
                               animate={{ opacity: 1, x: 0 }}
-                              transition={{ delay: index * 0.06 }}
-                              className="bg-[var(--bg-elevated)] rounded-[10px] border border-[var(--border-default)] p-5 relative overflow-hidden flex flex-col sm:flex-row sm:items-center gap-5 hover:border-[var(--text-muted)] transition-colors"
+                              transition={{ delay: Math.min(index, 8) * 0.05 }}
+                              className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-5 relative overflow-hidden flex flex-col sm:flex-row sm:items-center gap-5"
                             >
                               <div
                                 className="absolute left-0 top-0 bottom-0 w-1"
@@ -545,17 +555,40 @@ export default function DashboardPage() {
                     exit={{ opacity: 0, y: -8 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {practiceExams.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-                        {practiceExams.map((exam, index) => {
+                    {practiceSubjects.length > 1 && (
+                      <div className="flex items-center gap-1.5 mb-5 overflow-x-auto [scrollbar-width:none]">
+                        {['all', ...practiceSubjects].map((sub) => (
+                          <button
+                            key={sub}
+                            type="button"
+                            onClick={() => setPracticeSubject(sub)}
+                            className={`flex-shrink-0 whitespace-nowrap h-8 px-3 rounded-lg text-xs font-medium transition-colors ${
+                              practiceSubject === sub
+                                ? 'bg-accent text-white'
+                                : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+                            }`}
+                          >
+                            {sub === 'all' ? t('dashboard.allSubjects') : sub}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    {visiblePractice.length > 0 ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {visiblePractice.map((exam, index) => {
                           const subjectColor = getSubjectColor(exam.subject_name);
+                          // Bank-drawn tests have no questions of their own; a run draws this many.
+                          const questionCount =
+                            exam.bank_question_count > 0
+                              ? exam.bank_question_count
+                              : exam.question_count;
                           return (
                             <motion.div
                               key={exam.id}
                               initial={{ opacity: 0, y: 12 }}
                               animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: index * 0.06 }}
-                              className="bg-[var(--bg-elevated)] rounded-[10px] border border-[var(--border-default)] p-6 flex flex-col hover:border-[var(--text-muted)] transition-colors"
+                              transition={{ delay: Math.min(index, 8) * 0.05 }}
+                              className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-5 flex flex-col"
                             >
                               <div className="flex items-center gap-3 mb-1">
                                 <div
@@ -588,8 +621,14 @@ export default function DashboardPage() {
                                   <Clock size={14} className="text-[var(--text-muted)]" />
                                   {exam.duration_minutes} {t('dashboard.min')}
                                 </div>
+                                {questionCount > 0 && (
+                                  <div className="flex items-center gap-1.5">
+                                    <HashIcon size={14} className="text-[var(--text-muted)]" />
+                                    {questionCount} {t('dashboard.questions')}
+                                  </div>
+                                )}
                               </div>
-                              <div className="mt-6 pt-5 border-t border-[var(--border-subtle)]">
+                              <div className="mt-auto pt-5">
                                 <Button
                                   variant="primary"
                                   size="md"
@@ -652,7 +691,7 @@ export default function DashboardPage() {
                     </div>
 
                     {filteredHistory.length > 0 ? (
-                      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] overflow-hidden">
+                      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] overflow-hidden">
                         <div className="hidden sm:flex items-center px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
                           <div className="flex-1">{t('dashboard.exam')}</div>
                           <div className="w-32 hidden md:block">{t('dashboard.date')}</div>
@@ -676,71 +715,105 @@ export default function DashboardPage() {
                             const passed =
                               !noThreshold && pct >= Number(attempt.pass_threshold ?? 50);
                             const subjectColor = getSubjectColor(attempt.subject_name);
+                            const verdict =
+                              attempt.ai_grading_status === 'pending' ? (
+                                <Badge variant="warning" size="sm">
+                                  {t('dashboard.awaitingGrade')}
+                                </Badge>
+                              ) : noThreshold ? null : (
+                                <Badge variant={passed ? 'success' : 'danger'} size="sm">
+                                  {passed ? t('dashboard.passed') : t('dashboard.failed')}
+                                </Badge>
+                              );
                             return (
-                              <div
-                                key={attempt.id}
-                                className="hidden sm:flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors h-14 cursor-pointer"
-                                onClick={() => navigate(`/exam/${attempt.exam_id}/results`)}
-                              >
-                                <div className="flex-1 flex items-center gap-3 min-w-0 pr-4">
-                                  <div
-                                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                                    style={{
-                                      backgroundColor: subjectColor.bg,
-                                      color: subjectColor.color,
-                                    }}
-                                  >
-                                    <FileText size={14} strokeWidth={2} />
-                                  </div>
-                                  <div className="flex flex-col min-w-0">
-                                    <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                              <div key={attempt.id}>
+                                {/* Phones: the table columns don't fit, so one compact row. */}
+                                <Link
+                                  to={`/exam/${attempt.exam_id}/results`}
+                                  className="sm:hidden flex items-center gap-3 px-4 py-3 border-b border-[var(--border-subtle)] hover:bg-[var(--bg-tertiary)] transition-colors"
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-medium text-[var(--text-primary)] truncate">
                                       {attempt.exam_title}
+                                    </div>
+                                    <div className="text-[11px] text-[var(--text-muted)] mt-0.5 truncate">
+                                      {formatDate(attempt.started_at)} ·{' '}
+                                      {formatDuration(Number(attempt.time_spent_seconds || 0))}
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                                    <span
+                                      className={`text-sm font-mono font-bold ${noThreshold ? 'text-accent' : passed ? 'text-success' : 'text-danger'}`}
+                                    >
+                                      {pct}%
                                     </span>
-                                    <span className="text-[11px] text-[var(--text-muted)] mt-0.5">
-                                      {attempt.is_practice
-                                        ? t('manage.practice')
-                                        : attempt.subject_name || '-'}
+                                    {verdict}
+                                  </div>
+                                </Link>
+                                <div
+                                  className="hidden sm:flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors h-14 cursor-pointer"
+                                  onClick={() => navigate(`/exam/${attempt.exam_id}/results`)}
+                                >
+                                  <div className="flex-1 flex items-center gap-3 min-w-0 pr-4">
+                                    <div
+                                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                      style={{
+                                        backgroundColor: subjectColor.bg,
+                                        color: subjectColor.color,
+                                      }}
+                                    >
+                                      <FileText size={14} strokeWidth={2} />
+                                    </div>
+                                    <div className="flex flex-col min-w-0">
+                                      <span className="text-sm font-medium text-[var(--text-primary)] truncate">
+                                        {attempt.exam_title}
+                                      </span>
+                                      <span className="text-[11px] text-[var(--text-muted)] mt-0.5">
+                                        {attempt.is_practice
+                                          ? t('manage.practice')
+                                          : attempt.subject_name || '-'}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <div className="w-32 hidden md:block text-[13px] text-[var(--text-muted)] truncate pr-4">
+                                    {formatDate(attempt.started_at)}
+                                  </div>
+                                  <div className="w-24 text-center">
+                                    <span
+                                      className={`text-base font-mono font-bold ${noThreshold ? 'text-accent' : passed ? 'text-success' : 'text-danger'}`}
+                                    >
+                                      {pct}%
                                     </span>
                                   </div>
-                                </div>
-                                <div className="w-32 hidden md:block text-[13px] text-[var(--text-muted)] truncate pr-4">
-                                  {formatDate(attempt.started_at)}
-                                </div>
-                                <div className="w-24 text-center">
-                                  <span
-                                    className={`text-base font-mono font-bold ${noThreshold ? 'text-accent' : passed ? 'text-success' : 'text-danger'}`}
-                                  >
-                                    {pct}%
-                                  </span>
-                                </div>
-                                <div className="w-20 text-center hidden md:block text-[13px] font-mono text-[var(--text-muted)]">
-                                  {formatDuration(Number(attempt.time_spent_seconds || 0))}
-                                </div>
-                                <div className="w-24 text-center">
-                                  {/* Open-text answers still waiting for the professor: no verdict yet. */}
-                                  {attempt.ai_grading_status === 'pending' ? (
-                                    <Badge variant="warning" size="sm">
-                                      {t('dashboard.awaitingGrade')}
-                                    </Badge>
-                                  ) : noThreshold ? (
-                                    <Badge variant="neutral" size="sm">
-                                      &#8212;
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant={passed ? 'success' : 'danger'} size="sm">
-                                      {passed ? t('dashboard.passed') : t('dashboard.failed')}
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="w-20 flex justify-end">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="text-accent hover:text-accent-hover px-2"
-                                    rightIcon={<ExternalLink size={14} />}
-                                  >
-                                    {t('dashboard.view')}
-                                  </Button>
+                                  <div className="w-20 text-center hidden md:block text-[13px] font-mono text-[var(--text-muted)]">
+                                    {formatDuration(Number(attempt.time_spent_seconds || 0))}
+                                  </div>
+                                  <div className="w-24 text-center">
+                                    {/* Open-text answers still waiting for the professor: no verdict yet. */}
+                                    {attempt.ai_grading_status === 'pending' ? (
+                                      <Badge variant="warning" size="sm">
+                                        {t('dashboard.awaitingGrade')}
+                                      </Badge>
+                                    ) : noThreshold ? (
+                                      <Badge variant="neutral" size="sm">
+                                        &#8212;
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant={passed ? 'success' : 'danger'} size="sm">
+                                        {passed ? t('dashboard.passed') : t('dashboard.failed')}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="w-20 flex justify-end">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      className="text-accent hover:text-accent-hover px-2"
+                                      rightIcon={<ExternalLink size={14} />}
+                                    >
+                                      {t('dashboard.view')}
+                                    </Button>
+                                  </div>
                                 </div>
                               </div>
                             );
@@ -769,7 +842,7 @@ export default function DashboardPage() {
               </AnimatePresence>
             )}
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center">
+          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
             <AppCopyright />
           </div>
         </main>

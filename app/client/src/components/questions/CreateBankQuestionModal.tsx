@@ -7,30 +7,7 @@ import { Dropdown } from '../ui/Dropdown';
 import { CodeBlock } from '../otisak';
 import { ImageUploadButton } from '../manage/ImageUploadButton';
 import { parsePoints } from '../../lib/points';
-
-const CODE_LANGUAGES = [
-  { value: 'python', label: 'Python' },
-  { value: 'javascript', label: 'JavaScript' },
-  { value: 'typescript', label: 'TypeScript' },
-  { value: 'java', label: 'Java' },
-  { value: 'csharp', label: 'C#' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'c', label: 'C' },
-  { value: 'minic', label: 'miniC (micko)' },
-  { value: 'hipsim', label: 'Hipotetski asembler' },
-  { value: 'bison', label: 'Bison' },
-  { value: 'sql', label: 'SQL' },
-  { value: 'bash', label: 'Bash' },
-  { value: 'go', label: 'Go' },
-  { value: 'rust', label: 'Rust' },
-  { value: 'php', label: 'PHP' },
-  { value: 'ruby', label: 'Ruby' },
-  { value: 'html', label: 'HTML' },
-  { value: 'css', label: 'CSS' },
-  { value: 'json', label: 'JSON' },
-  { value: 'xml', label: 'XML' },
-  { value: 'yaml', label: 'YAML' },
-];
+import { CODE_LANGUAGES } from '../../lib/codeLanguages';
 
 const emptyAnswers = () => [
   { text: '', is_correct: true },

@@ -92,9 +92,9 @@ export default function AdminSettingsPage() {
       <Sidebar userName={user.name} userRole={user.role} />
       <MobileNav userName={user.name} userRole={user.role} />
 
-      <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
-        <main className="flex-1 pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
+      <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
+        <main className="flex-1 flex flex-col pb-20 lg:pb-8">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto w-full">
             <div className="flex items-center gap-4 mb-8">
               <div className="w-11 h-11 rounded-xl bg-accent-light flex items-center justify-center">
                 <Settings className="w-6 h-6 text-accent" strokeWidth={1.5} />
@@ -242,7 +242,7 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center">
+          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
             <AppCopyright />
           </div>
         </main>

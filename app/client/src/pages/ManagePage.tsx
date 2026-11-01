@@ -3,7 +3,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   Plus,
-  Settings,
+  ClipboardList,
+  AlertTriangle,
   Play,
   Pause,
   Archive,
@@ -121,7 +122,7 @@ export default function ManagePage() {
     try {
       const [examsRes, subjectsRes] = await Promise.all([
         fetch('/api/otisak/exams?exam_mode=real', { credentials: 'include' }),
-        fetch('/api/otisak/subjects', { credentials: 'include' }),
+        fetch('/api/otisak/questions/subjects', { credentials: 'include' }),
       ]);
       if (examsRes.ok) {
         const d = await examsRes.json();
@@ -179,6 +180,19 @@ export default function ManagePage() {
     ),
   ).sort();
 
+  const tabLabel = (id: ManageTab, key: string) => (
+    <span className="inline-flex items-center gap-1.5">
+      {t(key)}
+      <span className="text-[11px] tabular-nums text-[var(--text-muted)]">
+        {exams.filter((e) => STATUSES_BY_TAB[id].includes(e.status)).length}
+      </span>
+    </span>
+  );
+
+  // Secondary tools sit in one compact group so a row stays readable.
+  const toolClass =
+    'inline-flex items-center justify-center h-9 w-9 text-[var(--text-secondary)] hover:text-accent hover:bg-[var(--bg-tertiary)] transition-colors';
+
   if (!user) {
     return (
       <div className="min-h-screen bg-[var(--bg-secondary)] flex items-center justify-center">
@@ -192,14 +206,14 @@ export default function ManagePage() {
       <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
       <MobileNav userName={user.name} userRole={user.role} />
 
-      <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
-        <main className="flex-1 pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
+      <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
+        <main className="flex-1 flex flex-col pb-20 lg:pb-8">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto w-full">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-accent-light flex items-center justify-center">
-                  <Settings className="w-6 h-6 text-accent" strokeWidth={1.5} />
+                  <ClipboardList className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
                   <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
@@ -230,9 +244,9 @@ export default function ManagePage() {
             <div className="mb-4">
               <Tabs
                 tabs={[
-                  { id: 'aktivni', label: t('manage.tab.active') },
-                  { id: 'zavrseni', label: t('manage.tab.completed') },
-                  { id: 'arhiva', label: t('manage.tab.archive') },
+                  { id: 'aktivni', label: tabLabel('aktivni', 'manage.tab.active') },
+                  { id: 'zavrseni', label: tabLabel('zavrseni', 'manage.tab.completed') },
+                  { id: 'arhiva', label: tabLabel('arhiva', 'manage.tab.archive') },
                 ]}
                 activeTab={tab}
                 onChange={(id) => {
@@ -335,6 +349,14 @@ export default function ManagePage() {
                     key={exam.id}
                     exam={exam}
                     index={idx}
+                    badges={
+                      exam.status === 'draft' && exam.question_count === 0 ? (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-warning">
+                          <AlertTriangle size={12} />
+                          {t('manage.noQuestionsYet')}
+                        </span>
+                      ) : undefined
+                    }
                     actions={
                       <>
                         {exam.status === 'active' && (
@@ -355,22 +377,48 @@ export default function ManagePage() {
                         >
                           {t('manage.edit')}
                         </Button>
-                        <a
-                          href={`/api/otisak/exams/${exam.id}/export`}
-                          className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
-                          title={t('manage.exportJson')}
-                        >
-                          <Download size={14} />
-                        </a>
-                        <a
-                          href={`/api/otisak/exams/${exam.id}/print/pdf?lang=${locale}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
-                          title={t('manage.printTest')}
-                        >
-                          <Printer size={14} />
-                        </a>
+                        <div className="inline-flex items-center rounded-lg border border-[var(--border-default)] overflow-hidden divide-x divide-[var(--border-default)]">
+                          <a
+                            href={`/api/otisak/exams/${exam.id}/export`}
+                            className={toolClass}
+                            title={t('manage.exportJson')}
+                            aria-label={t('manage.exportJson')}
+                          >
+                            <Download size={14} />
+                          </a>
+                          <a
+                            href={`/api/otisak/exams/${exam.id}/print/pdf?lang=${locale}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className={toolClass}
+                            title={t('manage.printTest')}
+                            aria-label={t('manage.printTest')}
+                          >
+                            <Printer size={14} />
+                          </a>
+                          {exam.status !== 'draft' && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/manage/${exam.id}/stats`)}
+                              className={toolClass}
+                              title={t('manage.openStats')}
+                              aria-label={t('manage.openStats')}
+                            >
+                              <BarChart3 size={14} />
+                            </button>
+                          )}
+                          {exam.status !== 'draft' && (
+                            <button
+                              type="button"
+                              onClick={() => navigate(`/manage/${exam.id}/grading`)}
+                              className={toolClass}
+                              title={t('grading.open')}
+                              aria-label={t('grading.open')}
+                            >
+                              <ClipboardCheck size={14} />
+                            </button>
+                          )}
+                        </div>
                         {exam.status === 'completed' && (
                           <a
                             href={`/api/otisak/exams/${exam.id}/export-results?lang=${locale}`}
@@ -381,36 +429,13 @@ export default function ManagePage() {
                             {t('manage.exportResults.label')}
                           </a>
                         )}
-                        {/* Statistika: available once attempts can exist (i.e.
-                            not draft). Endpoint is open to any status; the
-                            row CTA mirrors that and lets admins peek mid-run. */}
-                        {exam.status !== 'draft' && (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/manage/${exam.id}/stats`)}
-                            className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
-                            title={t('manage.openStats')}
-                          >
-                            <BarChart3 size={14} />
-                          </button>
-                        )}
-                        {exam.status !== 'draft' && (
-                          <button
-                            type="button"
-                            onClick={() => navigate(`/manage/${exam.id}/grading`)}
-                            className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
-                            title={t('grading.open')}
-                          >
-                            <ClipboardCheck size={14} />
-                          </button>
-                        )}
                         {statusActions[exam.status]?.map((action) => (
                           <Button
                             key={action.status}
                             variant="secondary"
                             size="sm"
                             leftIcon={action.icon}
-                            onClick={() => handleStatusChange(exam.id, action.status)}
+                            onClick={() => handleStatusChange(exam.id, action.status, exam)}
                           >
                             {action.label}
                           </Button>
@@ -430,7 +455,7 @@ export default function ManagePage() {
               />
             )}
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center">
+          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
             <AppCopyright />
           </div>
         </main>

@@ -182,7 +182,7 @@ export default function AdminHomePage() {
       <MobileNav userName={user.name} userRole={user.role} />
 
       <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
-        <main className="flex-1 pb-20 lg:pb-8">
+        <main className="flex-1 flex flex-col pb-20 lg:pb-8">
           <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
@@ -433,7 +433,7 @@ export default function AdminHomePage() {
               ))}
             </div>
           </div>
-          <div className="px-4 pb-6 pt-2 flex justify-center">
+          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
             <AppCopyright />
           </div>
         </main>

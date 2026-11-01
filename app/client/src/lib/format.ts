@@ -50,3 +50,26 @@ export function formatDateRelativeEn(d: string | Date | null): string {
   }
   return date.toLocaleDateString('en', { day: '2-digit', month: 'short', year: 'numeric' });
 }
+
+// Intl locale per app language. 'bs' is the Republika Srpska variant (Cyrillic).
+const INTL_LOCALE: Record<string, string> = {
+  en: 'en-GB',
+  'sr-Latn': 'sr-Latn-RS',
+  'sr-Cyrl': 'sr-Cyrl-RS',
+  bs: 'sr-Cyrl-BA',
+};
+
+// formatDateRelativeEn in the user's language: "Danas, 10:41" or "1. nov 2026.".
+export function formatDateRelative(
+  d: string | Date | null,
+  locale: string,
+  todayLabel: string,
+): string {
+  if (!d) return NO_VALUE;
+  const date = new Date(d);
+  const intl = INTL_LOCALE[locale] || 'en-GB';
+  if (date.toDateString() === new Date().toDateString()) {
+    return `${todayLabel}, ${date.toLocaleTimeString(intl, { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  return date.toLocaleDateString(intl, { day: 'numeric', month: 'short', year: 'numeric' });
+}
