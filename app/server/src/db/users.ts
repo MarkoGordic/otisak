@@ -76,6 +76,50 @@ export async function unlinkElpisId(userId: string): Promise<void> {
   await query('UPDATE users SET elpis_id = NULL, updated_at = NOW() WHERE id = $1', [userId]);
 }
 
+// First ELPIS ID login of a `sub` with no otisak link. ELPIS ID's app access list decides who may
+// reach otisak at all, so anyone it lets through gets in: link the account with the same VERIFIED
+// email (if it isn't linked to another ELPIS ID), otherwise create a student account. Returns null
+// when the matching account is deactivated or already belongs to a different ELPIS ID.
+export async function findOrCreateElpisUser(p: {
+  sub: string;
+  email: string | null;
+  emailVerified: boolean;
+  name: string | null;
+}): Promise<User | null> {
+  const email = p.email?.trim().toLowerCase() || null;
+  if (email && p.emailVerified) {
+    const existing = (
+      await query<User>('SELECT * FROM users WHERE LOWER(email) = $1 LIMIT 1', [email])
+    ).rows[0];
+    if (existing) {
+      if (!existing.is_active) return null;
+      if (existing.elpis_id && existing.elpis_id !== p.sub) return null;
+      await query('UPDATE users SET elpis_id = $1, updated_at = NOW() WHERE id = $2', [
+        p.sub,
+        existing.id,
+      ]);
+      return findUserByElpisId(p.sub);
+    }
+  }
+
+  // Fresh ELPIS-only account. '!' is not a valid bcrypt hash, so password login can never match it.
+  // An unverified email can't be trusted as the login name, so it gets a placeholder instead.
+  const usable = email && p.emailVerified ? email : `${p.sub}@elpis.local`;
+  try {
+    return await createUser({
+      email: usable,
+      password_hash: '!',
+      name: p.name || undefined,
+      role: 'student',
+      elpis_id: p.sub,
+    });
+  } catch (e) {
+    // Unverified email that collides with an existing account, or a concurrent first login.
+    if ((e as { code?: string }).code === '23505') return findUserByElpisId(p.sub);
+    throw e;
+  }
+}
+
 // Revoke every existing session of the user linked to this ELPIS ID (`sub`).
 // Sessions are stateless signed cookies, so "revocation" = stamping a per-user
 // cutoff; requireAuth refuses cookies created before it. The cutoff is the

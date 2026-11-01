@@ -6,6 +6,7 @@ import { requireAuth } from '../middleware';
 import { getElpisConfig, elpisLoginEnabled, isElpisConfigured, ElpisConfig } from '../elpisId';
 import {
   findUserByElpisId,
+  findOrCreateElpisUser,
   linkElpisId,
   unlinkElpisId,
   updateLastLogin,
@@ -14,9 +15,9 @@ import {
 
 // ---------------------------------------------------------------------------
 // "Continue with ELPIS ID" - OAuth 2.0 Authorization Code + PKCE against the
-// ELPIS ID provider. Link-only: an ELPIS ID account (`sub`) that isn't already
-// linked to an otisak user is refused - never auto-created, never matched by
-// email. On success we mint the SAME signed-cookie session that local login
+// ELPIS ID provider. ELPIS ID's app access list is the gate: a `sub` with no
+// otisak link is linked to the account with the same verified email, or gets a
+// new student account (findOrCreateElpisUser). On success we mint the SAME signed-cookie session that local login
 // uses (createSessionCookie), so ELPIS ID and local logins coexist and nobody
 // is logged out when the feature is toggled on/off.
 //
@@ -44,6 +45,7 @@ type OAuthState = {
 type UserInfo = {
   sub: string;
   email?: string;
+  email_verified?: boolean;
   name?: string;
   preferred_username?: string;
   picture?: string;
@@ -223,8 +225,15 @@ router.get('/callback', async (req: Request, res: Response, next: NextFunction) 
       return res.redirect(302, '/login?elpis_error=exchange');
     }
 
-    // Link-only: refuse a sub that isn't already attached to an otisak account.
-    const linked = await findUserByElpisId(info.sub);
+    // Already linked, or first login: link by verified email or create a student account.
+    const linked =
+      (await findUserByElpisId(info.sub)) ||
+      (await findOrCreateElpisUser({
+        sub: info.sub,
+        email: info.email || null,
+        emailVerified: info.email_verified === true,
+        name: info.name || info.preferred_username || null,
+      }));
     if (!linked) return res.redirect(302, '/login?elpis_error=not_linked');
 
     // Pull-side profile re-sync: refresh name/email/avatar from ELPIS ID on
