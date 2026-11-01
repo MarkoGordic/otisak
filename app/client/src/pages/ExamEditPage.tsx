@@ -29,6 +29,7 @@ import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { CodeBlock } from '../components/otisak';
 import { parseCodeContent } from '../lib/codeQuestion';
+import { parsePoints } from '../lib/points';
 import { ImageUploadButton } from '../components/manage/ImageUploadButton';
 
 type Exam = {
@@ -302,7 +303,7 @@ export default function ExamEditPage() {
       const body: Record<string, unknown> = {
         type: draftType,
         text: draftText,
-        points: Number(draftPoints) || 1,
+        points: parsePoints(draftPoints, 1),
         // Only attach multi_answer for question types that have selectable
         // options (text/code/image). open_text, ordering, matching, fill_blank
         // each have their own answering model where the flag is meaningless.
@@ -741,6 +742,7 @@ export default function ExamEditPage() {
                   <input
                     type="number"
                     min={0}
+                    step="any"
                     value={draftPoints}
                     onChange={(e) => setDraftPoints(e.target.value)}
                     className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
@@ -1057,7 +1059,7 @@ export default function ExamEditPage() {
                                     <input
                                       type="number"
                                       min={0}
-                                      step="0.5"
+                                      step="any"
                                       value={String(draft.points)}
                                       onChange={(e) =>
                                         patchDraft(q.id, { points: Number(e.target.value) })

@@ -1,51 +1,29 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import {
-  Loader2,
-  Plus,
-  Trash2,
-  Search,
-  BookOpen,
-  Tag,
-  FileText,
-  Code,
-  Image as ImageIcon,
-  MessageSquare,
-  Upload,
-} from 'lucide-react';
-import { CodeBlock } from '../components/otisak';
+import { Loader2, Plus, Search, BookOpen, FileText, X } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
 import { useToast } from '../components/Toast';
-import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { Dropdown } from '../components/ui/Dropdown';
 import { EmptyState } from '../components/ui/EmptyState';
-import { ImageUploadButton } from '../components/manage/ImageUploadButton';
-
-type Subject = { id: string; name: string; code: string | null };
-type BankQuestion = {
-  id: string;
-  subject_id: string;
-  subject_name: string;
-  type: string;
-  text: string;
-  points: number;
-  tags: string[];
-  answers: Array<{ id: string; text: string; is_correct: boolean }>;
-  created_at: string;
-};
+import { BankQuestionCard } from '../components/questions/BankQuestionCard';
+import { CreateBankQuestionModal } from '../components/questions/CreateBankQuestionModal';
+import type { BankQuestion, BankSubject, BankTagCount } from '../components/questions/types';
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
 
-const typeIcons: Record<string, React.ReactNode> = {
-  text: <FileText size={14} />,
-  code: <Code size={14} />,
-  image: <ImageIcon size={14} />,
-  open_text: <MessageSquare size={14} />,
-};
+const PAGE_SIZE = 50;
+const SUBJECT_KEY = 'otisak.bank.subject';
+
+function readStoredSubject(): string {
+  try {
+    return localStorage.getItem(SUBJECT_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 export default function QuestionBankPage() {
   const navigate = useNavigate();
@@ -53,32 +31,19 @@ export default function QuestionBankPage() {
   const toast = useToast();
   const [user, setUser] = useState<UserInfo | null>(null);
   const [loading, setLoading] = useState(true);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [subjects, setSubjects] = useState<BankSubject[]>([]);
   const [selectedSubject, setSelectedSubject] = useState('');
   const [questions, setQuestions] = useState<BankQuestion[]>([]);
-  const [total, setTotal] = useState(0);
+  const [total, setTotal] = useState(0); // matches the current filters
+  const [subjectTotal, setSubjectTotal] = useState(0); // the whole subject
+  const [tagCounts, setTagCounts] = useState<BankTagCount[]>([]);
+  const [listLoading, setListLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
-  const [allTags, setAllTags] = useState<string[]>([]);
-
-  // Create form
   const [showCreate, setShowCreate] = useState(false);
-  const [newText, setNewText] = useState('');
-  const [newType, setNewType] = useState('text');
-  const [newPoints, setNewPoints] = useState('1');
-  const [newTags, setNewTags] = useState('');
-  const [newCodeSnippet, setNewCodeSnippet] = useState('');
-  const [newCodeLanguage, setNewCodeLanguage] = useState('python');
-  const [newImageUrl, setNewImageUrl] = useState(''); // uploaded /api/otisak/images/<id> or a pasted http(s) URL
-  const [imageError, setImageError] = useState('');
-  const [newAnswers, setNewAnswers] = useState([
-    { text: '', is_correct: true },
-    { text: '', is_correct: false },
-    { text: '', is_correct: false },
-    { text: '', is_correct: false },
-  ]);
-  const [creating, setCreating] = useState(false);
+  const requestRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -95,114 +60,98 @@ export default function QuestionBankPage() {
       }
       setUser({ name: data.user?.name, role: data.user?.role, avatar_url: data.user?.avatar_url });
 
-      const subRes = await fetch('/api/otisak/subjects', { credentials: 'include' });
+      // Only subjects this user may open: assistants get their assigned ones.
+      const subRes = await fetch('/api/otisak/questions/subjects', { credentials: 'include' });
       if (subRes.ok) {
         const d = await subRes.json();
-        setSubjects(d.subjects || []);
-        if (d.subjects?.length > 0) setSelectedSubject(d.subjects[0].id);
+        const list: BankSubject[] = d.subjects || [];
+        setSubjects(list);
+        const stored = readStoredSubject();
+        setSelectedSubject(list.some((s) => s.id === stored) ? stored : list[0]?.id || '');
       }
       setLoading(false);
     })();
   }, [navigate]);
 
-  const loadQuestions = useCallback(async () => {
-    if (!selectedSubject) return;
-    const params = new URLSearchParams({ subject_id: selectedSubject });
-    if (search) params.set('search', search);
-    if (typeFilter) params.set('type', typeFilter);
-    if (tagFilter) params.set('tag', tagFilter);
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search.trim()), 250);
+    return () => clearTimeout(id);
+  }, [search]);
 
-    const res = await fetch(`/api/otisak/questions?${params}`, { credentials: 'include' });
-    if (res.ok) {
-      const d = await res.json();
-      setQuestions(d.questions || []);
-      setTotal(d.total || 0);
-      // Refresh global tag list when no tag filter is applied so chips don't collapse mid-filter.
-      if (!tagFilter) {
-        const seen = new Set<string>();
-        for (const q of d.questions || [])
-          for (const tag of (q.tags as string[] | undefined) || []) seen.add(tag);
-        setAllTags(Array.from(seen).sort());
-      }
+  const changeSubject = (id: string) => {
+    setSelectedSubject(id);
+    // A tag from one subject almost never exists in another; keeping it would
+    // open the new subject on an empty list.
+    setTagFilter('');
+    try {
+      localStorage.setItem(SUBJECT_KEY, id);
+    } catch {
+      // Private mode: the choice just isn't remembered.
     }
-  }, [selectedSubject, search, typeFilter, tagFilter]);
+  };
+
+  const loadQuestions = useCallback(
+    async (offset: number) => {
+      if (!selectedSubject) return;
+      requestRef.current?.abort();
+      const controller = new AbortController();
+      requestRef.current = controller;
+      const params = new URLSearchParams({
+        subject_id: selectedSubject,
+        limit: String(PAGE_SIZE),
+        offset: String(offset),
+      });
+      if (debouncedSearch) params.set('search', debouncedSearch);
+      if (typeFilter) params.set('type', typeFilter);
+      if (tagFilter) params.set('tag', tagFilter);
+
+      setListLoading(true);
+      try {
+        const res = await fetch(`/api/otisak/questions?${params}`, {
+          credentials: 'include',
+          signal: controller.signal,
+        });
+        if (!res.ok) {
+          toast.error(t('questions.loadFailed'));
+          return;
+        }
+        const d = await res.json();
+        const page: BankQuestion[] = d.questions || [];
+        setQuestions((prev) => (offset === 0 ? page : [...prev, ...page]));
+        setTotal(d.total || 0);
+        setSubjectTotal(d.subject_total || 0);
+        setTagCounts(d.tags || []);
+      } catch (e) {
+        if ((e as Error).name !== 'AbortError') toast.error(t('questions.loadFailed'));
+      } finally {
+        if (requestRef.current === controller) setListLoading(false);
+      }
+    },
+    [selectedSubject, debouncedSearch, typeFilter, tagFilter, toast, t],
+  );
 
   useEffect(() => {
-    loadQuestions();
+    loadQuestions(0);
   }, [loadQuestions]);
 
-  const resetForm = () => {
-    setNewText('');
-    setNewTags('');
-    setNewCodeSnippet('');
-    setNewCodeLanguage('python');
-    setNewImageUrl('');
-    setImageError('');
-    setNewAnswers([
-      { text: '', is_correct: true },
-      { text: '', is_correct: false },
-      { text: '', is_correct: false },
-      { text: '', is_correct: false },
-    ]);
-  };
-
-  const handleCreate = async () => {
-    if (!newText.trim() || !selectedSubject) return;
-    if (newType === 'code' && !newCodeSnippet.trim()) {
-      toast.error(t('questions.codeRequired'));
-      return;
-    }
-    if (newType === 'image' && !newImageUrl.trim()) {
-      toast.error(t('questions.imageRequired'));
-      return;
-    }
-    setCreating(true);
-    try {
-      const res = await fetch('/api/otisak/questions', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          subject_id: selectedSubject,
-          type: newType,
-          text: newText,
-          points: parseInt(newPoints) || 1,
-          tags: newTags
-            .split(',')
-            .map((t) => t.trim())
-            .filter(Boolean),
-          code_snippet: newType === 'code' ? newCodeSnippet : null,
-          code_language: newType === 'code' ? newCodeLanguage || null : null,
-          image_url: newType === 'image' ? newImageUrl : null,
-          answers: newType === 'open_text' ? [] : newAnswers.filter((a) => a.text.trim()),
-        }),
-      });
-      if (res.ok) {
-        setShowCreate(false);
-        resetForm();
-        toast.success(t('examEdit.questionAdded'));
-        loadQuestions();
-      } else {
-        const d = await res.json();
-        toast.error(d.error || t('examEdit.addFailed'));
-      }
-    } catch {
-      toast.error(t('examEdit.addFailed'));
-    } finally {
-      setCreating(false);
-    }
-  };
-
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (q: BankQuestion) => {
     if (!confirm(t('questions.deleteConfirm'))) return;
     try {
-      const res = await fetch(`/api/otisak/questions?id=${id}`, {
+      const res = await fetch(`/api/otisak/questions?id=${q.id}`, {
         method: 'DELETE',
         credentials: 'include',
       });
       if (res.ok) {
         toast.success(t('examEdit.questionDeleted'));
-        loadQuestions();
+        // Update in place so the reviewer keeps their scroll position and loaded pages.
+        setQuestions((prev) => prev.filter((x) => x.id !== q.id));
+        setTotal((n) => Math.max(0, n - 1));
+        setSubjectTotal((n) => Math.max(0, n - 1));
+        setTagCounts((prev) =>
+          prev
+            .map((tc) => (q.tags.includes(tc.tag) ? { ...tc, count: tc.count - 1 } : tc))
+            .filter((tc) => tc.count > 0),
+        );
       } else {
         const d = await res.json().catch(() => ({}));
         toast.error(d.error || t('examEdit.questionDeleteFailed'));
@@ -210,6 +159,22 @@ export default function QuestionBankPage() {
     } catch {
       toast.error(t('examEdit.questionDeleteFailed'));
     }
+  };
+
+  const subjectName = subjects.find((s) => s.id === selectedSubject)?.name || '';
+  const filtered = Boolean(debouncedSearch || typeFilter || tagFilter);
+  // New code questions default to the language this subject already uses most.
+  const defaultCodeLanguage = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const q of questions)
+      if (q.code_language) counts.set(q.code_language, (counts.get(q.code_language) || 0) + 1);
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || 'python';
+  }, [questions]);
+
+  const clearFilters = () => {
+    setSearch('');
+    setTypeFilter('');
+    setTagFilter('');
   };
 
   if (!user || loading) {
@@ -220,6 +185,13 @@ export default function QuestionBankPage() {
     );
   }
 
+  const chipClass = (active: boolean) =>
+    `inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+      active
+        ? 'bg-accent text-white border-accent'
+        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-default)] hover:border-[var(--text-muted)]'
+    }`;
+
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
       <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
@@ -227,112 +199,125 @@ export default function QuestionBankPage() {
 
       <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
         <main className="flex-1 pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto min-h-full">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-              <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-accent-light flex items-center justify-center">
+              <div className="flex items-center gap-4 min-w-0">
+                <div className="w-11 h-11 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
                   <BookOpen className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <h1 className="text-2xl font-display font-bold text-[var(--text-primary)]">
                     {t('questions.title')}
                   </h1>
-                  <p className="text-sm text-[var(--text-secondary)]">
-                    {t('questions.subtitle', { total, subjects: subjects.length })}
-                  </p>
+                  {subjectName && (
+                    <p className="text-sm text-[var(--text-secondary)] truncate">
+                      {t('questions.subtitleSubject', {
+                        subject: subjectName,
+                        total: subjectTotal,
+                      })}
+                    </p>
+                  )}
                 </div>
               </div>
               <Button
                 variant="primary"
                 leftIcon={<Plus size={16} />}
                 onClick={() => setShowCreate(true)}
+                disabled={!selectedSubject}
               >
                 {t('questions.add')}
               </Button>
             </div>
 
-            {/* Filters */}
-            <div className="flex flex-wrap items-center gap-3 mb-6">
-              <div className="w-[200px]">
-                <Dropdown
-                  options={subjects.map((s) => ({ value: s.id, label: s.name }))}
-                  value={selectedSubject}
-                  onChange={setSelectedSubject}
-                  placeholder={t('questions.selectSubject')}
-                />
+            {/* Filters: sticky so they stay reachable deep in a long bank */}
+            <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4 bg-[var(--bg-secondary)]/90 backdrop-blur border-b border-[var(--border-default)]">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="w-full sm:w-[240px]">
+                  <Dropdown
+                    options={subjects.map((s) => ({ value: s.id, label: s.name }))}
+                    value={selectedSubject}
+                    onChange={changeSubject}
+                    placeholder={t('questions.selectSubject')}
+                  />
+                </div>
+                <div className="w-[160px]">
+                  <Dropdown
+                    options={[
+                      { value: '', label: t('questions.allTypes') },
+                      { value: 'text', label: t('questions.multipleChoice') },
+                      { value: 'code', label: t('questions.code') },
+                      { value: 'image', label: t('questions.image') },
+                      { value: 'open_text', label: t('questions.openText') },
+                    ]}
+                    value={typeFilter}
+                    onChange={setTypeFilter}
+                  />
+                </div>
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search
+                    size={14}
+                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                  />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full h-9 pl-8 pr-8 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm focus:border-accent focus:ring-0"
+                    placeholder={t('questions.searchPlaceholder')}
+                  />
+                  {search && (
+                    <button
+                      type="button"
+                      onClick={() => setSearch('')}
+                      aria-label={t('questions.clearSearch')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <div className="w-[140px]">
-                <Dropdown
-                  options={[
-                    { value: '', label: t('questions.allTypes') },
-                    { value: 'text', label: t('questions.multipleChoice') },
-                    { value: 'code', label: t('questions.code') },
-                    { value: 'image', label: t('questions.image') },
-                    { value: 'open_text', label: t('questions.openText') },
-                  ]}
-                  value={typeFilter}
-                  onChange={setTypeFilter}
-                />
-              </div>
-              <div className="relative flex-1 min-w-[200px] max-w-[300px]">
-                <Search
-                  size={14}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-                />
-                <input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="w-full h-9 pl-8 pr-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm focus:border-accent focus:ring-0"
-                  placeholder={t('questions.searchPlaceholder')}
-                />
-              </div>
-            </div>
 
-            {/* Tag chips - clickable filter, derived from full subject tag set */}
-            {(() => {
-              const tags = allTags;
-              if (tags.length === 0 && !tagFilter) return null;
-              return (
-                <div className="flex flex-wrap items-center gap-2 mb-6">
-                  <Tag size={12} className="text-[var(--text-muted)]" />
+              {tagCounts.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1.5 mt-3">
                   <button
                     type="button"
                     onClick={() => setTagFilter('')}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                      tagFilter === ''
-                        ? 'bg-accent text-white border-accent'
-                        : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-default)] hover:border-[var(--text-muted)]'
-                    }`}
+                    className={chipClass(tagFilter === '')}
                   >
                     {t('questions.allTags')}
                   </button>
-                  {tags.map((tag) => (
+                  {tagCounts.map(({ tag, count }) => (
                     <button
                       key={tag}
                       type="button"
                       onClick={() => setTagFilter(tagFilter === tag ? '' : tag)}
-                      className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
-                        tagFilter === tag
-                          ? 'bg-accent text-white border-accent'
-                          : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-default)] hover:border-[var(--text-muted)]'
-                      }`}
+                      className={chipClass(tagFilter === tag)}
                     >
                       {tag}
+                      <span
+                        className={`tabular-nums text-[10px] ${tagFilter === tag ? 'text-white/80' : 'text-[var(--text-muted)]'}`}
+                      >
+                        {count}
+                      </span>
                     </button>
                   ))}
-                  {tagFilter && !tags.includes(tagFilter) && (
-                    <button
-                      type="button"
-                      onClick={() => setTagFilter('')}
-                      className="text-xs px-2.5 py-1 rounded-full bg-accent text-white border border-accent"
-                    >
-                      {tagFilter} <span aria-hidden>×</span>
-                    </button>
-                  )}
                 </div>
-              );
-            })()}
+              )}
+            </div>
+
+            {filtered && (
+              <div className="flex items-center gap-3 mb-3 text-xs text-[var(--text-secondary)]">
+                <span>{t('questions.filteredCount', { count: total, total: subjectTotal })}</span>
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="text-accent hover:text-accent-hover"
+                >
+                  {t('questions.clearFilters')}
+                </button>
+              </div>
+            )}
 
             {/* Questions List */}
             {subjects.length === 0 ? (
@@ -342,68 +327,44 @@ export default function QuestionBankPage() {
                 description={t('questions.noSubjectsDesc')}
               />
             ) : questions.length > 0 ? (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {questions.map((q, idx) => (
-                  <motion.div
+                  <BankQuestionCard
                     key={q.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.02 }}
-                    className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-4 hover:border-[var(--text-muted)] transition-colors"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Badge variant="neutral" size="sm">
-                            {typeIcons[q.type]}{' '}
-                            {t(
-                              `questions.${q.type === 'open_text' ? 'openText' : q.type === 'text' ? 'multipleChoice' : q.type}`,
-                            ) || q.type}
-                          </Badge>
-                          <Badge variant="accent" size="sm">
-                            {q.points} {t('questions.pts')}
-                          </Badge>
-                          {q.tags.map((tag) => (
-                            <Badge key={tag} variant="info" size="sm">
-                              <Tag size={10} className="mr-0.5" />
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                        <p className="text-sm text-[var(--text-primary)] line-clamp-2">{q.text}</p>
-                        {q.answers.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1">
-                            {q.answers.map((a) => (
-                              <span
-                                key={a.id}
-                                className={`text-[11px] px-2 py-0.5 rounded ${a.is_correct ? 'bg-success-light text-success' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}
-                              >
-                                {a.text.substring(0, 40)}
-                                {a.text.length > 40 ? '...' : ''}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDelete(q.id)}
-                        className="text-danger hover:bg-danger-light flex-shrink-0"
-                      >
-                        <Trash2 size={14} />
-                      </Button>
-                    </div>
-                  </motion.div>
+                    question={q}
+                    number={idx + 1}
+                    animationIndex={idx % PAGE_SIZE}
+                    activeTag={tagFilter}
+                    onTagClick={(tag) => setTagFilter(tagFilter === tag ? '' : tag)}
+                    onDelete={() => handleDelete(q)}
+                  />
                 ))}
+                {questions.length < total && (
+                  <div className="flex justify-center pt-2">
+                    <Button
+                      variant="secondary"
+                      loading={listLoading}
+                      onClick={() => loadQuestions(questions.length)}
+                    >
+                      {t('questions.loadMore', {
+                        shown: questions.length,
+                        total,
+                      })}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            ) : listLoading ? (
+              <div className="flex justify-center py-16">
+                <Loader2 className="w-6 h-6 animate-spin text-accent" />
               </div>
             ) : (
               <EmptyState
                 icon={<FileText size={32} strokeWidth={1.5} />}
-                title={t('questions.noQuestions')}
-                description={t('questions.noQuestionsDesc')}
-                actionLabel={t('questions.add')}
-                onAction={() => setShowCreate(true)}
+                title={t(filtered ? 'questions.noMatches' : 'questions.noQuestions')}
+                description={t(filtered ? 'questions.noMatchesDesc' : 'questions.noQuestionsDesc')}
+                actionLabel={filtered ? t('questions.clearFilters') : t('questions.add')}
+                onAction={filtered ? clearFilters : () => setShowCreate(true)}
               />
             )}
           </div>
@@ -413,239 +374,16 @@ export default function QuestionBankPage() {
         </main>
       </div>
 
-      {/* Create Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">
-              {t('questions.addTitle')}
-            </h2>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                  {t('questions.type')}
-                </label>
-                <Dropdown
-                  options={[
-                    { value: 'text', label: t('questions.multipleChoice') },
-                    { value: 'code', label: t('questions.code') },
-                    { value: 'image', label: t('questions.image') },
-                    { value: 'open_text', label: t('questions.openText') },
-                  ]}
-                  value={newType}
-                  onChange={setNewType}
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                  {t('questions.questionText')}
-                </label>
-                <textarea
-                  value={newText}
-                  onChange={(e) => setNewText(e.target.value)}
-                  className="w-full h-24 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm resize-none"
-                  placeholder={t('questions.questionPlaceholder')}
-                />
-              </div>
-
-              {/* Code question: snippet + language picker + live highlight preview */}
-              {newType === 'code' && (
-                <>
-                  <div className="grid grid-cols-3 gap-3 items-end">
-                    <div className="col-span-2">
-                      <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                        {t('questions.codeSnippet')}
-                      </label>
-                    </div>
-                    <div>
-                      <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                        {t('questions.codeLanguage')}
-                      </label>
-                      <Dropdown
-                        options={[
-                          { value: 'python', label: 'Python' },
-                          { value: 'javascript', label: 'JavaScript' },
-                          { value: 'typescript', label: 'TypeScript' },
-                          { value: 'java', label: 'Java' },
-                          { value: 'csharp', label: 'C#' },
-                          { value: 'cpp', label: 'C++' },
-                          { value: 'c', label: 'C' },
-                          { value: 'minic', label: 'miniC (micko)' },
-                          { value: 'hipsim', label: 'Hipotetski asembler' },
-                          { value: 'bison', label: 'Bison' },
-                          { value: 'sql', label: 'SQL' },
-                          { value: 'bash', label: 'Bash' },
-                          { value: 'go', label: 'Go' },
-                          { value: 'rust', label: 'Rust' },
-                          { value: 'php', label: 'PHP' },
-                          { value: 'ruby', label: 'Ruby' },
-                          { value: 'html', label: 'HTML' },
-                          { value: 'css', label: 'CSS' },
-                          { value: 'json', label: 'JSON' },
-                          { value: 'xml', label: 'XML' },
-                          { value: 'yaml', label: 'YAML' },
-                          { value: '', label: t('questions.codeLanguageAuto') },
-                        ]}
-                        value={newCodeLanguage}
-                        onChange={setNewCodeLanguage}
-                      />
-                    </div>
-                  </div>
-                  <textarea
-                    value={newCodeSnippet}
-                    onChange={(e) => setNewCodeSnippet(e.target.value)}
-                    spellCheck={false}
-                    className="w-full h-44 px-3 py-2 rounded-lg border border-[var(--border-default)] bg-[#0d1117] text-gray-200 text-xs font-mono resize-y"
-                    placeholder={'def add(a, b):\n    return a + b'}
-                  />
-                  {newCodeSnippet.trim() && (
-                    <div>
-                      <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">
-                        {t('questions.codePreview')}
-                      </p>
-                      <CodeBlock code={newCodeSnippet} language={newCodeLanguage || undefined} />
-                    </div>
-                  )}
-                </>
-              )}
-
-              {/* Image question: file upload OR pasted URL + preview */}
-              {newType === 'image' && (
-                <div className="space-y-2">
-                  <label className="block text-sm font-medium text-[var(--text-secondary)]">
-                    {t('questions.imageSection')}
-                  </label>
-                  <div className="flex flex-col sm:flex-row gap-2">
-                    <ImageUploadButton
-                      onUploaded={(url) => {
-                        setImageError('');
-                        setNewImageUrl(url);
-                      }}
-                      className="flex-1 flex items-center justify-center gap-2 h-10 px-3 rounded-lg border border-dashed border-[var(--border-default)] bg-[var(--bg-primary)] text-sm text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors"
-                    >
-                      <Upload size={14} />
-                      {t('questions.imageUpload')}
-                    </ImageUploadButton>
-                    <input
-                      value={newImageUrl.startsWith('data:') ? '' : newImageUrl}
-                      onChange={(e) => {
-                        setImageError('');
-                        setNewImageUrl(e.target.value);
-                      }}
-                      className="flex-1 h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                      placeholder={t('questions.imageUrlPlaceholder')}
-                    />
-                  </div>
-                  {imageError && <p className="text-xs text-danger">{imageError}</p>}
-                  {newImageUrl && (
-                    <div className="mt-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] p-2">
-                      <p className="text-[10px] uppercase tracking-widest text-[var(--text-muted)] mb-1">
-                        {t('questions.imagePreview')}
-                      </p>
-                      <img
-                        src={newImageUrl}
-                        alt="Preview"
-                        className="max-h-60 max-w-full rounded-md mx-auto block"
-                        onError={() => setImageError(t('questions.imageInvalidUrl'))}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setNewImageUrl('');
-                          setImageError('');
-                        }}
-                        className="mt-2 text-xs text-danger hover:underline"
-                      >
-                        {t('questions.imageClear')}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                    {t('questions.points')}
-                  </label>
-                  <input
-                    type="number"
-                    value={newPoints}
-                    onChange={(e) => setNewPoints(e.target.value)}
-                    className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1">
-                    {t('questions.tagsLabel')}
-                  </label>
-                  <input
-                    value={newTags}
-                    onChange={(e) => setNewTags(e.target.value)}
-                    className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                    placeholder="tag1, tag2"
-                  />
-                </div>
-              </div>
-
-              {newType !== 'open_text' && (
-                <div>
-                  <label className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
-                    {t('examEdit.answers')}
-                  </label>
-                  <div className="space-y-2">
-                    {newAnswers.map((a, i) => (
-                      <div key={i} className="flex items-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setNewAnswers((prev) =>
-                              prev.map((ans, j) =>
-                                j === i ? { ...ans, is_correct: !ans.is_correct } : ans,
-                              ),
-                            );
-                          }}
-                          className={`w-6 h-6 rounded flex items-center justify-center flex-shrink-0 text-xs font-bold transition-colors ${a.is_correct ? 'bg-success text-white' : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'}`}
-                        >
-                          {a.is_correct ? '✓' : String.fromCharCode(65 + i)}
-                        </button>
-                        <input
-                          value={a.text}
-                          onChange={(e) => {
-                            setNewAnswers((prev) =>
-                              prev.map((ans, j) =>
-                                j === i ? { ...ans, text: e.target.value } : ans,
-                              ),
-                            );
-                          }}
-                          className="flex-1 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                          placeholder={`${t('examEdit.answer')} ${String.fromCharCode(65 + i)}`}
-                        />
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setNewAnswers((prev) => [...prev, { text: '', is_correct: false }])
-                      }
-                      className="text-xs text-accent hover:text-accent-hover"
-                    >
-                      + {t('examEdit.addAnswer')}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-            <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>
-                {t('questions.cancel')}
-              </Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>
-                {t('questions.createQuestion')}
-              </Button>
-            </div>
-          </div>
-        </div>
+      {showCreate && selectedSubject && (
+        <CreateBankQuestionModal
+          subjectId={selectedSubject}
+          defaultCodeLanguage={defaultCodeLanguage}
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            setShowCreate(false);
+            loadQuestions(0);
+          }}
+        />
       )}
     </div>
   );

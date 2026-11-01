@@ -200,6 +200,32 @@ export async function getOtisakQuestionBankQuestions(params: {
   };
 }
 
+// Subject-wide figures for the bank header and tag chips. They ignore the list
+// filters on purpose: deriving them from the loaded page made the chips vanish
+// mid-search and never showed tags that only appear past the first page.
+export async function getOtisakQuestionBankSummary(
+  subjectId: string,
+): Promise<{ subject_total: number; tags: Array<{ tag: string; count: number }> }> {
+  const [totalResult, tagResult] = await Promise.all([
+    query<{ total: string }>(
+      'SELECT COUNT(*)::text AS total FROM otisak_question_bank WHERE subject_id = $1',
+      [subjectId],
+    ),
+    query<{ tag: string; count: string }>(
+      `SELECT tag, COUNT(*)::text AS count
+       FROM otisak_question_bank, unnest(tags) AS tag
+       WHERE subject_id = $1
+       GROUP BY tag
+       ORDER BY COUNT(*) DESC, tag ASC`,
+      [subjectId],
+    ),
+  ]);
+  return {
+    subject_total: Number(totalResult.rows[0]?.total || 0),
+    tags: tagResult.rows.map((r) => ({ tag: r.tag, count: Number(r.count) })),
+  };
+}
+
 export async function createOtisakQuestionBankQuestion(
   input: CreateOtisakQuestionBankQuestionInput,
   actorUserId: string,

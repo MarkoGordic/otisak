@@ -1,11 +1,13 @@
 import { Router, Request, Response } from 'express';
 import {
   getOtisakQuestionBankQuestions,
+  getOtisakQuestionBankSummary,
   createOtisakQuestionBankQuestion,
   deleteOtisakQuestionBankQuestion,
   type OtisakQuestionBankType,
 } from '../db/otisak-question-bank';
-import { isSubjectManageableByUser } from '../db/auth-helpers';
+import { getOtisakSubjects } from '../db/otisak';
+import { isSubjectManageableByUser, getAssignedSubjectIds } from '../db/auth-helpers';
 import { query } from '../db/client';
 import { requireAuth, requireRole } from '../middleware';
 import { isStoredImageUrl } from '../lib/images';
@@ -13,6 +15,21 @@ import { isStoredImageUrl } from '../lib/images';
 const router = Router();
 
 router.use(requireAuth, requireRole(['admin', 'assistant', 'professor']));
+
+// GET /questions/subjects - the subjects whose bank this user may open. Admins
+// see all of them, everyone else only the subjects they are assigned to.
+router.get('/subjects', async (req: Request, res: Response) => {
+  try {
+    const user = req.user!;
+    const subjects = await getOtisakSubjects();
+    if (user.role === 'admin') return res.json({ subjects });
+    const assigned = new Set(await getAssignedSubjectIds(user.id));
+    return res.json({ subjects: subjects.filter((s) => assigned.has(s.id)) });
+  } catch (error) {
+    console.error('Get bank subjects error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // GET /questions
 router.get('/', async (req: Request, res: Response) => {
@@ -22,17 +39,29 @@ router.get('/', async (req: Request, res: Response) => {
     if (!subject_id) {
       return res.status(400).json({ error: 'subject_id is required' });
     }
+    // Same gate as POST and DELETE: the list carries every correct answer, so
+    // reading a subject's bank is as sensitive as editing it.
+    const user = req.user!;
+    const allowed = await isSubjectManageableByUser(
+      user.id,
+      subject_id as string,
+      user.role === 'admin',
+    );
+    if (!allowed) return res.status(403).json({ error: 'Not assigned to this subject' });
 
-    const result = await getOtisakQuestionBankQuestions({
-      subjectId: subject_id as string,
-      search: search as string | undefined,
-      type: type as OtisakQuestionBankType | undefined,
-      tag: tag as string | undefined,
-      limit: limit ? Number(limit) : undefined,
-      offset: offset ? Number(offset) : undefined,
-    });
+    const [result, summary] = await Promise.all([
+      getOtisakQuestionBankQuestions({
+        subjectId: subject_id as string,
+        search: search as string | undefined,
+        type: type as OtisakQuestionBankType | undefined,
+        tag: tag as string | undefined,
+        limit: limit ? Number(limit) : undefined,
+        offset: offset ? Number(offset) : undefined,
+      }),
+      getOtisakQuestionBankSummary(subject_id as string),
+    ]);
 
-    return res.json(result);
+    return res.json({ ...result, ...summary });
   } catch (error) {
     console.error('Get questions error:', error);
     return res.status(500).json({ error: 'Internal server error' });
