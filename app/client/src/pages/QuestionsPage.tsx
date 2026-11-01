@@ -186,7 +186,7 @@ export default function QuestionBankPage() {
   }
 
   const chipClass = (active: boolean) =>
-    `inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+    `inline-flex flex-shrink-0 whitespace-nowrap items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
       active
         ? 'bg-accent text-white border-accent'
         : 'bg-[var(--bg-elevated)] text-[var(--text-secondary)] border-[var(--border-default)] hover:border-[var(--text-muted)]'
@@ -197,7 +197,7 @@ export default function QuestionBankPage() {
       <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
       <MobileNav userName={user.name} userRole={user.role} />
 
-      <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
         <main className="flex-1 pb-20 lg:pb-8">
           <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto min-h-full">
             {/* Header */}
@@ -231,7 +231,7 @@ export default function QuestionBankPage() {
             </div>
 
             {/* Filters: sticky so they stay reachable deep in a long bank */}
-            <div className="sticky top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4 bg-[var(--bg-secondary)]/90 backdrop-blur border-b border-[var(--border-default)]">
+            <div className="sm:sticky sm:top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4 bg-[var(--bg-secondary)]/90 backdrop-blur border-b border-[var(--border-subtle)]">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="w-full sm:w-[240px]">
                   <Dropdown
@@ -279,7 +279,7 @@ export default function QuestionBankPage() {
               </div>
 
               {tagCounts.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1.5 mt-3">
+                <div className="flex flex-nowrap sm:flex-wrap items-center gap-1.5 mt-3 overflow-x-auto sm:overflow-visible pb-1 sm:pb-0 [scrollbar-width:none]">
                   <button
                     type="button"
                     onClick={() => setTagFilter('')}

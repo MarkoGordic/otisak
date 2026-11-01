@@ -38,7 +38,7 @@ export function BankQuestionCard({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: Math.min(animationIndex, 12) * 0.02 }}
-      className="group bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-4 sm:p-5 hover:border-[var(--text-muted)]/50 transition-colors"
+      className="group bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-4 sm:p-5"
     >
       <header className="flex items-center gap-2 mb-3">
         <span className="font-mono text-xs text-[var(--text-muted)] tabular-nums w-7">
@@ -88,10 +88,12 @@ export function BankQuestionCard({
           {q.answers.map((a, i) => (
             <li
               key={a.id}
+              // No `border-success/40`: success is a CSS variable, Tailwind can't
+              // add opacity to it and the class fell back to a near-white border.
               className={`flex items-start gap-2 rounded-lg border px-2.5 py-1.5 text-xs leading-snug ${
                 a.is_correct
-                  ? 'border-success/40 bg-success-light text-success'
-                  : 'border-[var(--border-default)] text-[var(--text-secondary)]'
+                  ? 'border-transparent bg-success-light text-success'
+                  : 'border-[var(--border-subtle)] text-[var(--text-secondary)]'
               }`}
             >
               <span

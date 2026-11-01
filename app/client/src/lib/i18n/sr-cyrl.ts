@@ -68,6 +68,11 @@ const srCyrl: Record<I18nKey, string> = {
   'nav.myPractice': 'Вежбање',
   'nav.myPractice.short': 'Вежба',
   'nav.practiceAdmin': 'Управљање вежбама',
+  'nav.section.teaching': 'Настава',
+  'nav.section.mine': 'Моје',
+  'nav.section.admin': 'Администрација',
+  'nav.practiceAdmin.short': 'Вежбе',
+  'nav.questionBank.short': 'Банка',
 
   // Docs page
   'docs.title': 'Документација',

@@ -66,6 +66,11 @@ const bs: Record<I18nKey, string> = {
   'nav.myPractice': 'Вјежбање',
   'nav.myPractice.short': 'Вјежба',
   'nav.practiceAdmin': 'Управљање вјежбама',
+  'nav.section.teaching': 'Настава',
+  'nav.section.mine': 'Моје',
+  'nav.section.admin': 'Администрација',
+  'nav.practiceAdmin.short': 'Вежбе',
+  'nav.questionBank.short': 'Банка',
 
   // Docs page
   'docs.title': 'Документација',

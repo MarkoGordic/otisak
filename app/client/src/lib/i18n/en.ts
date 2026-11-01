@@ -65,6 +65,11 @@ const en = {
   'nav.myPractice': 'My Practice',
   'nav.myPractice.short': 'Practice',
   'nav.practiceAdmin': 'Manage Practice',
+  'nav.section.teaching': 'Teaching',
+  'nav.section.mine': 'Personal',
+  'nav.section.admin': 'Administration',
+  'nav.practiceAdmin.short': 'Practice',
+  'nav.questionBank.short': 'Bank',
 
   // Docs page
   'docs.title': 'Documentation',
