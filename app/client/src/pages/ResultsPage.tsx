@@ -3,7 +3,7 @@ import type { ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Loader2, Clock, Target, ArrowLeft, Check, X } from 'lucide-react';
-import { OtisakHeader, OtisakFooter } from '../components/otisak';
+import { OtisakHeader, OtisakFooter, CodeBlock } from '../components/otisak';
 import { useLang } from '../components/LangProvider';
 import { useTheme } from '../components/ThemeProvider';
 import { ToggleCluster } from '../components/ToggleCluster';
@@ -178,19 +178,17 @@ export default function ResultsPage() {
       <div className="md:hidden">
         <ToggleCluster variant="solid" position="fixed" />
       </div>
-      {/* Soft ambient glow - terminal "finished" screen. In light mode we use blue
-          tints instead of white so the page doesn't feel like an empty void. */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div
-          className={`absolute top-[-20%] left-[-10%] w-[70vw] h-[70vw] rounded-full blur-[180px] ${isDark ? 'bg-white/[0.06]' : 'bg-blue-300/15'}`}
-        />
-        <div
-          className={`absolute bottom-[-20%] right-[-10%] w-[70vw] h-[70vw] rounded-full blur-[180px] ${isDark ? 'bg-white/[0.04]' : 'bg-indigo-300/15'}`}
-        />
-        <div
-          className={`absolute top-[40%] right-[30%] w-[35vw] h-[35vw] rounded-full blur-[140px] ${isDark ? 'bg-white/[0.025]' : 'bg-blue-200/10'}`}
-        />
-      </div>
+      {/* Ambient glow at the edges, the same blue as the exam screen. Plain
+          radial gradients, no filter: huge blur-[180px] blobs rendered as grey
+          patches with visible edges on the dark background. */}
+      <div
+        className="fixed inset-0 pointer-events-none"
+        style={{
+          background: isDark
+            ? 'radial-gradient(ellipse 60% 70% at 0% 35%, rgba(59,130,246,0.10), transparent 70%), radial-gradient(ellipse 60% 70% at 100% 75%, rgba(99,102,241,0.08), transparent 70%)'
+            : 'radial-gradient(ellipse 60% 70% at 0% 35%, rgba(96,165,250,0.14), transparent 70%), radial-gradient(ellipse 60% 70% at 100% 75%, rgba(129,140,248,0.12), transparent 70%)',
+        }}
+      />
 
       <OtisakHeader
         user={
@@ -734,13 +732,12 @@ function ReviewQuestion({
           {pending ? '…' : awarded}/{max}
         </span>
       </div>
-      {q.type === 'code' && q.content && (
-        <pre
-          className={`rounded-lg border px-4 py-3 text-xs font-mono overflow-x-auto mb-2 ${isDark ? 'bg-black/40 border-gray-800 text-gray-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}
-        >
-          {parseCodeContent(q.content).snippet}
-        </pre>
-      )}
+      {q.type === 'code' &&
+        q.content &&
+        (() => {
+          const { snippet, language } = parseCodeContent(q.content);
+          return <CodeBlock code={snippet} language={language} />;
+        })()}
       {q.type === 'image' && q.content && (
         <img
           src={q.content}
