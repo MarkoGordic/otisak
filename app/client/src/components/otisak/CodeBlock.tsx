@@ -32,7 +32,7 @@ export function CodeBlock({ code, language }: CodeBlockProps) {
     try {
       if (language && hljs.getLanguage(language)) {
         const result = hljs.highlight(code, { language });
-        return { html: result.value, detectedLang: language };
+        return { html: result.value, detectedLang: hljs.getLanguage(language).name || language };
       }
       const result = hljs.highlightAuto(code);
       return { html: result.value, detectedLang: result.language || 'text' };

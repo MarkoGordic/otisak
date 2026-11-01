@@ -4,6 +4,10 @@
 // when a code question renders. highlightAuto still works, detecting among the
 // registered languages; an unregistered language falls back to plain text.
 import hljs from 'highlight.js/lib/core';
+// The token colors. Imported here so they arrive with the highlighter itself:
+// before, only DocsPage loaded a theme, so exam code rendered uncolored.
+import 'highlight.js/styles/github-dark-dimmed.css';
+import { minic, hipsim, bison } from './hljsCourse';
 
 import javascript from 'highlight.js/lib/languages/javascript';
 import typescript from 'highlight.js/lib/languages/typescript';
@@ -45,5 +49,8 @@ hljs.registerLanguage('kotlin', kotlin);
 hljs.registerLanguage('ruby', ruby);
 hljs.registerLanguage('x86asm', x86asm);
 hljs.registerLanguage('plaintext', plaintext);
+hljs.registerLanguage('minic', minic);
+hljs.registerLanguage('hipsim', hipsim);
+hljs.registerLanguage('bison', bison);
 
 export default hljs;

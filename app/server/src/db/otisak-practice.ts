@@ -70,20 +70,29 @@ export async function generateQuestionsFromBank(
       picked++;
 
       const position = generatedQuestions.length;
-      const content = bq.code_snippet || bq.image_url || null;
-
-      const qResult = await query<OtisakQuestion>(
-        `INSERT INTO otisak_questions (exam_id, type, text, content, points, position, bank_question_id)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [examId, bq.type, bq.text, content, rule.points_per_question, position, bq.id],
-      );
-      const question = qResult.rows[0];
+      // A code snippet keeps its language in the same {"snippet","language"} JSON
+      // the exam editor writes; a bare snippet would lose it and render unhighlighted.
+      const content = bq.code_snippet
+        ? bq.code_language
+          ? JSON.stringify({ snippet: bq.code_snippet, language: bq.code_language })
+          : bq.code_snippet
+        : bq.image_url || null;
 
       const bankAnswers = await query<{ text: string; is_correct: boolean; position: number }>(
         `SELECT text, is_correct, position FROM otisak_question_bank_answers
          WHERE question_id = $1 ORDER BY position ASC`,
         [bq.id],
       );
+      // The bank has no multi_answer column, so derive it here: without it a
+      // question with two correct answers renders as radios and can't be answered.
+      const multiAnswer = bankAnswers.rows.filter((a) => a.is_correct).length > 1;
+
+      const qResult = await query<OtisakQuestion>(
+        `INSERT INTO otisak_questions (exam_id, type, text, content, points, position, bank_question_id, multi_answer)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [examId, bq.type, bq.text, content, rule.points_per_question, position, bq.id, multiAnswer],
+      );
+      const question = qResult.rows[0];
 
       const answers: OtisakAnswer[] = [];
       for (const ba of bankAnswers.rows) {
