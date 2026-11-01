@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   Plus,
@@ -89,8 +89,16 @@ export default function ManagePage() {
   const [scheduledFrom, setScheduledFrom] = useState('');
   const [scheduledTo, setScheduledTo] = useState('');
 
-  const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+  // ?new=1 / ?import=1 open a dialog on arrival: the home page's "New exam"
+  // and "Import JSON" buttons land here, and used to drop you on the list.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [showCreateModal, setShowCreateModal] = useState(searchParams.get('new') === '1');
+  const [showImportModal, setShowImportModal] = useState(searchParams.get('import') === '1');
+  useEffect(() => {
+    if (searchParams.has('new') || searchParams.has('import')) {
+      setSearchParams({}, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     (async () => {

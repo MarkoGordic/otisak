@@ -1,63 +1,31 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-  Loader2,
-  Plus,
-  Users,
-  Upload,
-  Search,
-  ChevronLeft,
-  ChevronRight,
-  Pencil,
-  Key,
-  User,
-  RefreshCw,
-  AlertTriangle,
-} from 'lucide-react';
+import { Loader2, Plus, Users, Upload, Search, X } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { AppCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 import { useToast } from '../components/Toast';
-import { Badge } from '../components/ui/Badge';
+import { UserList } from '../components/users/UserList';
+import { CreateUserModal, EditUserModal, PasswordModal } from '../components/users/UserModals';
+import { LdapSyncPanel } from '../components/users/LdapSyncPanel';
+import {
+  ROLES,
+  type RoleFilter,
+  type StatusFilter,
+  type UserData,
+} from '../components/users/types';
 
-type UserData = {
-  id: string;
-  email: string;
-  name: string | null;
-  role: string;
-  index_number: string | null;
-  is_active: boolean;
-  ldap_uid: string | null;
-  ldap_archived_at: string | null;
-  ldap_archived_reason: 'removed' | 'locked' | null;
-  created_at: string;
-  last_login_at: string | null;
+type UserInfo = { id?: string; name?: string; role?: string; avatar_url?: string };
+
+type ImportSummary = {
+  created: number;
+  skipped: number;
+  total: number;
+  items?: { skipped: Array<{ index_number: string; reason: string }> };
 };
 
-type StatusFilter = 'active' | 'inactive' | 'all';
-
-type LdapSyncInfo = {
-  enabled: boolean;
-  read_account: boolean;
-  running: boolean;
-  interval_minutes: number;
-  last: {
-    finished_at: string;
-    ok: boolean;
-    stats?: {
-      directory: number;
-      created: number;
-      updated: number;
-      archived: number;
-      reactivated: number;
-      conflicts: number;
-    };
-    archive_blocked?: { count: number; limit: number };
-  } | null;
-};
-
-type UserInfo = { name?: string; role?: string; avatar_url?: string };
+const PAGE_SIZE = 50;
 
 export default function AdminUsersPage() {
   const navigate = useNavigate();
@@ -67,29 +35,15 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<UserData[]>([]);
   const [showCreate, setShowCreate] = useState(false);
-  const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newName, setNewName] = useState('');
-  const [newRole, setNewRole] = useState('student');
-  const [newIndex, setNewIndex] = useState('');
-  const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importProgress, setImportProgress] = useState<{ processed: number; total: number } | null>(
     null,
   );
-  const [importSummary, setImportSummary] = useState<{
-    created: number;
-    skipped: number;
-    total: number;
-    items?: { skipped: Array<{ index_number: string; reason: string }> };
-  } | null>(null);
+  const [importSummary, setImportSummary] = useState<ImportSummary | null>(null);
   const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<
-    'all' | 'student' | 'assistant' | 'professor' | 'admin'
-  >('all');
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active');
   const [page, setPage] = useState(1);
-  const PAGE_SIZE = 50;
 
   // Edit + password modals share the "currently targeted user" so the row
   // action buttons stay simple ("open with this user").
@@ -104,7 +58,12 @@ export default function AdminUsersPage() {
         navigate('/dashboard', { replace: true });
         return;
       }
-      setCurrentUser({ name: data.user?.name, role: data.user?.role });
+      setCurrentUser({
+        id: data.user?.id,
+        name: data.user?.name,
+        role: data.user?.role,
+        avatar_url: data.user?.avatar_url,
+      });
     })();
   }, [navigate]);
 
@@ -125,42 +84,6 @@ export default function AdminUsersPage() {
   useEffect(() => {
     if (currentUser) loadUsers();
   }, [currentUser, loadUsers]);
-
-  const handleCreate = async () => {
-    if (!newEmail || !newPassword) return;
-    setCreating(true);
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          email: newEmail,
-          password: newPassword,
-          name: newName || undefined,
-          role: newRole,
-          index_number: newIndex || undefined,
-        }),
-      });
-      if (res.ok) {
-        setShowCreate(false);
-        setNewEmail('');
-        setNewPassword('');
-        setNewName('');
-        setNewRole('student');
-        setNewIndex('');
-        toast.success(t('users.createSuccess'));
-        loadUsers();
-      } else {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d.error || t('users.createFailed'));
-      }
-    } catch {
-      toast.error(t('users.createFailed'));
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const handleImportFile = async (file: File | null) => {
     if (!file) return;
@@ -214,25 +137,55 @@ export default function AdminUsersPage() {
     }
   };
 
-  const handleRoleChange = async (userId: string, newRole: string) => {
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ id: userId, role: newRole }),
-      });
-      if (res.ok) {
-        toast.success(t('users.roleChanged'));
-        loadUsers();
-      } else {
-        const d = await res.json().catch(() => ({}));
-        toast.error(d.error || t('users.roleChangeFailed'));
+  // A role change from the table used to save on the first click, so one slip
+  // in a long list silently promoted or demoted someone. Confirm it first.
+  const handleRoleChange = useCallback(
+    async (user: UserData, newRole: string) => {
+      if (newRole === user.role) return;
+      const ok = confirm(
+        t('users.roleChangeConfirm', {
+          name: user.name || user.email,
+          role: t(`users.${newRole}`),
+        }),
+      );
+      // Cancel: the select is controlled, so React puts the old role back.
+      if (!ok) return;
+      try {
+        const res = await fetch('/api/admin/users', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ id: user.id, role: newRole }),
+        });
+        if (res.ok) {
+          toast.success(t('users.roleChanged'));
+          setUsers((arr) => arr.map((u) => (u.id === user.id ? { ...u, role: newRole } : u)));
+        } else {
+          const d = await res.json().catch(() => ({}));
+          toast.error(
+            d.error === 'SELF_LOCKOUT'
+              ? t('users.selfRoleLocked')
+              : d.error || t('users.roleChangeFailed'),
+          );
+        }
+      } catch {
+        toast.error(t('users.roleChangeFailed'));
       }
-    } catch {
-      toast.error(t('users.roleChangeFailed'));
-    }
-  };
+    },
+    [t, toast],
+  );
+
+  // Role chip counts follow the status filter, so "Students 412" matches the
+  // list you get when you click it.
+  const roleCounts = useMemo(() => {
+    const inStatus = users.filter((u) =>
+      statusFilter === 'all' ? true : statusFilter === 'active' ? u.is_active : !u.is_active,
+    );
+    const counts: Record<string, number> = { all: inStatus.length };
+    for (const r of ROLES) counts[r] = inStatus.filter((u) => u.role === r).length;
+    return counts;
+  }, [users, statusFilter]);
+  const activeCount = useMemo(() => users.filter((u) => u.is_active).length, [users]);
 
   if (!currentUser) {
     return (
@@ -242,17 +195,28 @@ export default function AdminUsersPage() {
     );
   }
 
+  const chip = (active: boolean) =>
+    `inline-flex flex-shrink-0 items-center gap-1.5 h-8 px-3 rounded-lg text-xs font-medium transition-colors ${
+      active
+        ? 'bg-accent text-white'
+        : 'text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'
+    }`;
+
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)] flex">
-      <Sidebar userName={currentUser.name} userRole={currentUser.role} />
+      <Sidebar
+        userName={currentUser.name}
+        userRole={currentUser.role}
+        userAvatar={currentUser.avatar_url}
+      />
       <MobileNav userName={currentUser.name} userRole={currentUser.role} />
 
-      <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
         <main className="flex-1 pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
-            <div className="flex items-center justify-between mb-6">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto min-h-full">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
-                <div className="w-11 h-11 rounded-xl bg-accent-light flex items-center justify-center">
+                <div className="w-11 h-11 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">
                   <Users className="w-6 h-6 text-accent" strokeWidth={1.5} />
                 </div>
                 <div>
@@ -260,7 +224,7 @@ export default function AdminUsersPage() {
                     {t('users.title')}
                   </h1>
                   <p className="text-sm text-[var(--text-secondary)]">
-                    {users.length} {t('users.count')}
+                    {t('users.summary', { active: activeCount, total: users.length })}
                   </p>
                 </div>
               </div>
@@ -271,8 +235,7 @@ export default function AdminUsersPage() {
                     accept=".csv,text/csv"
                     className="hidden"
                     onChange={(e) => {
-                      const f = e.target.files?.[0] || null;
-                      handleImportFile(f);
+                      handleImportFile(e.target.files?.[0] || null);
                       e.target.value = '';
                     }}
                     disabled={importing}
@@ -301,7 +264,7 @@ export default function AdminUsersPage() {
             <LdapSyncPanel onSynced={loadUsers} />
 
             {importing && importProgress && (
-              <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4">
+              <div className="mb-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4">
                 <div className="flex items-center justify-between text-sm mb-2">
                   <span className="text-[var(--text-primary)] font-medium flex items-center gap-2">
                     <Loader2 size={14} className="animate-spin text-accent" />
@@ -323,7 +286,7 @@ export default function AdminUsersPage() {
             )}
 
             {importSummary && (
-              <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-sm">
+              <div className="mb-4 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-4 text-sm">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-3 flex-wrap">
                     <span className="text-[var(--text-primary)] font-medium">
@@ -365,48 +328,66 @@ export default function AdminUsersPage() {
             )}
 
             {!loading && (
-              <div className="flex flex-wrap items-center gap-2 mb-3">
-                <div className="relative flex-1 min-w-[220px] max-w-[420px]">
-                  <Search
-                    size={14}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
-                  />
-                  <input
-                    value={search}
+              <div className="mb-3 space-y-3">
+                <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-1 w-fit max-w-full">
+                  {(['all', ...ROLES] as RoleFilter[]).map((r) => (
+                    <button
+                      key={r}
+                      type="button"
+                      onClick={() => {
+                        setRoleFilter(r);
+                        setPage(1);
+                      }}
+                      className={chip(roleFilter === r)}
+                    >
+                      {r === 'all' ? t('users.allRoles') : t(`users.rolePlural.${r}`)}
+                      <span
+                        className={`tabular-nums ${roleFilter === r ? 'text-white/80' : 'text-[var(--text-muted)]'}`}
+                      >
+                        {roleCounts[r] ?? 0}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="relative flex-1 min-w-[220px] max-w-[420px]">
+                    <Search
+                      size={14}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]"
+                    />
+                    <input
+                      value={search}
+                      onChange={(e) => {
+                        setSearch(e.target.value);
+                        setPage(1);
+                      }}
+                      placeholder={t('users.searchPlaceholder')}
+                      className="w-full h-9 pl-8 pr-8 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm focus:border-accent focus:ring-0"
+                    />
+                    {search && (
+                      <button
+                        type="button"
+                        onClick={() => setSearch('')}
+                        aria-label={t('questions.clearSearch')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)]"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                  <select
+                    value={statusFilter}
                     onChange={(e) => {
-                      setSearch(e.target.value);
+                      setStatusFilter(e.target.value as StatusFilter);
                       setPage(1);
                     }}
-                    placeholder={t('users.searchPlaceholder')}
-                    className="w-full h-9 pl-8 pr-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm focus:border-accent focus:ring-0"
-                  />
+                    className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
+                  >
+                    <option value="active">{t('users.filterActive')}</option>
+                    <option value="inactive">{t('users.filterInactive')}</option>
+                    <option value="all">{t('users.filterAll')}</option>
+                  </select>
                 </div>
-                <select
-                  value={roleFilter}
-                  onChange={(e) => {
-                    setRoleFilter(e.target.value as typeof roleFilter);
-                    setPage(1);
-                  }}
-                  className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
-                >
-                  <option value="all">{t('users.allRoles')}</option>
-                  <option value="student">{t('users.student')}</option>
-                  <option value="assistant">{t('users.assistant')}</option>
-                  <option value="professor">{t('users.professor')}</option>
-                  <option value="admin">{t('users.admin')}</option>
-                </select>
-                <select
-                  value={statusFilter}
-                  onChange={(e) => {
-                    setStatusFilter(e.target.value as StatusFilter);
-                    setPage(1);
-                  }}
-                  className="h-9 px-2 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
-                >
-                  <option value="active">{t('users.filterActive')}</option>
-                  <option value="inactive">{t('users.filterInactive')}</option>
-                  <option value="all">{t('users.filterAll')}</option>
-                </select>
               </div>
             )}
 
@@ -417,6 +398,7 @@ export default function AdminUsersPage() {
             ) : (
               <UserList
                 users={users}
+                currentUserId={currentUser.id ?? null}
                 search={search}
                 roleFilter={roleFilter}
                 statusFilter={statusFilter}
@@ -438,63 +420,19 @@ export default function AdminUsersPage() {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-            <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">
-              {t('users.addTitle')}
-            </h2>
-            <div className="space-y-3">
-              <input
-                value={newEmail}
-                onChange={(e) => setNewEmail(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                placeholder={t('users.email')}
-              />
-              <input
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                type="password"
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                placeholder={t('users.password')}
-              />
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                placeholder={t('users.name')}
-              />
-              <input
-                value={newIndex}
-                onChange={(e) => setNewIndex(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-                placeholder={t('users.indexNumber')}
-              />
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value)}
-                className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-              >
-                <option value="student">{t('users.student')}</option>
-                <option value="assistant">{t('users.assistant')}</option>
-                <option value="professor">{t('users.professor')}</option>
-                <option value="admin">{t('users.admin')}</option>
-              </select>
-            </div>
-            <div className="flex items-center justify-end gap-3 mt-6">
-              <Button variant="secondary" onClick={() => setShowCreate(false)}>
-                {t('users.cancel')}
-              </Button>
-              <Button variant="primary" loading={creating} onClick={handleCreate}>
-                {t('users.createUser')}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <CreateUserModal
+          onClose={() => setShowCreate(false)}
+          onCreated={() => {
+            setShowCreate(false);
+            loadUsers();
+          }}
+        />
       )}
 
       {editTarget && (
         <EditUserModal
           user={editTarget}
+          isSelf={editTarget.id === currentUser.id}
           onClose={() => setEditTarget(null)}
           onSaved={(updated) => {
             setEditTarget(null);
@@ -505,486 +443,6 @@ export default function AdminUsersPage() {
 
       {passwordTarget && (
         <PasswordModal user={passwordTarget} onClose={() => setPasswordTarget(null)} />
-      )}
-    </div>
-  );
-}
-
-// ----- list + row components, kept outside the page so they don't re-create on every parent render -----
-
-type UserListProps = {
-  users: UserData[];
-  search: string;
-  roleFilter: 'all' | 'student' | 'assistant' | 'professor' | 'admin';
-  statusFilter: StatusFilter;
-  page: number;
-  pageSize: number;
-  onPageChange: (p: number) => void;
-  onRoleChange: (id: string, role: string) => void;
-  onEdit: (u: UserData) => void;
-  onSetPassword: (u: UserData) => void;
-  onOpenProfile: (id: string) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-};
-
-function UserListImpl({
-  users,
-  search,
-  roleFilter,
-  statusFilter,
-  page,
-  pageSize,
-  onPageChange,
-  onRoleChange,
-  onEdit,
-  onSetPassword,
-  onOpenProfile,
-  t,
-}: UserListProps) {
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return users.filter((u) => {
-      if (roleFilter !== 'all' && u.role !== roleFilter) return false;
-      if (statusFilter === 'active' && !u.is_active) return false;
-      if (statusFilter === 'inactive' && u.is_active) return false;
-      if (!q) return true;
-      return (
-        u.email.toLowerCase().includes(q) ||
-        (u.name?.toLowerCase().includes(q) ?? false) ||
-        (u.index_number?.toLowerCase().includes(q) ?? false)
-      );
-    });
-  }, [users, search, roleFilter, statusFilter]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  const safePage = Math.min(page, totalPages);
-  const start = (safePage - 1) * pageSize;
-  const slice = filtered.slice(start, start + pageSize);
-
-  return (
-    <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] overflow-hidden">
-      <div className="hidden sm:flex items-center px-5 py-3 bg-[var(--bg-secondary)] border-b border-[var(--border-default)] text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">
-        <div className="flex-1">{t('users.user')}</div>
-        <div className="w-32">{t('users.index')}</div>
-        <div className="w-36">{t('users.role')}</div>
-        <div className="w-32">{t('users.lastLogin')}</div>
-        <div className="w-24 text-right">{t('users.edit')}</div>
-      </div>
-      {slice.length === 0 ? (
-        <div className="py-12 text-center text-sm text-[var(--text-muted)]">
-          {t('users.noResults')}
-        </div>
-      ) : (
-        slice.map((u) => (
-          <UserRow
-            key={u.id}
-            user={u}
-            onRoleChange={onRoleChange}
-            onEdit={onEdit}
-            onSetPassword={onSetPassword}
-            onOpenProfile={onOpenProfile}
-            t={t}
-          />
-        ))
-      )}
-
-      {filtered.length > pageSize && (
-        <div className="flex items-center justify-between px-5 py-3 border-t border-[var(--border-default)] text-xs text-[var(--text-muted)]">
-          <span>
-            {start + 1}-{Math.min(start + pageSize, filtered.length)} / {filtered.length}
-          </span>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => onPageChange(Math.max(1, safePage - 1))}
-              disabled={safePage <= 1}
-              className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft size={14} />
-            </button>
-            <span className="font-mono">
-              {safePage} / {totalPages}
-            </span>
-            <button
-              type="button"
-              onClick={() => onPageChange(Math.min(totalPages, safePage + 1))}
-              disabled={safePage >= totalPages}
-              className="p-1.5 rounded-md hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              <ChevronRight size={14} />
-            </button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-const UserList = React.memo(UserListImpl);
-
-type UserRowProps = {
-  user: UserData;
-  onRoleChange: (id: string, role: string) => void;
-  onEdit: (u: UserData) => void;
-  onSetPassword: (u: UserData) => void;
-  onOpenProfile: (id: string) => void;
-  t: (key: string, params?: Record<string, string | number>) => string;
-};
-
-function UserRowImpl({
-  user,
-  onRoleChange,
-  onEdit,
-  onSetPassword,
-  onOpenProfile,
-  t,
-}: UserRowProps) {
-  return (
-    <div className="flex items-center px-5 py-3 border-b border-[var(--border-subtle)] last:border-0 hover:bg-[var(--bg-tertiary)] transition-colors">
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-sm font-medium text-[var(--text-primary)] truncate">
-            {user.name || user.email}
-          </span>
-          {user.ldap_uid && <Badge variant="info">{t('users.badgeIpa')}</Badge>}
-          {!user.is_active &&
-            (user.ldap_archived_at ? (
-              <Badge variant="warning">{t('users.badgeArchived')}</Badge>
-            ) : (
-              <Badge variant="neutral">{t('users.inactive')}</Badge>
-            ))}
-        </div>
-        <div className="text-[11px] text-[var(--text-muted)] truncate">
-          {user.email}
-          {!user.is_active && user.ldap_archived_at && (
-            <>
-              {' · '}
-              {t(
-                user.ldap_archived_reason === 'locked'
-                  ? 'users.archivedLocked'
-                  : 'users.archivedRemoved',
-                { date: new Date(user.ldap_archived_at).toLocaleDateString() },
-              )}
-            </>
-          )}
-        </div>
-      </div>
-      <div className="w-32 text-xs text-[var(--text-muted)] font-mono truncate">
-        {user.index_number || '-'}
-      </div>
-      <div className="w-36">
-        <select
-          value={user.role}
-          onChange={(e) => onRoleChange(user.id, e.target.value)}
-          className="h-9 px-2 w-full rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-primary)] text-sm"
-        >
-          <option value="student">{t('users.student')}</option>
-          <option value="assistant">{t('users.assistant')}</option>
-          <option value="professor">{t('users.professor')}</option>
-          <option value="admin">{t('users.admin')}</option>
-        </select>
-      </div>
-      <div className="w-32 text-xs text-[var(--text-muted)]">
-        {user.last_login_at ? new Date(user.last_login_at).toLocaleDateString() : t('users.never')}
-      </div>
-      <div className="w-32 flex items-center justify-end gap-1">
-        <button
-          type="button"
-          title={t('users.openProfile')}
-          onClick={() => onOpenProfile(user.id)}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-accent hover:bg-[var(--bg-tertiary)]"
-        >
-          <User size={14} />
-        </button>
-        <button
-          type="button"
-          title={t('users.edit')}
-          onClick={() => onEdit(user)}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-accent hover:bg-[var(--bg-tertiary)]"
-        >
-          <Pencil size={14} />
-        </button>
-        <button
-          type="button"
-          title={t('users.setPassword')}
-          onClick={() => onSetPassword(user)}
-          className="p-1.5 rounded-md text-[var(--text-muted)] hover:text-accent hover:bg-[var(--bg-tertiary)]"
-        >
-          <Key size={14} />
-        </button>
-      </div>
-    </div>
-  );
-}
-const UserRow = React.memo(UserRowImpl);
-
-// ----- Modals -----
-
-function EditUserModal({
-  user,
-  onClose,
-  onSaved,
-}: {
-  user: UserData;
-  onClose: () => void;
-  onSaved: (u: UserData) => void;
-}) {
-  const { t } = useLang();
-  const toast = useToast();
-  const [name, setName] = useState(user.name ?? '');
-  const [email, setEmail] = useState(user.email);
-  const [indexNumber, setIndexNumber] = useState(user.index_number ?? '');
-  const [role, setRole] = useState(user.role);
-  const [isActive, setIsActive] = useState(user.is_active);
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      const res = await fetch('/api/admin/users', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          id: user.id,
-          name: name.trim() || null,
-          email: email.trim(),
-          index_number: indexNumber.trim() || null,
-          role,
-          is_active: isActive,
-        }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(d.error || t('users.saveFailed'));
-        return;
-      }
-      toast.success(t('users.saveSuccess'));
-      onSaved(d.user as UserData);
-    } catch {
-      toast.error(t('users.saveFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-4">
-          {t('users.editTitle')}
-        </h2>
-        <div className="space-y-3">
-          <input
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-            placeholder={t('users.name')}
-          />
-          <input
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-            placeholder={t('users.email')}
-          />
-          <input
-            value={indexNumber}
-            onChange={(e) => setIndexNumber(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-            placeholder={t('users.indexNumber')}
-          />
-          <select
-            value={role}
-            onChange={(e) => setRole(e.target.value)}
-            className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-          >
-            <option value="student">{t('users.student')}</option>
-            <option value="assistant">{t('users.assistant')}</option>
-            <option value="professor">{t('users.professor')}</option>
-            <option value="admin">{t('users.admin')}</option>
-          </select>
-          <label className="flex items-center gap-2 text-sm text-[var(--text-secondary)] cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isActive}
-              onChange={(e) => setIsActive(e.target.checked)}
-            />
-            {t('users.statusActive')}
-          </label>
-          {!user.is_active && user.ldap_archived_at && (
-            <p className="text-xs text-[var(--text-muted)]">{t('users.archivedNote')}</p>
-          )}
-        </div>
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
-            {t('users.cancel')}
-          </Button>
-          <Button variant="primary" loading={saving} onClick={handleSave}>
-            {t('users.save')}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function PasswordModal({ user, onClose }: { user: UserData; onClose: () => void }) {
-  const { t } = useLang();
-  const toast = useToast();
-  const [password, setPassword] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  const handleSave = async () => {
-    if (password.length < 6) {
-      toast.error(t('users.passwordTooShort'));
-      return;
-    }
-    setSaving(true);
-    try {
-      const res = await fetch('/api/admin/users/password', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ id: user.id, password }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        toast.error(d.error || t('users.passwordFailed'));
-        return;
-      }
-      toast.success(t('users.passwordChanged'));
-      onClose();
-    } catch {
-      toast.error(t('users.passwordFailed'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] shadow-lg w-full max-w-md p-6">
-        <h2 className="text-lg font-display font-semibold text-[var(--text-primary)] mb-1">
-          {t('users.passwordTitle')}
-        </h2>
-        <p className="text-xs text-[var(--text-muted)] mb-4 truncate">{user.name || user.email}</p>
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          autoFocus
-          placeholder={t('users.passwordPlaceholder')}
-          className="w-full h-10 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-primary)] text-[var(--text-primary)] text-sm"
-        />
-        <div className="flex items-center justify-end gap-3 mt-6">
-          <Button variant="secondary" onClick={onClose} disabled={saving}>
-            {t('users.cancel')}
-          </Button>
-          <Button variant="primary" loading={saving} onClick={handleSave}>
-            {t('users.save')}
-          </Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ----- IPA directory sync -----
-// Hidden unless LDAP is enabled on the server. Shows the outcome of the last run and lets the admin
-// run it now, or confirm an archive step the server's safety limit held back.
-function LdapSyncPanel({ onSynced }: { onSynced: () => void }) {
-  const { t } = useLang();
-  const toast = useToast();
-  const [info, setInfo] = useState<LdapSyncInfo | null>(null);
-  const [syncing, setSyncing] = useState(false);
-
-  const load = useCallback(async () => {
-    try {
-      const res = await fetch('/api/admin/ldap-sync', { credentials: 'include' });
-      if (res.ok) setInfo(await res.json());
-    } catch {
-      /* panel just stays hidden */
-    }
-  }, []);
-
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  const run = async (force: boolean) => {
-    setSyncing(true);
-    try {
-      const res = await fetch('/api/admin/ldap-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ force }),
-      });
-      const d = await res.json().catch(() => ({}));
-      if (res.status === 409) toast.error(t('ldapSync.busy'));
-      else if (!res.ok || !d.status?.ok) toast.error(t('ldapSync.error'));
-      else toast.success(t('ldapSync.done'));
-      onSynced();
-    } catch {
-      toast.error(t('ldapSync.error'));
-    } finally {
-      setSyncing(false);
-      load();
-    }
-  };
-
-  if (!info?.enabled) return null;
-  const last = info.last;
-  const busy = syncing || info.running;
-
-  return (
-    <div className="mb-4 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] p-4 text-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <div className="font-medium text-[var(--text-primary)]">{t('ldapSync.title')}</div>
-          <div className="text-xs text-[var(--text-muted)]">
-            {last
-              ? t('ldapSync.lastRun', { time: new Date(last.finished_at).toLocaleString() })
-              : t('ldapSync.never')}
-            {' · '}
-            {info.interval_minutes > 0
-              ? t('ldapSync.schedule', { minutes: info.interval_minutes })
-              : t('ldapSync.manualOnly')}
-          </div>
-        </div>
-        <Button
-          variant="secondary"
-          leftIcon={<RefreshCw size={14} className={busy ? 'animate-spin' : ''} />}
-          disabled={busy}
-          onClick={() => run(false)}
-        >
-          {busy ? t('ldapSync.running') : t('ldapSync.run')}
-        </Button>
-      </div>
-
-      {last?.ok && last.stats && (
-        <div className="mt-2 text-xs text-[var(--text-secondary)]">
-          {t('ldapSync.stats', { ...last.stats })}
-        </div>
-      )}
-      {last && !last.ok && <div className="mt-2 text-xs text-danger">{t('ldapSync.failed')}</div>}
-      {last?.ok && !!last.stats?.conflicts && (
-        <div className="mt-2 text-xs text-warning">
-          {t('ldapSync.conflicts', { count: last.stats.conflicts })}
-        </div>
-      )}
-      {last?.ok && last.archive_blocked && (
-        <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg bg-warning-light p-3 text-xs text-warning">
-          <span className="flex items-start gap-2">
-            <AlertTriangle size={14} className="mt-0.5 shrink-0" />
-            {t('ldapSync.blocked', { ...last.archive_blocked })}
-          </span>
-          <Button variant="secondary" size="sm" disabled={busy} onClick={() => run(true)}>
-            {t('ldapSync.confirmArchive')}
-          </Button>
-        </div>
-      )}
-      {!info.read_account && (
-        <div className="mt-2 text-xs text-[var(--text-muted)]">{t('ldapSync.noReadAccount')}</div>
       )}
     </div>
   );

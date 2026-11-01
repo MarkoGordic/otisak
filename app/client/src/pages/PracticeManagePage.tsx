@@ -11,6 +11,10 @@ import {
   Pencil,
   Printer,
   RotateCw,
+  Shuffle,
+  AlertTriangle,
+  FileText,
+  Users,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -97,7 +101,7 @@ export default function PracticeManagePage() {
     try {
       const [examsRes, subjectsRes] = await Promise.all([
         fetch('/api/otisak/exams?exam_mode=practice', { credentials: 'include' }),
-        fetch('/api/otisak/subjects', { credentials: 'include' }),
+        fetch('/api/otisak/questions/subjects', { credentials: 'include' }),
       ]);
       if (examsRes.ok) {
         const d = await examsRes.json();
@@ -161,6 +165,38 @@ export default function PracticeManagePage() {
     return true;
   });
 
+  const countFor = (id: PracticeTab) =>
+    exams.filter((e) => STATUSES_BY_TAB[id].includes(e.status)).length;
+  const tabLabel = (id: PracticeTab, key: string) => (
+    <span className="inline-flex items-center gap-1.5">
+      {t(key)}
+      <span className="text-[11px] tabular-nums text-[var(--text-muted)]">{countFor(id)}</span>
+    </span>
+  );
+
+  // A bank-drawn template has no questions of its own. Say what a run draws,
+  // and flag one with no rules: it hands every student an empty test.
+  const bankInfo = (exam: OtisakExamWithSubject) => {
+    if (!exam.uses_question_bank) return undefined;
+    if (exam.bank_question_count === 0) {
+      return exam.question_count > 0 ? undefined : (
+        <span className="flex items-center gap-1 text-danger font-medium">
+          <AlertTriangle size={12} />
+          {t('practiceAdmin.bankEmpty')}
+        </span>
+      );
+    }
+    return (
+      <span className="flex items-center gap-1">
+        <Shuffle size={12} />
+        {t('practiceAdmin.bankDraw', {
+          count: exam.bank_question_count,
+          tags: exam.bank_tags.join(', '),
+        })}
+      </span>
+    );
+  };
+
   const tagPool = Array.from(
     new Set(
       exams.flatMap((e) => (Array.isArray(e.tags) ? e.tags : []).map((x) => x.toLowerCase())),
@@ -180,9 +216,9 @@ export default function PracticeManagePage() {
       <Sidebar userName={user.name} userRole={user.role} userAvatar={user.avatar_url} />
       <MobileNav userName={user.name} userRole={user.role} />
 
-      <div className="flex-1 lg:ml-[260px] flex flex-col min-h-screen">
+      <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
         <main className="flex-1 pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto min-h-full">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
@@ -220,9 +256,9 @@ export default function PracticeManagePage() {
             <div className="mb-4">
               <Tabs
                 tabs={[
-                  { id: 'published', label: t('practiceAdmin.tab.published') },
-                  { id: 'drafts', label: t('practiceAdmin.tab.drafts') },
-                  { id: 'archive', label: t('practiceAdmin.tab.archive') },
+                  { id: 'published', label: tabLabel('published', 'practiceAdmin.tab.published') },
+                  { id: 'drafts', label: tabLabel('drafts', 'practiceAdmin.tab.drafts') },
+                  { id: 'archive', label: tabLabel('archive', 'practiceAdmin.tab.archive') },
                 ]}
                 activeTab={tab}
                 onChange={(id) => setTab(id as PracticeTab)}
@@ -283,6 +319,22 @@ export default function PracticeManagePage() {
                     key={exam.id}
                     exam={exam}
                     index={idx}
+                    questionInfo={
+                      <>
+                        {bankInfo(exam) ?? (
+                          <span className="flex items-center gap-1">
+                            <FileText size={12} />
+                            {exam.question_count} {t('manage.questionsShort')}
+                          </span>
+                        )}
+                        {exam.run_count > 0 && (
+                          <span className="flex items-center gap-1">
+                            <Users size={12} />
+                            {t('practiceAdmin.runs', { count: exam.run_count })}
+                          </span>
+                        )}
+                      </>
+                    }
                     badges={
                       exam.self_service === false ? (
                         // Badge takes no title prop, so wrap it for the tooltip.

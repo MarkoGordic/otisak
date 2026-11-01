@@ -32,6 +32,7 @@ import {
 // loose - the DB has a UNIQUE constraint on the actual address, this just
 // stops obvious typos from reaching the insert.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const VALID_ROLES = ['student', 'assistant', 'professor', 'admin'];
 
 const router = Router();
 
@@ -56,6 +57,14 @@ router.patch('/users', async (req: Request, res: Response) => {
     const { id, name, email, role, index_number, is_active } = req.body;
     if (!id) {
       return res.status(400).json({ error: 'User id is required' });
+    }
+    if (role !== undefined && !VALID_ROLES.includes(role)) {
+      return res.status(400).json({ error: 'Invalid role' });
+    }
+    // An admin demoting or deactivating themselves locks the console with no
+    // way back except SQL. Another admin can still do it to them.
+    if (id === req.user!.id && ((role !== undefined && role !== 'admin') || is_active === false)) {
+      return res.status(400).json({ error: 'SELF_LOCKOUT' });
     }
 
     // Email is the one field that can collide because of the UNIQUE

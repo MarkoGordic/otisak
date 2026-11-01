@@ -269,7 +269,7 @@ export function MobileNav({ userRole }: SidebarProps) {
       ];
 
   return (
-    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[var(--bg-elevated)]/95 backdrop-blur border-t border-[var(--border-subtle)] z-30 flex items-center justify-around px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-[color-mix(in_srgb,var(--bg-elevated)_95%,transparent)] backdrop-blur border-t border-[var(--border-subtle)] z-30 flex items-center justify-around px-1 pt-1.5 pb-[max(0.375rem,env(safe-area-inset-bottom))]">
       {navItems.map((item) => {
         const active = isActive(pathname, item.href);
         return (

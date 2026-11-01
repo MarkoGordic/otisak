@@ -231,7 +231,7 @@ export default function QuestionBankPage() {
             </div>
 
             {/* Filters: sticky so they stay reachable deep in a long bank */}
-            <div className="sm:sticky sm:top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4 bg-[var(--bg-secondary)]/90 backdrop-blur border-b border-[var(--border-subtle)]">
+            <div className="sm:sticky sm:top-0 z-20 -mx-4 sm:-mx-6 lg:-mx-8 px-4 sm:px-6 lg:px-8 py-3 mb-4 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur border-b border-[var(--border-subtle)]">
               <div className="flex flex-wrap items-center gap-2">
                 <div className="w-full sm:w-[240px]">
                   <Dropdown

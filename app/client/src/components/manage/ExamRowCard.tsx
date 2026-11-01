@@ -14,11 +14,14 @@ export function ExamRowCard({
   exam,
   index,
   badges,
+  questionInfo,
   actions,
 }: {
   exam: OtisakExamWithSubject;
   index: number;
   badges?: React.ReactNode;
+  // Replaces the "N questions" item, e.g. for templates that draw from the bank.
+  questionInfo?: React.ReactNode;
   actions: React.ReactNode;
 }) {
   const { t } = useLang();
@@ -27,12 +30,12 @@ export function ExamRowCard({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.03 }}
-      className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-default)] p-5 hover:border-[var(--text-muted)] transition-colors"
+      transition={{ delay: Math.min(index, 10) * 0.03 }}
+      className="bg-[var(--bg-elevated)] rounded-xl border border-[var(--border-subtle)] p-4 sm:p-5"
     >
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <h3 className="text-base font-display font-semibold text-[var(--text-primary)] truncate">
               {exam.title}
             </h3>
@@ -60,10 +63,12 @@ export function ExamRowCard({
               <Clock size={12} />
               {exam.duration_minutes} {t('manage.minShort')}
             </span>
-            <span className="flex items-center gap-1">
-              <FileText size={12} />
-              {exam.question_count} {t('manage.questionsShort')}
-            </span>
+            {questionInfo ?? (
+              <span className="flex items-center gap-1">
+                <FileText size={12} />
+                {exam.question_count} {t('manage.questionsShort')}
+              </span>
+            )}
             {exam.scheduled_at && (
               <span className="flex items-center gap-1">
                 <CalendarIcon size={12} />
@@ -91,7 +96,7 @@ export function ExamRowCard({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>
+        <div className="flex flex-wrap items-center gap-2 sm:flex-shrink-0">{actions}</div>
       </div>
     </motion.div>
   );

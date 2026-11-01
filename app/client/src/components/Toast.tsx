@@ -171,7 +171,7 @@ function ToastItem({ toast, onClose }: { toast: Toast; onClose: () => void }) {
       animate={{ opacity: 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, y: -12, scale: 0.96, transition: { duration: 0.15 } }}
       transition={{ type: 'spring', stiffness: 420, damping: 32 }}
-      className={`pointer-events-auto relative w-full overflow-hidden rounded-2xl border bg-[var(--bg-elevated)]/95 backdrop-blur-sm ${isMessage ? 'max-w-md' : 'max-w-sm'}`}
+      className={`pointer-events-auto relative w-full overflow-hidden rounded-2xl border bg-[color-mix(in_srgb,var(--bg-elevated)_95%,transparent)] backdrop-blur-sm ${isMessage ? 'max-w-md' : 'max-w-sm'}`}
       style={{ borderColor: 'var(--border-default)', boxShadow: '0 12px 36px rgba(0,0,0,0.18)' }}
       role={isMessage ? 'alert' : 'status'}
     >

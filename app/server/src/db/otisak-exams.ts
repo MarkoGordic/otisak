@@ -26,7 +26,14 @@ export async function getOtisakExams(filters?: {
 }): Promise<OtisakExamWithSubject[]> {
   let sql = `
     SELECT e.*, s.name as subject_name, s.code as subject_code,
-           (SELECT COUNT(*)::int FROM otisak_questions q WHERE q.exam_id = e.id) as question_count
+           (SELECT COUNT(*)::int FROM otisak_questions q WHERE q.exam_id = e.id) as question_count,
+           -- A bank-drawn template has no questions of its own; these say what
+           -- each run draws, so the list does not report "0 questions" for it.
+           (SELECT COALESCE(SUM(r.question_count), 0)::int
+              FROM otisak_exam_tag_rules r WHERE r.exam_id = e.id) as bank_question_count,
+           (SELECT COALESCE(array_agg(DISTINCT r.tag), '{}')
+              FROM otisak_exam_tag_rules r WHERE r.exam_id = e.id) as bank_tags,
+           (SELECT COUNT(*)::int FROM otisak_exams c WHERE c.parent_exam_id = e.id) as run_count
     FROM otisak_exams e
     LEFT JOIN otisak_subjects s ON e.subject_id = s.id
   `;

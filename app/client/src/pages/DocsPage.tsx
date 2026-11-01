@@ -166,7 +166,7 @@ export default function DocsPage() {
   // Anonymous (public) layout: standalone top bar, no app sidebar.
   return (
     <div className="min-h-screen bg-[var(--bg-secondary)]">
-      <header className="sticky top-0 z-30 bg-[var(--bg-elevated)]/95 backdrop-blur border-b border-[var(--border-default)]">
+      <header className="sticky top-0 z-30 bg-[color-mix(in_srgb,var(--bg-elevated)_95%,transparent)] backdrop-blur border-b border-[var(--border-default)]">
         <div className="max-w-[1280px] mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <button
             type="button"
