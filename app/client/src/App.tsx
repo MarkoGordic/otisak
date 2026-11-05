@@ -19,6 +19,7 @@ const DashboardPage = lazy(() => import('./pages/DashboardPage'));
 const ManagePage = lazy(() => import('./pages/ManagePage'));
 const PracticeManagePage = lazy(() => import('./pages/PracticeManagePage'));
 const ExamEditPage = lazy(() => import('./pages/ExamEditPage'));
+const ExamPreviewPage = lazy(() => import('./pages/ExamPreviewPage'));
 const AdminHomePage = lazy(() => import('./pages/AdminHomePage'));
 const GradingPage = lazy(() => import('./pages/GradingPage'));
 const RoomPage = lazy(() => import('./pages/RoomPage'));
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/manage" element={<ManagePage />} />
           <Route path="/manage/:examId" element={<RoomPage />} />
           <Route path="/manage/:examId/edit" element={<ExamEditPage />} />
+          <Route path="/manage/:examId/preview" element={<ExamPreviewPage />} />
           <Route path="/manage/:examId/report/:userId" element={<ReportPage />} />
           <Route path="/manage/:examId/stats" element={<ExamStatsPage />} />
           <Route path="/manage/:examId/grading" element={<GradingPage />} />

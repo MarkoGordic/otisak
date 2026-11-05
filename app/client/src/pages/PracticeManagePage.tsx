@@ -15,6 +15,7 @@ import {
   AlertTriangle,
   FileText,
   Users,
+  Eye,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -218,7 +219,7 @@ export default function PracticeManagePage() {
 
       <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
         <main className="flex-1 flex flex-col pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto min-h-full">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto w-full min-h-full">
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
@@ -364,6 +365,15 @@ export default function PracticeManagePage() {
                         >
                           {t('manage.edit')}
                         </Button>
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/manage/${exam.id}/preview`)}
+                          className="inline-flex items-center justify-center h-9 w-9 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] hover:border-accent hover:text-accent transition-colors"
+                          title={t('preview.open')}
+                          aria-label={t('preview.open')}
+                        >
+                          <Eye size={14} />
+                        </button>
                         <a
                           href={`/api/otisak/exams/${exam.id}/export`}
                           className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"

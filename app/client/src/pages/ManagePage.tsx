@@ -18,6 +18,7 @@ import {
   BarChart3,
   Printer,
   ClipboardCheck,
+  Eye,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -378,6 +379,15 @@ export default function ManagePage() {
                           {t('manage.edit')}
                         </Button>
                         <div className="inline-flex items-center rounded-lg border border-[var(--border-default)] overflow-hidden divide-x divide-[var(--border-default)]">
+                          <button
+                            type="button"
+                            onClick={() => navigate(`/manage/${exam.id}/preview`)}
+                            className={toolClass}
+                            title={t('preview.open')}
+                            aria-label={t('preview.open')}
+                          >
+                            <Eye size={14} />
+                          </button>
                           <a
                             href={`/api/otisak/exams/${exam.id}/export`}
                             className={toolClass}

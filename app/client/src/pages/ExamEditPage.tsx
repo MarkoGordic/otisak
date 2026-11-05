@@ -12,6 +12,7 @@ import {
   Printer,
   Shuffle,
   ListChecks,
+  Eye,
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
@@ -419,6 +420,14 @@ export default function ExamEditPage() {
                 </p>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  type="button"
+                  onClick={() => navigate(`/manage/${exam.id}/preview`)}
+                  className="inline-flex items-center gap-2 h-9 px-3 rounded-lg border border-[var(--border-default)] bg-[var(--bg-elevated)] text-[var(--text-secondary)] text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                >
+                  <Eye size={14} />
+                  {t('preview.open')}
+                </button>
                 <a
                   href={`/api/otisak/exams/${exam.id}/print/pdf?lang=${locale}`}
                   target="_blank"

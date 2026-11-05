@@ -213,7 +213,7 @@ export default function AdminUsersPage() {
 
       <div className="flex-1 min-w-0 lg:ml-[260px] flex flex-col min-h-screen">
         <main className="flex-1 flex flex-col pb-20 lg:pb-8">
-          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto min-h-full">
+          <div className="p-4 sm:p-6 lg:p-8 max-w-[1100px] mx-auto w-full min-h-full">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
               <div className="flex items-center gap-4">
                 <div className="w-11 h-11 rounded-xl bg-accent-light flex items-center justify-center flex-shrink-0">

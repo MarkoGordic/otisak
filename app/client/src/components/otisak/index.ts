@@ -5,4 +5,5 @@ export { OtisakTimer } from './OtisakTimer';
 export { AnswerOption } from './AnswerOption';
 export { CodeBlock } from './CodeBlock';
 export { QuestionNav } from './QuestionNav';
+export { QuestionView } from './QuestionView';
 export { OtisakBackground } from './OtisakBackground';
