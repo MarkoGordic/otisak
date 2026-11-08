@@ -29,6 +29,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Tabs } from '../components/ui/Tabs';
 import type { OtisakExamWithSubject, OtisakAttemptWithExam } from '../lib/types';
+import { freeWrong } from '../lib/points';
 
 type UserInfo = {
   name?: string;
@@ -496,10 +497,12 @@ export default function DashboardPage() {
                                     <div className="flex items-center gap-1.5 text-danger">
                                       <AlertTriangle size={14} />
                                       <span className="text-xs">
-                                        -{exam.negative_points_value}{' '}
-                                        {t('dashboard.afterWrong', {
-                                          count: exam.negative_points_threshold,
-                                        })}
+                                        -{Number(exam.negative_points_value)}{' '}
+                                        {freeWrong(exam) > 0
+                                          ? t('dashboard.afterWrongFree', {
+                                              free: freeWrong(exam),
+                                            })
+                                          : t('dashboard.afterWrong')}
                                       </span>
                                     </div>
                                   )}

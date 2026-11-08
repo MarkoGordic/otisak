@@ -130,7 +130,8 @@ const sr: Record<I18nKey, string> = {
   'dashboard.draft': 'Nacrt',
   'dashboard.archived': 'Arhiviran',
   'dashboard.unknown': 'Nepoznato',
-  'dashboard.afterWrong': '-{value} posle {threshold} pogrešnih',
+  'dashboard.afterWrong': 'po pogrešnom odgovoru',
+  'dashboard.afterWrongFree': 'po pogrešnom odgovoru, prvih {free} bez kazne',
   'dashboard.student': 'Student',
 
   // Subjects
@@ -258,6 +259,11 @@ const sr: Record<I18nKey, string> = {
   'examEdit.shuffleQuestions': 'Promešaj pitanja',
   'examEdit.shuffleAnswers': 'Promešaj odgovore',
   'examEdit.partialScoring': 'Delimično bodovanje',
+  'examEdit.negativePoints': 'Negativni bodovi',
+  'examEdit.negativeValue': 'Kazna po pogrešnom pitanju (bodova)',
+  'examEdit.negativeFree': 'Pogrešnih odgovora bez kazne',
+  'examEdit.negativeHelp':
+    'Kazna se oduzima od ukupnog zbira i ista je za svako pogrešno pitanje. Neodgovorena pitanja se ne kažnjavaju, a ukupno ne pada ispod 0.',
   'examEdit.tags': 'Oznake',
   'examEdit.tagsPlaceholder': 'Ukucaj oznaku i pritisni Enter…',
   'examEdit.tagsHelp':
@@ -641,8 +647,10 @@ const sr: Record<I18nKey, string> = {
   'exam.back': 'Nazad',
   'exam.negativePoints': 'Negativni bodovi',
   'exam.negativePointsDesc':
-    'Posle {threshold} pogrešnih odgovora, svaki sledeći pogrešni odgovor oduzima {value} bod(ova).',
-  'exam.threshold': 'Prag: {value}',
+    'Svaki pogrešan odgovor oduzima {value} bod(ova) od ukupnog zbira. Neodgovorena pitanja se ne kažnjavaju.',
+  'exam.negativePointsDescFree':
+    'Prvih {free} pogrešnih odgovora se ne kažnjava, a svaki sledeći oduzima {value} bod(ova) od ukupnog zbira. Neodgovorena pitanja se ne kažnjavaju.',
+  'exam.threshold': 'Bez kazne: {value}',
   'exam.cheatingWarning':
     'Svaki vid prepisivanja, neovlašćene komunikacije ili korišćenja spoljnih izvora strogo je zabranjen tokom ispita.',
   'exam.disciplinaryWarning':

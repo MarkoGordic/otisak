@@ -64,18 +64,18 @@ Sva polja osim `title` su opciona.
 |---|---|---|---|
 | `title` | string | | **Obavezno.** Skraćuju se razmaci. Ako nedostaje ili je prazno, uvoz pada. |
 | `description` | string | `null` | Prikazuje se na ulaznom ekranu. |
-| `duration_minutes` | broj | `60` | `0` ili neispravna vrednost postaje 60. |
-| `pass_threshold` | broj | `50` | Procenat. `0` postaje 50. Koristi se samo kada je `has_pass_threshold` uključen. |
+| `duration_minutes` | ceo broj | `60` | Decimalna vrednost se zaokružuje. `0` ili neispravna vrednost postaje 60. |
+| `pass_threshold` | broj | `50` | Procenat, od 0 do 100. Samo izostavljena ili neispravna vrednost postaje 50. Koristi se samo kada je `has_pass_threshold` uključen. |
 | `has_pass_threshold` | boolean | `true` | `false` prikazuje samo bodove, bez ocene položio ili pao. |
 | `allow_review` | boolean | `false` | Studenti vide tačne odgovore nakon zatvaranja ispita. |
 | `shuffle_questions` | boolean | `false` | Nasumičan redosled po pokušaju, stabilan pri osvežavanju stranice. |
 | `shuffle_answers` | boolean | `false` | Nasumičan redosled ponuđenih odgovora unutar pitanja. |
 | `partial_scoring` | boolean | `false` | Samo pitanja sa više tačnih odgovora. Vidi [Bodovanje](#bodovanje). |
-| `negative_points_enabled` | boolean | `false` | |
-| `negative_points_value` | broj | `0` | Mora da bude 0 ili više. |
-| `negative_points_threshold` | broj | `0` | Broj netačnih odgovora koji prolaze bez oduzimanja bodova. |
+| `negative_points_enabled` | boolean | `false` | Vidi [Negativni bodovi](#negativni-bodovi). |
+| `negative_points_value` | broj | `0` | Koliko bodova oduzima jedno pogrešno pitanje. Negativna vrednost postaje 0. |
+| `negative_points_threshold` | ceo broj | `0` | Redni broj prvog pogrešnog odgovora koji se kažnjava. `0` i `1` znače da se kažnjava svaki. Decimalna vrednost se zaokružuje. |
 
-Boolean vrednosti se tumače široko: `"true"` i `1` važe kao tačno, a `0`, `""` i `null` kao netačno.
+Piši prave JSON vrednosti `true` i `false`. Od stringova se prihvataju `"true"`, `"1"`, `"da"`, `"yes"` kao tačno i `"false"`, `"0"`, `"ne"`, `"no"`, `""` kao netačno. Brojevi `1` i `0` važe kao tačno i netačno.
 
 ## Polja u `questions`
 
@@ -239,6 +239,25 @@ Ocenjuje ga AI kada je `ai_grading_instructions` postavljen, inače se ocenjuje 
 | `open_text` | Onoliko koliko dodeli AI ocenjivač ili koliko dodeliš ručno. |
 
 `partial_scoring` važi **samo** za pitanja sa više tačnih odgovora. Nema nikakav efekat na `ordering`, `matching` i `fill_blank`: ta pitanja su uvek sve ili ništa.
+
+## Negativni bodovi
+
+Kazna se primenjuje kada je `negative_points_enabled` uključen **i** `negative_points_value` veći od 0. Može da se podesi i u editoru ispita.
+
+```
+W = broj pogrešno odgovorenih pitanja
+T = negative_points_threshold (0 se računa kao 1)
+kažnjena = max(0, W - (T - 1))
+ukupno   = max(0, zbir osvojenih bodova - kažnjena × negative_points_value)
+```
+
+- Prvih `T - 1` pogrešnih je besplatno: `T = 1` kažnjava svaki, `T = 3` prva dva pušta.
+- Kazna je ista za svako pogrešno pitanje, bez obzira na njegove bodove. Pojedinačno pitanje nikad ne ide ispod 0, a ni ukupno.
+- Maksimum ispita ostaje zbir `points`, pa procenat za prag prolaza pada zajedno sa ukupnim.
+- **Pogrešno** znači odgovoreno i 0 bodova. Delimični bodovi (`partial_scoring`) nisu pogrešni. Na pitanju sa više tačnih bez `partial_scoring`, delimično tačan izbor nosi 0 i kažnjava se.
+- **Neodgovoreno se ne kažnjava**, za sve tipove. `open_text` se računa tek kada je ocenjen.
+- Pitanje sa `points: 0` nosi 0 i kada je tačno, pa se kažnjava. Ne koristi ga uz negativne bodove.
+- Promena bodovanja na ispitu koji već ima predate radove ponovo boduje te radove.
 
 ## Zanemaruje se pri uvozu
 

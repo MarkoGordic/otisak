@@ -64,18 +64,18 @@ Every field except `title` is optional.
 |---|---|---|---|
 | `title` | string | | **Required.** Trimmed. Missing or empty fails the import. |
 | `description` | string | `null` | Shown on the join screen. |
-| `duration_minutes` | number | `60` | `0` or an invalid value becomes 60. |
-| `pass_threshold` | number | `50` | Percent. `0` becomes 50. Only used when `has_pass_threshold` is on. |
+| `duration_minutes` | integer | `60` | A fraction is rounded. `0` or an invalid value becomes 60. |
+| `pass_threshold` | number | `50` | Percent, 0 to 100. Only a missing or invalid value becomes 50. Only used when `has_pass_threshold` is on. |
 | `has_pass_threshold` | boolean | `true` | `false` shows a score with no pass or fail verdict. |
 | `allow_review` | boolean | `false` | Students see correct answers after the exam closes. |
 | `shuffle_questions` | boolean | `false` | Random order per attempt, seeded so a refresh does not reshuffle. |
 | `shuffle_answers` | boolean | `false` | Random option order within a question. |
 | `partial_scoring` | boolean | `false` | Multi-answer choice questions only. See [Scoring](#scoring). |
-| `negative_points_enabled` | boolean | `false` | |
-| `negative_points_value` | number | `0` | Must be 0 or more. |
-| `negative_points_threshold` | number | `0` | Wrong answers that are free before subtraction starts. |
+| `negative_points_enabled` | boolean | `false` | See [Negative points](#negative-points). |
+| `negative_points_value` | number | `0` | Points one wrong question subtracts. A negative value becomes 0. |
+| `negative_points_threshold` | integer | `0` | Number of the first wrong answer that is penalized. `0` and `1` both penalize every wrong answer. A fraction is rounded. |
 
-Booleans are coerced loosely: `"true"` and `1` count as true, while `0`, `""` and `null` count as false.
+Write real JSON `true` and `false`. Strings `"true"`, `"1"`, `"yes"`, `"da"` count as true and `"false"`, `"0"`, `"no"`, `"ne"`, `""` as false. Numbers `1` and `0` count as true and false.
 
 ## `questions` fields
 
@@ -239,6 +239,25 @@ Graded by AI when `ai_grading_instructions` is set, otherwise graded by hand.
 | `open_text` | Whatever the AI grader awards, or your manual score. |
 
 `partial_scoring` applies **only** to multi-correct choice questions. It has no effect on `ordering`, `matching` or `fill_blank`: those are always all or nothing.
+
+## Negative points
+
+The penalty applies when `negative_points_enabled` is on **and** `negative_points_value` is above 0. It can also be set in the exam editor.
+
+```
+W = number of wrongly answered questions
+T = negative_points_threshold (0 counts as 1)
+penalized = max(0, W - (T - 1))
+total     = max(0, points earned - penalized × negative_points_value)
+```
+
+- The first `T - 1` wrong answers are free: `T = 1` penalizes every one, `T = 3` lets two through.
+- The penalty is the same for every wrong question regardless of its points. A single question never goes below 0, nor does the total.
+- The exam maximum stays the sum of `points`, so the pass percentage drops with the total.
+- **Wrong** means answered and worth 0. Partial credit (`partial_scoring`) is not wrong. On a multi-correct question without `partial_scoring`, a partly correct pick scores 0 and is penalized.
+- **Unanswered is never penalized**, for every type. `open_text` counts only once graded.
+- A question with `points: 0` scores 0 even when correct, so it gets penalized. Don't use it with negative points.
+- Changing scoring on an exam that already has submissions rescores them.
 
 ## Ignored on import
 

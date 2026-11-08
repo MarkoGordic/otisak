@@ -45,15 +45,17 @@ Two paths:
 | Shuffle questions | Random order per attempt. Seeded so refresh doesn't reshuffle. |
 | Shuffle answers | Random option order within each question. Same seeding. |
 | Partial scoring | Multi-correct questions award proportional points instead of all-or-nothing. |
-| Negative points | See below. |
+| Negative points | Penalty per wrong question and how many wrong answers are free. See below. |
 
 **Sačuvaj podešavanja** commits the change.
 
 ### Negative points
 
-Off by default. When on, after `negative_points_threshold` wrong answers each additional wrong answer subtracts `negative_points_value`. Total never goes below zero.
+Off by default. When on, each wrongly answered question subtracts the penalty from the total, after the free wrong answers you allow. Unanswered questions are never penalized and the total never goes below zero.
 
-Example: threshold 1, value 0.5. First wrong is free. Each one after costs 0.5.
+Example: penalty 0.5, 1 wrong answer free. The first wrong answer costs nothing, each one after costs 0.5.
+
+In the file the free count is stored as `negative_points_threshold` = free + 1. See [Negative points](json-format.md#negative-points) for the exact rule.
 
 ## Question types
 

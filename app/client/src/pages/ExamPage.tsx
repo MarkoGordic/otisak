@@ -25,6 +25,7 @@ import { useExamSocket } from '../lib/useExamSocket';
 import { useToast } from '../components/Toast';
 import { ToggleCluster } from '../components/ToggleCluster';
 import type { OtisakExamWithSubject, OtisakQuestionWithAnswers, OtisakAttempt } from '../lib/types';
+import { freeWrong } from '../lib/points';
 
 type UserInfo = {
   id?: string;
@@ -1099,22 +1100,30 @@ export default function ExamPage() {
                     <p
                       className={`text-[12px] leading-relaxed ${isDark ? 'text-gray-400/80' : 'text-slate-600'}`}
                     >
-                      {t('exam.negativePointsDesc', {
-                        threshold: exam.negative_points_threshold,
-                        value: exam.negative_points_value,
-                      })}
+                      {freeWrong(exam) > 0
+                        ? t('exam.negativePointsDescFree', {
+                            free: freeWrong(exam),
+                            value: Number(exam.negative_points_value),
+                          })
+                        : t('exam.negativePointsDesc', {
+                            value: Number(exam.negative_points_value),
+                          })}
                     </p>
                     <div
                       className={`flex items-center gap-3 mt-3 pt-3 border-t ${isDark ? 'border-red-500/10' : 'border-red-200'}`}
                     >
-                      <span className={`text-[10px] uppercase tracking-wider ${subText}`}>
-                        {t('exam.threshold', { value: exam.negative_points_threshold })}
-                      </span>
-                      <div className={`w-px h-3 ${isDark ? 'bg-red-400/15' : 'bg-red-300'}`} />
+                      {freeWrong(exam) > 0 && (
+                        <>
+                          <span className={`text-[10px] uppercase tracking-wider ${subText}`}>
+                            {t('exam.threshold', { value: freeWrong(exam) })}
+                          </span>
+                          <div className={`w-px h-3 ${isDark ? 'bg-red-400/15' : 'bg-red-300'}`} />
+                        </>
+                      )}
                       <span
                         className={`text-xs font-bold font-mono ${isDark ? 'text-red-400/70' : 'text-red-600'}`}
                       >
-                        -{exam.negative_points_value} {t('questions.pts')}
+                        -{Number(exam.negative_points_value)} {t('questions.pts')}
                       </span>
                     </div>
                   </div>
@@ -1226,13 +1235,15 @@ export default function ExamPage() {
               </div>
               <div className={`w-px h-3 ${isDark ? 'bg-red-400/15' : 'bg-red-300'}`} />
               <div className="flex items-center gap-2">
-                <span className={`text-[10px] ${subText}`}>
-                  {t('exam.threshold', { value: exam.negative_points_threshold })}
-                </span>
+                {freeWrong(exam) > 0 && (
+                  <span className={`text-[10px] ${subText}`}>
+                    {t('exam.threshold', { value: freeWrong(exam) })}
+                  </span>
+                )}
                 <span
                   className={`text-[11px] font-bold font-mono ${isDark ? 'text-red-400/60' : 'text-red-600'}`}
                 >
-                  -{exam.negative_points_value}
+                  -{Number(exam.negative_points_value)}
                 </span>
               </div>
             </div>

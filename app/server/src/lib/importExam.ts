@@ -20,6 +20,34 @@ export type ExamImportOverrides = Partial<
   Pick<OtisakExam, 'exam_mode' | 'self_service' | 'is_public' | 'subject_id'>
 > & { status?: OtisakExam['status'] };
 
+// Booleans from a hand-written (often AI-written) file. `!!value` turned the
+// string "false" into true; only the spellings below count as true.
+export function fileBool(value: unknown, fallback = false): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const v = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'da'].includes(v)) return true;
+    if (['false', '0', 'no', 'ne', ''].includes(v)) return false;
+  }
+  return value == null ? fallback : !!value;
+}
+
+function fileNumber(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const n = Number(typeof value === 'string' ? value.trim().replace(',', '.') : value);
+  return Number.isFinite(n) ? n : null;
+}
+
+// negative_points_threshold is an INTEGER column: a fraction used to abort the
+// whole import. negative_points_value is NUMERIC with a >= 0 check.
+export function negativeThreshold(value: unknown): number {
+  return Math.max(0, Math.round(fileNumber(value) ?? 0));
+}
+export function negativeValue(value: unknown): number {
+  return Math.max(0, fileNumber(value) ?? 0);
+}
+
 // Build a single exam + its questions + answers from a JSON dump.
 // Returns the new exam and the number of questions actually created.
 //
@@ -41,24 +69,29 @@ export async function importExamFromJson(
   const title = typeof examIn.title === 'string' ? examIn.title.trim() : '';
   if (!title) throw new Error('exam.title is required');
 
+  // duration is an INTEGER column, so round instead of failing on 45.5.
+  const duration = Math.round(fileNumber(examIn.duration_minutes) ?? 0);
+  // 0% is a legal pass threshold (the editor allows it); only a missing or
+  // unreadable value falls back to 50.
+  const passThreshold = fileNumber(examIn.pass_threshold);
+
   const exam = await createOtisakExam(
     {
       title,
       description: typeof examIn.description === 'string' ? examIn.description : null,
-      duration_minutes: Number(examIn.duration_minutes) || 60,
-      pass_threshold: Number(examIn.pass_threshold) || 50,
+      duration_minutes: duration > 0 ? duration : 60,
+      pass_threshold: passThreshold === null ? 50 : Math.min(100, Math.max(0, passThreshold)),
       // Default TRUE so legacy exports (pre-flag) round-trip with the historical
       // pass/fail rendering preserved.
-      has_pass_threshold:
-        typeof examIn.has_pass_threshold === 'boolean' ? examIn.has_pass_threshold : true,
+      has_pass_threshold: fileBool(examIn.has_pass_threshold, true),
       exam_mode: overrides.exam_mode ?? 'real',
-      allow_review: !!examIn.allow_review,
-      shuffle_questions: !!examIn.shuffle_questions,
-      shuffle_answers: !!examIn.shuffle_answers,
-      partial_scoring: !!examIn.partial_scoring,
-      negative_points_enabled: !!examIn.negative_points_enabled,
-      negative_points_value: Number(examIn.negative_points_value) || 0,
-      negative_points_threshold: Number(examIn.negative_points_threshold) || 0,
+      allow_review: fileBool(examIn.allow_review),
+      shuffle_questions: fileBool(examIn.shuffle_questions),
+      shuffle_answers: fileBool(examIn.shuffle_answers),
+      partial_scoring: fileBool(examIn.partial_scoring),
+      negative_points_enabled: fileBool(examIn.negative_points_enabled),
+      negative_points_value: negativeValue(examIn.negative_points_value),
+      negative_points_threshold: negativeThreshold(examIn.negative_points_threshold),
       subject_id: overrides.subject_id ?? null,
       self_service: overrides.self_service,
       is_public: overrides.is_public,
@@ -69,7 +102,10 @@ export async function importExamFromJson(
   let createdQuestions = 0;
   for (const q of body.questions || []) {
     if (!q || typeof q.type !== 'string' || typeof q.text !== 'string') continue;
-    const multiAnswer = typeof q.multi_answer === 'boolean' ? q.multi_answer : undefined;
+    const multiAnswer =
+      q.multi_answer === undefined || q.multi_answer === null
+        ? undefined
+        : fileBool(q.multi_answer);
     await createOtisakQuestion(exam.id, {
       type: q.type,
       text: q.text,
@@ -82,14 +118,14 @@ export async function importExamFromJson(
       answers: Array.isArray(q.answers)
         ? q.answers
             .filter(
-              (a: unknown): a is { text: string; is_correct?: boolean; position?: number } =>
+              (a: unknown): a is { text: string; is_correct?: unknown; position?: number } =>
                 typeof a === 'object' &&
                 a !== null &&
                 typeof (a as { text?: unknown }).text === 'string',
             )
-            .map((a: { text: string; is_correct?: boolean; position?: number }, i: number) => ({
+            .map((a: { text: string; is_correct?: unknown; position?: number }, i: number) => ({
               text: a.text,
-              is_correct: !!a.is_correct,
+              is_correct: fileBool(a.is_correct),
               position: typeof a.position === 'number' ? a.position : i,
             }))
         : [],

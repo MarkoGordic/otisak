@@ -9,6 +9,7 @@ import {
   getOtisakExamById,
   coerceExamMode,
   DemoExamLockedError,
+  rescoreExam,
 } from '../db/otisak';
 import { requireAuth, requireRole } from '../middleware';
 import type { ExamImportInput } from '../lib/importExam';
@@ -24,7 +25,17 @@ import {
   getAssignedSubjectIds,
   isSubjectManageableByUser,
 } from '../db/auth-helpers';
-import { importExamFromJson } from '../lib/importExam';
+import { importExamFromJson, negativeThreshold, negativeValue } from '../lib/importExam';
+import type { OtisakExam } from '../db/otisak-types';
+
+function scoringChanged(a: OtisakExam, b: OtisakExam): boolean {
+  return (
+    !!a.partial_scoring !== !!b.partial_scoring ||
+    !!a.negative_points_enabled !== !!b.negative_points_enabled ||
+    Number(a.negative_points_value) !== Number(b.negative_points_value) ||
+    Number(a.negative_points_threshold) !== Number(b.negative_points_threshold)
+  );
+}
 import { finishExamForEveryone } from '../lib/finishExam';
 import { normalizeExamTags } from '../db/otisak';
 import { query } from '../db/client';
@@ -193,7 +204,24 @@ router.patch(
       }
 
       if (Object.keys(fields).length > 0) {
+        if (fields.negative_points_value !== undefined) {
+          fields.negative_points_value = negativeValue(fields.negative_points_value);
+        }
+        if (fields.negative_points_threshold !== undefined) {
+          fields.negative_points_threshold = negativeThreshold(fields.negative_points_threshold);
+        }
+        const before = await getOtisakExamById(id);
         result = await updateOtisakExam(id, fields);
+        // Partial scoring and negative points are applied when an attempt is
+        // totalled, so changing them after students submitted would leave the
+        // stored totals on the old rules. Rescore those attempts.
+        if (before && result && scoringChanged(before, result)) {
+          try {
+            await rescoreExam(id);
+          } catch (err) {
+            console.error('Rescore after scoring settings change failed:', err);
+          }
+        }
       }
 
       if (tag_rules && Array.isArray(tag_rules)) {

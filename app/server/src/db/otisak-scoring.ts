@@ -79,6 +79,28 @@ export function scoreFillBlank(
   return 0;
 }
 
+// ordering / matching / fill_blank answers the student never touched. The exam
+// page sends every structured question on submit, an untouched one as '' (or
+// '{}' once a matching pair or blank was set and then cleared). Those are not
+// answers: storing them as such made a skipped question count as wrong for
+// negative points. Unparseable text is left alone; it still scores 0.
+export function isBlankStructuredAnswer(type: string, textAnswer: string | null | undefined) {
+  const raw = (textAnswer ?? '').trim();
+  if (!raw) return true;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (type === 'ordering') return Array.isArray(parsed) && parsed.length === 0;
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return !Object.values(parsed).some((v) => typeof v === 'string' && v.trim() !== '');
+    }
+  } catch {
+    /* not JSON: an answer, if a malformed one */
+  }
+  return false;
+}
+
+export const STRUCTURED_QUESTION_TYPES = ['ordering', 'matching', 'fill_blank'];
+
 export interface MultiChoiceAnswer {
   id: string;
   is_correct: boolean;

@@ -20,7 +20,7 @@ import { useToast } from '../components/Toast';
 import { AppCopyright } from '../components/AppCopyright';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { parsePoints } from '../lib/points';
+import { parsePoints, freeWrong } from '../lib/points';
 import {
   Field,
   Toggle,
@@ -184,7 +184,10 @@ export default function ExamEditPage() {
           partial_scoring: exam.partial_scoring,
           negative_points_enabled: exam.negative_points_enabled,
           negative_points_value: Number(exam.negative_points_value) || 0,
-          negative_points_threshold: Number(exam.negative_points_threshold) || 0,
+          negative_points_threshold: Math.max(
+            0,
+            Math.round(Number(exam.negative_points_threshold) || 0),
+          ),
           tags: exam.tags ?? [],
         }),
       });
@@ -548,7 +551,52 @@ export default function ExamEditPage() {
                     value={exam.allow_calculator}
                     onChange={(v) => setExam({ ...exam, allow_calculator: v })}
                   />
+                  <Toggle
+                    label={t('examEdit.negativePoints')}
+                    value={exam.negative_points_enabled}
+                    onChange={(v) => setExam({ ...exam, negative_points_enabled: v })}
+                  />
                 </div>
+                {exam.negative_points_enabled && (
+                  <>
+                    <Field label={t('examEdit.negativeValue')}>
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.05}
+                        value={exam.negative_points_value}
+                        onChange={(e) =>
+                          setExam({
+                            ...exam,
+                            negative_points_value: parsePoints(e.target.value, 0),
+                          })
+                        }
+                        className={inputClass}
+                      />
+                    </Field>
+                    {/* Stored as the number of the first penalized wrong answer;
+                        the editor shows the friendlier "how many are free". */}
+                    <Field label={t('examEdit.negativeFree')}>
+                      <input
+                        type="number"
+                        min={0}
+                        step={1}
+                        value={freeWrong(exam)}
+                        onChange={(e) =>
+                          setExam({
+                            ...exam,
+                            negative_points_threshold:
+                              Math.max(0, Math.round(Number(e.target.value) || 0)) + 1,
+                          })
+                        }
+                        className={inputClass}
+                      />
+                    </Field>
+                    <p className="sm:col-span-2 -mt-1 text-[11px] text-[var(--text-muted)]">
+                      {t('examEdit.negativeHelp')}
+                    </p>
+                  </>
+                )}
                 <div className="sm:col-span-2">
                   <Field label={t('examEdit.tags')}>
                     <TagChipsEditor

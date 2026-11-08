@@ -126,7 +126,8 @@ const en = {
   'dashboard.draft': 'Draft',
   'dashboard.archived': 'Archived',
   'dashboard.unknown': 'Unknown',
-  'dashboard.afterWrong': '-{value} after {threshold} wrong',
+  'dashboard.afterWrong': 'per wrong answer',
+  'dashboard.afterWrongFree': 'per wrong answer, first {free} free',
   'dashboard.student': 'Student',
 
   // Subjects
@@ -254,6 +255,11 @@ const en = {
   'examEdit.shuffleQuestions': 'Shuffle questions',
   'examEdit.shuffleAnswers': 'Shuffle answers',
   'examEdit.partialScoring': 'Partial scoring',
+  'examEdit.negativePoints': 'Negative points',
+  'examEdit.negativeValue': 'Penalty per wrong question (points)',
+  'examEdit.negativeFree': 'Wrong answers without penalty',
+  'examEdit.negativeHelp':
+    'Deducted from the total and the same for every wrong question. Unanswered questions are not penalized and the total never drops below 0.',
   'examEdit.tags': 'Tags',
   'examEdit.tagsPlaceholder': 'Type a tag and press Enter…',
   'examEdit.tagsHelp': 'Tags are normalised to lowercase. Use them to filter the manage list.',
@@ -659,8 +665,10 @@ const en = {
   'exam.back': 'Back',
   'exam.negativePoints': 'Negative Points',
   'exam.negativePointsDesc':
-    'After {threshold} wrong answer(s), each additional wrong answer deducts {value} point(s).',
-  'exam.threshold': 'Threshold: {value}',
+    'Each wrong answer deducts {value} point(s) from your total. Unanswered questions are not penalized.',
+  'exam.negativePointsDescFree':
+    'The first {free} wrong answer(s) are not penalized; each one after that deducts {value} point(s) from your total. Unanswered questions are not penalized.',
+  'exam.threshold': 'Free: {value}',
   'exam.cheatingWarning':
     'Any form of cheating, unauthorized communication, or use of external resources is strictly prohibited during this exam.',
   'exam.disciplinaryWarning':

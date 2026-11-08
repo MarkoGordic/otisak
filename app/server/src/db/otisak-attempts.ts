@@ -10,6 +10,8 @@ import {
   scoreMatching,
   scoreFillBlank,
   scoreMultiChoice,
+  isBlankStructuredAnswer,
+  STRUCTURED_QUESTION_TYPES,
   type MultiChoiceAnswer,
 } from './otisak-scoring';
 import type {
@@ -173,6 +175,23 @@ export async function submitAttemptAnswers(
       const qContent = meta?.content ?? null;
       const qPoints = Number(meta?.points || 0);
 
+      // Skipped structured question: stored as unanswered, like a blank
+      // open_text, so negative points never treat it as a wrong answer.
+      if (
+        qType &&
+        STRUCTURED_QUESTION_TYPES.includes(qType) &&
+        isBlankStructuredAnswer(qType, ans.text_answer)
+      ) {
+        await query(
+          `INSERT INTO otisak_attempt_answers (attempt_id, question_id, text_answer, points_awarded)
+           VALUES ($1, $2, NULL, 0)
+           ON CONFLICT (attempt_id, question_id)
+           DO UPDATE SET text_answer = NULL, points_awarded = 0, answered_at = NOW()`,
+          [attemptId, ans.question_id],
+        );
+        continue;
+      }
+
       if (qType === 'ordering' && qContent) {
         const pointsAwarded = scoreOrdering(qContent, ans.text_answer, qPoints, false);
         await query(
@@ -278,6 +297,8 @@ export async function submitAttemptAnswers(
 // scored: auto-scored text types (ordering/matching/fill_blank carry
 // ai_grading_status NULL) and AI-graded open_text count; open_text still
 // pending/grading/errored does not - an ungraded answer isn't wrong yet.
+// An empty text answer ('', '[]', '{}') is a skipped question, not a wrong
+// one; attempts submitted before submit stored those as NULL still hold them.
 async function countWrongAnsweredQuestions(client: PoolClient, attemptId: string): Promise<number> {
   const result = await client.query<{ wrong_count: number }>(
     `SELECT COUNT(*)::int AS wrong_count
@@ -286,6 +307,7 @@ async function countWrongAnsweredQuestions(client: PoolClient, attemptId: string
        AND (aa.selected_answer_id IS NOT NULL
             OR array_length(aa.selected_answer_ids, 1) > 0
             OR (aa.text_answer IS NOT NULL
+                AND btrim(aa.text_answer) NOT IN ('', '[]', '{}')
                 AND (aa.ai_grading_status IS NULL OR aa.ai_grading_status = 'graded')))`,
     [attemptId],
   );
