@@ -46,6 +46,14 @@ export async function joinExamByIndex(
   if (!found.user) return { user: null, error: found.error };
   const user = { id: found.user.id, name: found.user.name, index_number: found.user.index_number };
 
+  // A student whose withdrawal was approved stays out of this exam.
+  const withdrew = await query(
+    `SELECT 1 FROM exam_requests
+     WHERE exam_id = $1 AND user_id = $2 AND type = 'withdraw' AND status = 'approved' LIMIT 1`,
+    [examId, user.id],
+  );
+  if (withdrew.rows[0]) return { user: null, error: 'You withdrew from this exam.' };
+
   await enrollUserInExam(examId, user.id);
   return { user };
 }

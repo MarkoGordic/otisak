@@ -237,6 +237,35 @@ router.post(
 
       if ('error' in result) return res.status(400).json({ error: result.error });
       invalidateExamCache(examId);
+
+      // Approved withdrawal: close the attempt the handler marked (scored with
+      // what was saved, like a kick), free the device lock, and tell the
+      // student's browser to leave the exam.
+      if (result.request.type === 'withdraw' && result.request.status === 'approved') {
+        const userId = result.request.user_id;
+        const attempt = await getActiveAttempt(examId, userId);
+        if (attempt) {
+          const elapsed = Math.max(
+            1,
+            Math.floor((Date.now() - new Date(attempt.started_at).getTime()) / 1000),
+          );
+          try {
+            await finishAttempt(attempt.id, elapsed);
+          } catch (err) {
+            console.error('withdraw: finishAttempt failed for', attempt.id, err);
+          }
+        }
+        clearSessionForUser(userId);
+        broadcastExamEvent(examId, {
+          type: 'student.withdrawn',
+          user_id: userId,
+          had_attempt: !!attempt,
+        });
+        refreshLiveStatsNow(examId).catch((err) =>
+          console.error('withdraw: refreshLiveStatsNow failed', err),
+        );
+      }
+
       broadcastExamEvent(examId, {
         type: 'request.decided',
         request_id: result.request.id,

@@ -95,6 +95,7 @@ export async function getLiveExamStats(examId: string): Promise<{
     user_email: string;
     index_number: string | null;
     submitted: boolean;
+    withdrawn: boolean;
     answered_count: number;
     current_points: number;
     wrong_count: number;
@@ -148,6 +149,7 @@ export async function getLiveExamStats(examId: string): Promise<{
     user_email: string;
     index_number: string | null;
     submitted: boolean;
+    withdrawn: boolean;
     answered_count: number;
     current_points: number;
     wrong_count: number;
@@ -197,6 +199,7 @@ export async function getLiveExamStats(examId: string): Promise<{
             u.email AS user_email,
             u.index_number,
             a.submitted,
+            (a.withdrawn_at IS NOT NULL) AS withdrawn,
             a.started_at,
             a.finished_at,
             a.time_spent_seconds,

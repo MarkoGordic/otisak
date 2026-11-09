@@ -162,7 +162,10 @@ export default function ResultsPage() {
   // When the exam opts out of a pass threshold, results render as a neutral
   // "Done" verdict - no green/red, no Položio / Nije položio copy. Defaults
   // TRUE for back-compat with older payloads.
+  // An approved withdrawal closes the attempt without a verdict.
+  const withdrawn = !!results?.attempt?.withdrawn_at;
   const hasPassThreshold =
+    !withdrawn &&
     (results?.exam as { has_pass_threshold?: boolean } | undefined)?.has_pass_threshold !== false;
   const passed =
     hasPassThreshold && results?.exam ? percentage >= Number(results.exam.pass_threshold) : false;
@@ -250,15 +253,33 @@ export default function ResultsPage() {
               <p
                 className={`text-[11px] sm:text-xs uppercase tracking-[0.35em] mb-3 ${kickerText}`}
               >
-                {t(isPractice ? 'results.practiceKicker' : 'results.finishedKicker')}
+                {t(
+                  withdrawn
+                    ? 'results.withdrawnKicker'
+                    : isPractice
+                      ? 'results.practiceKicker'
+                      : 'results.finishedKicker',
+                )}
               </p>
               <h1
                 className={`text-2xl sm:text-3xl font-light tracking-wide leading-snug ${titleText}`}
               >
-                {t(isPractice ? 'results.practiceTitle' : 'results.finishedTitle')}
+                {t(
+                  withdrawn
+                    ? 'results.withdrawnTitle'
+                    : isPractice
+                      ? 'results.practiceTitle'
+                      : 'results.finishedTitle',
+                )}
               </h1>
               <p className={`text-sm mt-3 max-w-md mx-auto ${subSoft}`}>
-                {t(isPractice ? 'results.practiceSubtitle' : 'results.finishedSubtitle')}
+                {t(
+                  withdrawn
+                    ? 'results.withdrawnSubtitle'
+                    : isPractice
+                      ? 'results.practiceSubtitle'
+                      : 'results.finishedSubtitle',
+                )}
               </p>
             </motion.div>
             {/* Score Card */}

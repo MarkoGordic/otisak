@@ -103,6 +103,7 @@ export interface OtisakAttempt {
   user_agent: string | null;
   is_practice: boolean;
   shuffle_seed: number;
+  withdrawn_at?: string | null;
 }
 
 export interface OtisakAttemptWithExam extends OtisakAttempt {

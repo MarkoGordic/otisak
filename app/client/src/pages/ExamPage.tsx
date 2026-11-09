@@ -26,6 +26,11 @@ import { useToast } from '../components/Toast';
 import { ToggleCluster } from '../components/ToggleCluster';
 import type { OtisakExamWithSubject, OtisakQuestionWithAnswers, OtisakAttempt } from '../lib/types';
 import { penaltyFrom } from '../lib/points';
+import {
+  WithdrawButton,
+  WithdrawPending,
+  WithdrawModal,
+} from '../components/otisak/WithdrawRequest';
 
 type UserInfo = {
   id?: string;
@@ -44,6 +49,10 @@ export default function ExamPage() {
   const { theme } = useTheme();
   const isDark = theme === 'dark';
   const toast = useToast();
+  // Load effects show the "withdrawal approved" toast through a ref so they
+  // don't take toast / t as dependencies (that would re-run the load).
+  const notifyWithdrawnRef = useRef(() => {});
+  notifyWithdrawnRef.current = () => toast.info(t('withdraw.toast.approved'));
 
   // Centralized theme tokens used across loading/awaiting/lobby + main exam render.
   // Each value is the same idea (bg surface, body text, accent text, etc.) - they just
@@ -73,6 +82,10 @@ export default function ExamPage() {
   const [lockdownMessage, setLockdownMessage] = useState('');
   const [pausedSeconds, setPausedSeconds] = useState(0);
   const [showFinishConfirm, setShowFinishConfirm] = useState(false);
+  // Withdrawal request: the id while it waits for the assistant, null otherwise.
+  const [withdrawRequestId, setWithdrawRequestId] = useState<string | null>(null);
+  const [showWithdraw, setShowWithdraw] = useState(false);
+  const [withdrawBusy, setWithdrawBusy] = useState(false);
   const startTimeRef = useRef<number>(Date.now());
   // Sync re-entry guard for handleFinish. The phase==='submitting' check is
   // racy because setState lands a frame late: timer expiry + manual submit
@@ -328,6 +341,12 @@ export default function ExamPage() {
             navigate(`/exam/${examId}/results`, { replace: true });
             return;
           }
+          if (examData.withdrawn) {
+            notifyWithdrawnRef.current();
+            navigate('/', { replace: true });
+            return;
+          }
+          setWithdrawRequestId(examData.pendingWithdrawRequestId ?? null);
 
           setQuestions(examData.questions || []);
 
@@ -401,6 +420,12 @@ export default function ExamPage() {
           navigate(`/exam/${examId}/results`, { replace: true });
           return;
         }
+        if (data.withdrawn) {
+          notifyWithdrawnRef.current();
+          navigate('/', { replace: true });
+          return;
+        }
+        setWithdrawRequestId(data.pendingWithdrawRequestId ?? null);
         if (data.attempt) {
           // Approved! Load the exam and start.
           setExam(data.exam);
@@ -463,6 +488,12 @@ export default function ExamPage() {
           navigate(`/exam/${examId}/results`, { replace: true });
           return;
         }
+        if (examData.withdrawn) {
+          notifyWithdrawnRef.current();
+          navigate('/', { replace: true });
+          return;
+        }
+        setWithdrawRequestId(examData.pendingWithdrawRequestId ?? null);
         if (examData.exam) setExam(examData.exam);
         if (examData.attempt) {
           setQuestions(examData.questions || []);
@@ -570,6 +601,15 @@ export default function ExamPage() {
             toast.info(t('exam.toast.finishedByAdmin'));
             navigate(`/exam/${examId}/results`, { replace: true });
           }
+        } else if (evt.type === 'student.withdrawn') {
+          const targetUserId = (evt as unknown as { user_id?: string }).user_id;
+          if (targetUserId && userIdRef.current && targetUserId === userIdRef.current) {
+            submittingRef.current = true;
+            setWithdrawRequestId(null);
+            toast.info(t('withdraw.toast.approved'));
+            const hadAttempt = (evt as unknown as { had_attempt?: boolean }).had_attempt;
+            navigate(hadAttempt ? `/exam/${examId}/results` : '/', { replace: true });
+          }
         } else if (evt.type === 'student.kicked') {
           // The room broadcasts kicks to everyone; only act if it's me.
           // Read the current user id from a ref to avoid a stale-closure miss
@@ -582,6 +622,16 @@ export default function ExamPage() {
             navigate('/', { replace: true });
           }
         } else if (evt.type === 'exam.started' || evt.type === 'request.decided') {
+          if (
+            evt.type === 'request.decided' &&
+            evt.request_type === 'withdraw' &&
+            evt.status === 'denied' &&
+            userIdRef.current &&
+            evt.user_id === userIdRef.current
+          ) {
+            setWithdrawRequestId(null);
+            toast.warning(t('withdraw.toast.denied'));
+          }
           // Trigger a refetch of /exams/:id so the lobby/awaiting-approval flow advances immediately.
           // Done via a small ping flag so we don't duplicate the load logic here.
           (async () => {
@@ -593,6 +643,12 @@ export default function ExamPage() {
                 navigate(`/exam/${examId}/results`, { replace: true });
                 return;
               }
+              if (data.withdrawn) {
+                notifyWithdrawnRef.current();
+                navigate('/', { replace: true });
+                return;
+              }
+              setWithdrawRequestId(data.pendingWithdrawRequestId ?? null);
               if (data.exam) setExam(data.exam);
               if (Array.isArray(data.questions) && data.questions.length > 0)
                 setQuestions(data.questions);
@@ -856,6 +912,59 @@ export default function ExamPage() {
     handleFinish('timeout');
   }, [saveAnswersNow, handleFinish]);
 
+  const sendWithdraw = async (reason: string) => {
+    setWithdrawBusy(true);
+    try {
+      // Save what is answered so far: an approved withdrawal closes the attempt
+      // with whatever the server has.
+      if (phase === 'exam') saveAnswersNow();
+      const res = await fetch(`/api/otisak/exams/${examId}/requests`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'withdraw', payload: { reason } }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(d.error || t('withdraw.toast.failed'));
+        return;
+      }
+      setWithdrawRequestId(d.request?.id ?? null);
+      setShowWithdraw(false);
+      toast.info(t('withdraw.toast.sent'));
+    } catch {
+      toast.error(t('withdraw.toast.failed'));
+    } finally {
+      setWithdrawBusy(false);
+    }
+  };
+
+  const cancelWithdraw = async () => {
+    if (!withdrawRequestId) return;
+    setWithdrawBusy(true);
+    try {
+      await fetch(`/api/otisak/exams/${examId}/requests/${withdrawRequestId}/cancel`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      // Gone either way: cancelled now, or already decided (the socket event
+      // for that decision updates the screen).
+      setWithdrawRequestId(null);
+    } finally {
+      setWithdrawBusy(false);
+    }
+  };
+
+  const withdrawModal = (
+    <WithdrawModal
+      open={showWithdraw}
+      inExam={phase === 'exam'}
+      sending={withdrawBusy}
+      onClose={() => setShowWithdraw(false)}
+      onSubmit={sendWithdraw}
+    />
+  );
+
   // Answered indices for nav
   const answeredIndices = new Set<number>();
   questions.forEach((q, i) => {
@@ -1059,6 +1168,20 @@ export default function ExamPage() {
             {t('exam.waitingDesc')}
           </motion.p>
 
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.6, delay: 0.9 }}
+            className="mb-4"
+          >
+            {withdrawRequestId ? (
+              <WithdrawPending onCancel={cancelWithdraw} cancelling={withdrawBusy} />
+            ) : (
+              <WithdrawButton onClick={() => setShowWithdraw(true)} />
+            )}
+          </motion.div>
+          {withdrawModal}
+
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -1205,19 +1328,29 @@ export default function ExamPage() {
           // hidden in the lobby, submission spinner, and the awaiting-approval
           // screen. The confirm modal (showFinishConfirm) gates accidental clicks.
           phase === 'exam' && attempt ? (
-            <button
-              type="button"
-              onClick={() => setShowFinishConfirm(true)}
-              className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-semibold uppercase tracking-wider shadow-[0_0_15px_rgba(220,38,38,0.35)] hover:shadow-[0_0_22px_rgba(220,38,38,0.55)] transition-all"
-            >
-              <Power className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-              <span className="hidden sm:inline">{t('exam.finishHeader')}</span>
-            </button>
+            <div className="flex items-center gap-2">
+              {!withdrawRequestId && (
+                <WithdrawButton compact onClick={() => setShowWithdraw(true)} />
+              )}
+              <button
+                type="button"
+                onClick={() => setShowFinishConfirm(true)}
+                className="inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs sm:text-sm font-semibold uppercase tracking-wider shadow-[0_0_15px_rgba(220,38,38,0.35)] hover:shadow-[0_0_22px_rgba(220,38,38,0.55)] transition-all"
+              >
+                <Power className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">{t('exam.finishHeader')}</span>
+              </button>
+            </div>
           ) : null
         }
       />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 z-10 flex flex-col justify-center min-h-[400px] sm:min-h-[500px]">
+        {phase === 'exam' && withdrawRequestId && (
+          <div className="flex justify-center mb-4">
+            <WithdrawPending onCancel={cancelWithdraw} cancelling={withdrawBusy} />
+          </div>
+        )}
         {exam?.negative_points_enabled && phase === 'exam' && (
           <div className="flex items-center justify-center mb-5">
             <div
@@ -1451,6 +1584,8 @@ export default function ExamPage() {
       </AnimatePresence>
 
       <OtisakFooter />
+
+      {phase === 'exam' && withdrawModal}
 
       {/* FINISH CONFIRMATION MODAL */}
       <AnimatePresence>

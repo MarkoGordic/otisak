@@ -37,3 +37,14 @@ U sekciji "Podešavanje tajmera" je moguće manipulisati preostalim vremenom za 
 U slučaju kada student pokuša da pristupi testu nakon njegovog početka sistem će obavestiti asistenta o tome, a asistent mora da odobri ili odbije zahtev za pristup unutar sekcije "Zahtevi za pristup".
 
 ![Vođenje testa](../assets/image-18.png)
+
+## Odustajanje od ispita
+
+Student može da zatraži odustajanje i iz čekaonice i tokom ispita, dugmetom **Odustani**. Razlog nije obavezan. Zahtev se pojavljuje u istoj listi zahteva u sobi, zajedno sa razlogom, i to i pre početka ispita.
+
+- **Odobri u čekaonici:** student izlazi iz sobe i ne polaže ispit.
+- **Odobri tokom ispita:** ispit se tom studentu zatvara sa do tada sačuvanim odgovorima i označava kao **Odustao**. U sobi i na rezultatima nema ocene položio ili nije položio.
+- **Odbij:** student dobija obaveštenje i nastavlja normalno.
+
+Dok zahtev čeka, student nastavlja da radi i može sam da ga povuče. Posle odobrenog odustajanja student ne može ponovo da pristupi tom ispitu.
+

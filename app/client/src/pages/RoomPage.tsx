@@ -68,6 +68,7 @@ type LiveStudent = {
   user_email: string;
   index_number: string | null;
   submitted: boolean;
+  withdrawn?: boolean;
   answered_count: number;
   current_points: number;
   wrong_count?: number;
@@ -121,6 +122,7 @@ export default function ExamRoomPage() {
       user_name: string | null;
       user_email: string;
       user_index_number: string | null;
+      payload?: { reason?: string } | null;
     }>
   >([]);
   const [decidingId, setDecidingId] = useState<string | null>(null);
@@ -968,7 +970,14 @@ export default function ExamRoomPage() {
                         </div>
                       )}
                       <div className="w-20 flex justify-center">
-                        {started && submitted ? (
+                        {started && submitted && s?.withdrawn ? (
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-2 h-2 rounded-full bg-warning" />
+                            <span className="text-[10px] text-warning uppercase font-medium">
+                              {t('room.stats.statusWithdrawn')}
+                            </span>
+                          </div>
+                        ) : started && submitted ? (
                           <div className="flex items-center gap-1.5">
                             <div className="w-2 h-2 rounded-full bg-success" />
                             <span className="text-[10px] text-success uppercase font-medium">
@@ -1281,8 +1290,9 @@ export default function ExamRoomPage() {
             </motion.div>
           )}
 
-          {/* Pending requests + timer adjust - only useful once exam has started */}
-          {started && (
+          {/* Pending requests (also before the start: withdrawals from the
+              waiting room) + timer adjust (only once the exam has started) */}
+          {(started || requests.length > 0) && (
             <>
               {/* REQUESTS */}
               <motion.div
@@ -1329,6 +1339,11 @@ export default function ExamRoomPage() {
                           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
                             {new Date(r.created_at).toLocaleTimeString('sr-RS')}
                           </p>
+                          {r.payload?.reason && (
+                            <p className="text-xs text-[var(--text-secondary)] mt-1 break-words">
+                              {t('room.requests.reason')}: {r.payload.reason}
+                            </p>
+                          )}
                         </div>
                         <Button
                           variant="primary"
@@ -1398,95 +1413,99 @@ export default function ExamRoomPage() {
               </motion.div>
 
               {/* TIMER ADJUSTMENT */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 }}
-                className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
-              >
-                <div className="flex items-center gap-3 mb-1">
-                  <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
-                    <TimerIcon size={16} className="text-accent" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-[var(--text-primary)]">
-                      {t('room.timer.title')}
-                    </p>
-                    <p className="text-xs text-[var(--text-muted)]">{t('room.timer.desc')}</p>
-                  </div>
-                  <span
-                    className={`text-[11px] font-mono whitespace-nowrap ${extraSeconds === 0 ? 'text-[var(--text-muted)]' : extraSeconds > 0 ? 'text-success' : 'text-danger'}`}
-                  >
-                    {t('room.timer.currentExtra', { value: extraSeconds })}
-                  </span>
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  {[
-                    {
-                      label: '−5',
-                      delta: -5 * 60,
-                      variant: 'danger' as const,
-                      icon: <Minus size={14} />,
-                    },
-                    {
-                      label: '−1',
-                      delta: -1 * 60,
-                      variant: 'danger' as const,
-                      icon: <Minus size={14} />,
-                    },
-                    {
-                      label: '+1',
-                      delta: +1 * 60,
-                      variant: 'primary' as const,
-                      icon: <Plus size={14} />,
-                    },
-                    {
-                      label: '+5',
-                      delta: +5 * 60,
-                      variant: 'primary' as const,
-                      icon: <Plus size={14} />,
-                    },
-                  ].map((b) => (
-                    <Button
-                      key={b.label}
-                      variant={b.variant}
-                      size="md"
-                      loading={adjusting}
-                      leftIcon={b.icon}
-                      onClick={async () => {
-                        setAdjusting(true);
-                        try {
-                          const res = await fetch(`/api/otisak/exams/${examId}/adjust-timer`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            credentials: 'include',
-                            body: JSON.stringify({ delta_seconds: b.delta }),
-                          });
-                          if (!res.ok) {
-                            const d = await res.json().catch(() => ({}));
-                            toast.error(d.error || t('room.timer.failed'));
-                          } else {
-                            const d = await res.json();
-                            setExtraSeconds(Number(d.extra_seconds || 0));
-                            const minutes = b.delta / 60;
-                            toast.success(
-                              t(
-                                minutes > 0 ? 'room.timer.toast.added' : 'room.timer.toast.removed',
-                                { minutes: Math.abs(minutes) },
-                              ),
-                            );
-                          }
-                        } finally {
-                          setAdjusting(false);
-                        }
-                      }}
+              {started && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.1 }}
+                  className="mt-4 rounded-xl border border-[var(--border-default)] bg-[var(--bg-elevated)] p-5"
+                >
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="w-9 h-9 rounded-lg bg-accent-light flex items-center justify-center">
+                      <TimerIcon size={16} className="text-accent" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[var(--text-primary)]">
+                        {t('room.timer.title')}
+                      </p>
+                      <p className="text-xs text-[var(--text-muted)]">{t('room.timer.desc')}</p>
+                    </div>
+                    <span
+                      className={`text-[11px] font-mono whitespace-nowrap ${extraSeconds === 0 ? 'text-[var(--text-muted)]' : extraSeconds > 0 ? 'text-success' : 'text-danger'}`}
                     >
-                      {b.label} {t('room.timer.minute')}
-                    </Button>
-                  ))}
-                </div>
-              </motion.div>
+                      {t('room.timer.currentExtra', { value: extraSeconds })}
+                    </span>
+                  </div>
+
+                  <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-2">
+                    {[
+                      {
+                        label: '−5',
+                        delta: -5 * 60,
+                        variant: 'danger' as const,
+                        icon: <Minus size={14} />,
+                      },
+                      {
+                        label: '−1',
+                        delta: -1 * 60,
+                        variant: 'danger' as const,
+                        icon: <Minus size={14} />,
+                      },
+                      {
+                        label: '+1',
+                        delta: +1 * 60,
+                        variant: 'primary' as const,
+                        icon: <Plus size={14} />,
+                      },
+                      {
+                        label: '+5',
+                        delta: +5 * 60,
+                        variant: 'primary' as const,
+                        icon: <Plus size={14} />,
+                      },
+                    ].map((b) => (
+                      <Button
+                        key={b.label}
+                        variant={b.variant}
+                        size="md"
+                        loading={adjusting}
+                        leftIcon={b.icon}
+                        onClick={async () => {
+                          setAdjusting(true);
+                          try {
+                            const res = await fetch(`/api/otisak/exams/${examId}/adjust-timer`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              credentials: 'include',
+                              body: JSON.stringify({ delta_seconds: b.delta }),
+                            });
+                            if (!res.ok) {
+                              const d = await res.json().catch(() => ({}));
+                              toast.error(d.error || t('room.timer.failed'));
+                            } else {
+                              const d = await res.json();
+                              setExtraSeconds(Number(d.extra_seconds || 0));
+                              const minutes = b.delta / 60;
+                              toast.success(
+                                t(
+                                  minutes > 0
+                                    ? 'room.timer.toast.added'
+                                    : 'room.timer.toast.removed',
+                                  { minutes: Math.abs(minutes) },
+                                ),
+                              );
+                            }
+                          } finally {
+                            setAdjusting(false);
+                          }
+                        }}
+                      >
+                        {b.label} {t('room.timer.minute')}
+                      </Button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
             </>
           )}
         </main>

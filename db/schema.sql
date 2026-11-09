@@ -190,7 +190,9 @@ CREATE TABLE otisak_attempts (
   ip_address TEXT,
   user_agent TEXT,
   is_practice BOOLEAN NOT NULL DEFAULT FALSE,
-  shuffle_seed INTEGER NOT NULL DEFAULT 0
+  shuffle_seed INTEGER NOT NULL DEFAULT 0,
+  -- Set when an assistant approved the student's request to withdraw.
+  withdrawn_at TIMESTAMPTZ
 );
 
 CREATE INDEX idx_otisak_attempts_exam ON otisak_attempts(exam_id);

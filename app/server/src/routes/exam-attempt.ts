@@ -19,6 +19,8 @@ import {
   createExamRequest,
   listRequestsForUser,
   isSubmittableByStudent,
+  hasApprovedWithdrawal,
+  cancelOwnRequest,
 } from '../db/exam-requests';
 import { findUserById, findOrProvisionStudentByIndex } from '../db/users';
 import { broadcastExamEvent } from '../ws/events';
@@ -69,6 +71,12 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
           alreadySubmitted: true,
         });
       }
+    }
+
+    // Withdrawal approved while still waiting: no attempt, and none may be
+    // created now. The client sends the student home.
+    if (!attempt && user.role === 'student' && (await hasApprovedWithdrawal(examId, user.id))) {
+      return res.json({ exam, attempt: null, questions: [], savedAnswers: [], withdrawn: true });
     }
 
     // Auto-create attempt for students once admin has started the exam, so the timer becomes visible.
@@ -133,11 +141,21 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
       savedAnswers = await getSavedAnswers(attempt.id);
     }
 
+    // A pending withdrawal survives a reload: the client shows it as waiting
+    // for the assistant instead of offering the button again.
+    let pendingWithdrawRequestId: string | null = null;
+    if (user.role === 'student') {
+      const mine = await listRequestsForUser(examId, user.id);
+      pendingWithdrawRequestId =
+        mine.find((r) => r.type === 'withdraw' && r.status === 'pending')?.id ?? null;
+    }
+
     return res.json({
       exam,
       attempt,
       questions,
       savedAnswers,
+      pendingWithdrawRequestId,
     });
   } catch (error) {
     console.error('Get exam error:', error);
@@ -545,11 +563,19 @@ router.post('/requests', requireAuth, async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid or unsupported request type' });
     }
 
+    let safePayload: Record<string, unknown> =
+      typeof payload === 'object' && payload ? payload : {};
+    if (type === 'withdraw') {
+      // Only an optional, short reason is shown to the assistant.
+      const reason = typeof safePayload.reason === 'string' ? safePayload.reason.trim() : '';
+      safePayload = reason ? { reason: reason.slice(0, 500) } : {};
+    }
+
     const result = await createExamRequest({
       examId,
       userId: user.id,
       type,
-      payload: typeof payload === 'object' && payload ? payload : {},
+      payload: safePayload,
     });
 
     if ('error' in result) return res.status(400).json({ error: result.error });
@@ -563,6 +589,26 @@ router.post('/requests', requireAuth, async (req: Request, res: Response) => {
     return res.json({ request: result.request });
   } catch (error) {
     console.error('Create request error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /exams/:examId/requests/:id/cancel - student takes back their own pending request
+router.post('/requests/:id/cancel', requireAuth, async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const cancelled = await cancelOwnRequest(req.params.id, examId, req.user!.id);
+    if (!cancelled) return res.status(404).json({ error: 'No pending request to cancel' });
+    broadcastExamEvent(examId, {
+      type: 'request.decided',
+      request_id: cancelled.id,
+      request_type: cancelled.type,
+      user_id: cancelled.user_id,
+      status: cancelled.status,
+    });
+    return res.json({ request: cancelled });
+  } catch (error) {
+    console.error('Cancel request error:', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

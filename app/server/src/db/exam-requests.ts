@@ -6,7 +6,7 @@ import { query, transaction } from './client';
 import type { PoolClient } from 'pg';
 import { getOtisakExamById, getActiveAttempt } from './otisak';
 
-export type ExamRequestType = 'late_join';
+export type ExamRequestType = 'late_join' | 'withdraw';
 export type ExamRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
 
 export interface ExamRequestRow {
@@ -29,7 +29,7 @@ export interface ExamRequestWithUser extends ExamRequestRow {
 }
 
 // ----- Validation: which types can students submit? -----
-const STUDENT_SUBMITTABLE_TYPES: ReadonlyArray<ExamRequestType> = ['late_join'];
+const STUDENT_SUBMITTABLE_TYPES: ReadonlyArray<ExamRequestType> = ['late_join', 'withdraw'];
 
 export function isSubmittableByStudent(type: string): type is ExamRequestType {
   return (STUDENT_SUBMITTABLE_TYPES as ReadonlyArray<string>).includes(type);
@@ -54,6 +54,27 @@ const REQUEST_GUARDS: Record<
       return { ok: false, error: 'Exam has not started yet - no late-join needed' };
     const existing = await getActiveAttempt(examId, userId);
     if (existing) return { ok: false, error: 'You already have an active attempt' };
+    return { ok: true };
+  },
+  // Withdraw: from the waiting room (enrolled, no attempt yet) or from the
+  // running exam (active attempt). Not once the attempt is submitted.
+  withdraw: async ({ examId, userId }) => {
+    const exam = await getOtisakExamById(examId);
+    if (!exam) return { ok: false, error: 'Exam not found' };
+    if (exam.status === 'completed' || exam.status === 'archived')
+      return { ok: false, error: 'Exam is already closed' };
+    const attempt = await getActiveAttempt(examId, userId);
+    if (attempt) return { ok: true };
+    const submitted = await query(
+      `SELECT 1 FROM otisak_attempts WHERE exam_id = $1 AND user_id = $2 AND submitted = TRUE LIMIT 1`,
+      [examId, userId],
+    );
+    if (submitted.rows[0]) return { ok: false, error: 'Exam already submitted' };
+    const enrolled = await query(
+      `SELECT 1 FROM otisak_enrollments WHERE exam_id = $1 AND user_id = $2 LIMIT 1`,
+      [examId, userId],
+    );
+    if (!enrolled.rows[0]) return { ok: false, error: 'Not in this exam' };
     return { ok: true };
   },
 };
@@ -101,7 +122,59 @@ const REQUEST_HANDLERS: Record<ExamRequestType, (ctx: HandlerContext) => Promise
       );
     }
   },
+  // A running attempt is marked withdrawn here, inside the decision's
+  // transaction; the route then finishes it (finishAttempt runs its own
+  // transaction) so it is scored and closed like a kick. Without an attempt
+  // the student was still waiting: dropping the enrollment takes them out of
+  // the room. Either way the approved request is what keeps them out of this
+  // exam afterwards (see hasApprovedWithdrawal).
+  withdraw: async ({ client, request }) => {
+    const attempt = await client.query<{ id: string }>(
+      `UPDATE otisak_attempts SET withdrawn_at = NOW()
+       WHERE exam_id = $1 AND user_id = $2 AND submitted = FALSE
+       RETURNING id`,
+      [request.exam_id, request.user_id],
+    );
+    if (!attempt.rows[0]) {
+      // A request left pending until after the student submitted (or the
+      // exam was closed for everyone) is stale: nothing to withdraw from.
+      const submitted = await client.query(
+        `SELECT 1 FROM otisak_attempts WHERE exam_id = $1 AND user_id = $2 AND submitted = TRUE LIMIT 1`,
+        [request.exam_id, request.user_id],
+      );
+      if (submitted.rows[0]) throw new Error('Exam already submitted');
+      await client.query(`DELETE FROM otisak_enrollments WHERE exam_id = $1 AND user_id = $2`, [
+        request.exam_id,
+        request.user_id,
+      ]);
+    }
+  },
 };
+
+export async function hasApprovedWithdrawal(examId: string, userId: string): Promise<boolean> {
+  const result = await query(
+    `SELECT 1 FROM exam_requests
+     WHERE exam_id = $1 AND user_id = $2 AND type = 'withdraw' AND status = 'approved'
+     LIMIT 1`,
+    [examId, userId],
+  );
+  return !!result.rows[0];
+}
+
+// The student takes back their own pending request.
+export async function cancelOwnRequest(
+  requestId: string,
+  examId: string,
+  userId: string,
+): Promise<ExamRequestRow | null> {
+  const result = await query<ExamRequestRow>(
+    `UPDATE exam_requests SET status = 'cancelled', decided_at = NOW()
+     WHERE id = $1 AND exam_id = $2 AND user_id = $3 AND status = 'pending'
+     RETURNING *`,
+    [requestId, examId, userId],
+  );
+  return result.rows[0] ?? null;
+}
 
 // ----- API -----
 

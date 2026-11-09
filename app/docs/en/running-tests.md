@@ -51,6 +51,16 @@ If a student tries to join after the timer started, they get a button that creat
 
 Requests stay pending until you decide or the exam closes.
 
+## Withdrawal requests
+
+A student can ask to withdraw from the waiting room or during the exam with the **Withdraw** button, optionally with a reason. The request lands in the same queue with the reason shown, also before the exam has started.
+
+- **Approve while waiting:** the student leaves the room and does not take the exam.
+- **Approve during the exam:** the student's attempt is closed with the answers saved so far and marked **Withdrew**. The room and the results show no pass or fail verdict for it.
+- **Deny:** the student is notified and carries on.
+
+While the request is pending the student keeps working and can take it back. After an approved withdrawal the student cannot rejoin that exam.
+
 ## Removing a student
 
 Each row in the live stats panel has a **Remove from exam** icon. Clicking it:

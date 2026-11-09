@@ -336,6 +336,19 @@ const steps: readonly Step[] = [
     `);
     },
   ],
+
+  [
+    '021_attempt_withdrawn',
+    async () => {
+      // Withdrawal from a running exam (exam_requests type 'withdraw'): the
+      // attempt is closed and marked so results and the room show "withdrew"
+      // instead of a pass/fail verdict.
+      await query(`
+      ALTER TABLE otisak_attempts
+      ADD COLUMN IF NOT EXISTS withdrawn_at TIMESTAMPTZ
+    `);
+    },
+  ],
 ];
 
 export async function runMigrations(): Promise<void> {
