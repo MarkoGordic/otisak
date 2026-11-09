@@ -25,7 +25,7 @@ import { useExamSocket } from '../lib/useExamSocket';
 import { useToast } from '../components/Toast';
 import { ToggleCluster } from '../components/ToggleCluster';
 import type { OtisakExamWithSubject, OtisakQuestionWithAnswers, OtisakAttempt } from '../lib/types';
-import { freeWrong } from '../lib/points';
+import { penaltyFrom } from '../lib/points';
 
 type UserInfo = {
   id?: string;
@@ -1100,9 +1100,9 @@ export default function ExamPage() {
                     <p
                       className={`text-[12px] leading-relaxed ${isDark ? 'text-gray-400/80' : 'text-slate-600'}`}
                     >
-                      {freeWrong(exam) > 0
-                        ? t('exam.negativePointsDescFree', {
-                            free: freeWrong(exam),
+                      {penaltyFrom(exam) > 1
+                        ? t('exam.negativePointsDescFrom', {
+                            from: penaltyFrom(exam),
                             value: Number(exam.negative_points_value),
                           })
                         : t('exam.negativePointsDesc', {
@@ -1112,10 +1112,10 @@ export default function ExamPage() {
                     <div
                       className={`flex items-center gap-3 mt-3 pt-3 border-t ${isDark ? 'border-red-500/10' : 'border-red-200'}`}
                     >
-                      {freeWrong(exam) > 0 && (
+                      {penaltyFrom(exam) > 1 && (
                         <>
                           <span className={`text-[10px] uppercase tracking-wider ${subText}`}>
-                            {t('exam.threshold', { value: freeWrong(exam) })}
+                            {t('exam.threshold', { value: penaltyFrom(exam) })}
                           </span>
                           <div className={`w-px h-3 ${isDark ? 'bg-red-400/15' : 'bg-red-300'}`} />
                         </>
@@ -1235,9 +1235,9 @@ export default function ExamPage() {
               </div>
               <div className={`w-px h-3 ${isDark ? 'bg-red-400/15' : 'bg-red-300'}`} />
               <div className="flex items-center gap-2">
-                {freeWrong(exam) > 0 && (
+                {penaltyFrom(exam) > 1 && (
                   <span className={`text-[10px] ${subText}`}>
-                    {t('exam.threshold', { value: freeWrong(exam) })}
+                    {t('exam.threshold', { value: penaltyFrom(exam) })}
                   </span>
                 )}
                 <span

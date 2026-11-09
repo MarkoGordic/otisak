@@ -131,7 +131,7 @@ const sr: Record<I18nKey, string> = {
   'dashboard.archived': 'Arhiviran',
   'dashboard.unknown': 'Nepoznato',
   'dashboard.afterWrong': 'po pogrešnom odgovoru',
-  'dashboard.afterWrongFree': 'po pogrešnom odgovoru, prvih {free} bez kazne',
+  'dashboard.afterWrongFrom': 'po pogrešnom odgovoru, od {from} pogrešnih',
   'dashboard.student': 'Student',
 
   // Subjects
@@ -261,9 +261,9 @@ const sr: Record<I18nKey, string> = {
   'examEdit.partialScoring': 'Delimično bodovanje',
   'examEdit.negativePoints': 'Negativni bodovi',
   'examEdit.negativeValue': 'Kazna po pogrešnom pitanju (bodova)',
-  'examEdit.negativeFree': 'Pogrešnih odgovora bez kazne',
+  'examEdit.negativeFrom': 'Kazna kreće od (broj pogrešnih)',
   'examEdit.negativeHelp':
-    'Kazna se oduzima od ukupnog zbira i ista je za svako pogrešno pitanje. Neodgovorena pitanja se ne kažnjavaju, a ukupno ne pada ispod 0.',
+    'Ispod ovog broja pogrešnih odgovora ništa se ne oduzima. Kad se dostigne, kažnjava se svako pogrešno pitanje, računajući i prva. Kazna se oduzima od ukupnog zbira, neodgovorena pitanja se ne kažnjavaju, a ukupno ne pada ispod 0.',
   'examEdit.tags': 'Oznake',
   'examEdit.tagsPlaceholder': 'Ukucaj oznaku i pritisni Enter…',
   'examEdit.tagsHelp':
@@ -648,9 +648,9 @@ const sr: Record<I18nKey, string> = {
   'exam.negativePoints': 'Negativni bodovi',
   'exam.negativePointsDesc':
     'Svaki pogrešan odgovor oduzima {value} bod(ova) od ukupnog zbira. Neodgovorena pitanja se ne kažnjavaju.',
-  'exam.negativePointsDescFree':
-    'Prvih {free} pogrešnih odgovora se ne kažnjava, a svaki sledeći oduzima {value} bod(ova) od ukupnog zbira. Neodgovorena pitanja se ne kažnjavaju.',
-  'exam.threshold': 'Bez kazne: {value}',
+  'exam.negativePointsDescFrom':
+    'Ako imaš {from} ili više pogrešnih odgovora, svaki pogrešan odgovor oduzima {value} bod(ova) od ukupnog zbira, računajući i prve. Sa manje od {from} pogrešnih nema kazne. Neodgovorena pitanja se ne kažnjavaju.',
+  'exam.threshold': 'Od {value} pogrešnih',
   'exam.cheatingWarning':
     'Svaki vid prepisivanja, neovlašćene komunikacije ili korišćenja spoljnih izvora strogo je zabranjen tokom ispita.',
   'exam.disciplinaryWarning':

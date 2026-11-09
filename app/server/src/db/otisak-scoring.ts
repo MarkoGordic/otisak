@@ -101,6 +101,15 @@ export function isBlankStructuredAnswer(type: string, textAnswer: string | null 
 
 export const STRUCTURED_QUESTION_TYPES = ['ordering', 'matching', 'fill_blank'];
 
+// Negative points: how many wrong answers are penalized. The threshold is the
+// number of wrong answers at which the penalty kicks in (0 behaves like 1).
+// Below it nothing is deducted; once reached, EVERY wrong answer is penalized,
+// the earlier ones included (threshold 4, value 1: 3 wrong = 0, 4 wrong = -4).
+export function penalizedWrongCount(wrongCount: number, threshold: number): number {
+  const from = Math.max(1, Math.round(Number(threshold) || 0));
+  return wrongCount >= from ? wrongCount : 0;
+}
+
 export interface MultiChoiceAnswer {
   id: string;
   is_correct: boolean;

@@ -127,7 +127,7 @@ const en = {
   'dashboard.archived': 'Archived',
   'dashboard.unknown': 'Unknown',
   'dashboard.afterWrong': 'per wrong answer',
-  'dashboard.afterWrongFree': 'per wrong answer, first {free} free',
+  'dashboard.afterWrongFrom': 'per wrong answer, from {from} wrong',
   'dashboard.student': 'Student',
 
   // Subjects
@@ -257,9 +257,9 @@ const en = {
   'examEdit.partialScoring': 'Partial scoring',
   'examEdit.negativePoints': 'Negative points',
   'examEdit.negativeValue': 'Penalty per wrong question (points)',
-  'examEdit.negativeFree': 'Wrong answers without penalty',
+  'examEdit.negativeFrom': 'Penalty applies from (wrong answers)',
   'examEdit.negativeHelp':
-    'Deducted from the total and the same for every wrong question. Unanswered questions are not penalized and the total never drops below 0.',
+    'Below this number of wrong answers nothing is deducted. Once reached, every wrong question is penalized, the first ones included. The penalty is deducted from the total, unanswered questions are not penalized and the total never drops below 0.',
   'examEdit.tags': 'Tags',
   'examEdit.tagsPlaceholder': 'Type a tag and press Enter…',
   'examEdit.tagsHelp': 'Tags are normalised to lowercase. Use them to filter the manage list.',
@@ -666,9 +666,9 @@ const en = {
   'exam.negativePoints': 'Negative Points',
   'exam.negativePointsDesc':
     'Each wrong answer deducts {value} point(s) from your total. Unanswered questions are not penalized.',
-  'exam.negativePointsDescFree':
-    'The first {free} wrong answer(s) are not penalized; each one after that deducts {value} point(s) from your total. Unanswered questions are not penalized.',
-  'exam.threshold': 'Free: {value}',
+  'exam.negativePointsDescFrom':
+    'With {from} or more wrong answers, every wrong answer deducts {value} point(s) from your total, the first ones included. With fewer than {from} there is no penalty. Unanswered questions are not penalized.',
+  'exam.threshold': 'From {value} wrong',
   'exam.cheatingWarning':
     'Any form of cheating, unauthorized communication, or use of external resources is strictly prohibited during this exam.',
   'exam.disciplinaryWarning':

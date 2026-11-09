@@ -73,7 +73,7 @@ Sva polja osim `title` su opciona.
 | `partial_scoring` | boolean | `false` | Samo pitanja sa više tačnih odgovora. Vidi [Bodovanje](#bodovanje). |
 | `negative_points_enabled` | boolean | `false` | Vidi [Negativni bodovi](#negativni-bodovi). |
 | `negative_points_value` | broj | `0` | Koliko bodova oduzima jedno pogrešno pitanje. Negativna vrednost postaje 0. |
-| `negative_points_threshold` | ceo broj | `0` | Redni broj prvog pogrešnog odgovora koji se kažnjava. `0` i `1` znače da se kažnjava svaki. Decimalna vrednost se zaokružuje. |
+| `negative_points_threshold` | ceo broj | `0` | Broj pogrešnih odgovora od kog kazna kreće. Kad se dostigne, kažnjavaju se svi pogrešni, i prvi. `0` i `1` znače da se kažnjava svaki. Decimalna vrednost se zaokružuje. |
 
 Piši prave JSON vrednosti `true` i `false`. Od stringova se prihvataju `"true"`, `"1"`, `"da"`, `"yes"` kao tačno i `"false"`, `"0"`, `"ne"`, `"no"`, `""` kao netačno. Brojevi `1` i `0` važe kao tačno i netačno.
 
@@ -247,11 +247,11 @@ Kazna se primenjuje kada je `negative_points_enabled` uključen **i** `negative_
 ```
 W = broj pogrešno odgovorenih pitanja
 T = negative_points_threshold (0 se računa kao 1)
-kažnjena = max(0, W - (T - 1))
+kažnjena = W ako je W >= T, inače 0
 ukupno   = max(0, zbir osvojenih bodova - kažnjena × negative_points_value)
 ```
 
-- Prvih `T - 1` pogrešnih je besplatno: `T = 1` kažnjava svaki, `T = 3` prva dva pušta.
+- Ispod `T` pogrešnih nema kazne. Kad se dostigne `T`, kažnjava se **svaki** pogrešan, računajući i prve. Primer: `T = 4`, kazna 1: sa 3 pogrešna je 0, sa 4 je -4, sa 5 je -5.
 - Kazna je ista za svako pogrešno pitanje, bez obzira na njegove bodove. Pojedinačno pitanje nikad ne ide ispod 0, a ni ukupno.
 - Maksimum ispita ostaje zbir `points`, pa procenat za prag prolaza pada zajedno sa ukupnim.
 - **Pogrešno** znači odgovoreno i 0 bodova. Delimični bodovi (`partial_scoring`) nisu pogrešni. Na pitanju sa više tačnih bez `partial_scoring`, delimično tačan izbor nosi 0 i kažnjava se.

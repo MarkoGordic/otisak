@@ -11,6 +11,7 @@ import {
   scoreFillBlank,
   scoreMultiChoice,
   isBlankStructuredAnswer,
+  penalizedWrongCount,
   STRUCTURED_QUESTION_TYPES,
   type MultiChoiceAnswer,
 } from './otisak-scoring';
@@ -432,9 +433,8 @@ export async function rescoreExam(examId: string): Promise<number> {
       let total = Number(totalRes.rows[0]?.total ?? 0);
       if (exam.negative_points_enabled && Number(exam.negative_points_value) > 0) {
         const penaltyValue = Number(exam.negative_points_value);
-        const threshold = Number(exam.negative_points_threshold) || 1;
         const wrongCount = await countWrongAnsweredQuestions(client, attemptId);
-        const penalizable = Math.max(0, wrongCount - (threshold - 1));
+        const penalizable = penalizedWrongCount(wrongCount, Number(exam.negative_points_threshold));
         if (penalizable > 0) total = Math.max(0, total - penalizable * penaltyValue);
       }
 
@@ -485,9 +485,11 @@ export async function computeAttemptTotal(
 
   if (negCheck.rows[0]?.negative_points_enabled && negCheck.rows[0]?.negative_points_value > 0) {
     const penaltyValue = Number(negCheck.rows[0].negative_points_value);
-    const threshold = negCheck.rows[0].negative_points_threshold || 1;
     const wrongCount = await countWrongAnsweredQuestions(client, attemptId);
-    const penalizableCount = Math.max(0, wrongCount - (threshold - 1));
+    const penalizableCount = penalizedWrongCount(
+      wrongCount,
+      Number(negCheck.rows[0].negative_points_threshold),
+    );
     if (penalizableCount > 0) {
       total = Math.max(0, total - penalizableCount * penaltyValue);
     }

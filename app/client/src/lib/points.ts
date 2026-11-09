@@ -6,9 +6,9 @@ export function parsePoints(value: string, fallback: number): number {
   return value.trim() !== '' && Number.isFinite(n) && n >= 0 ? n : fallback;
 }
 
-// Negative points: negative_points_threshold is the number of the first wrong
-// answer that is penalized (0 behaves like 1), so threshold - 1 wrong answers
-// are free. This is what the server's scoring does; show the free count.
-export function freeWrong(exam: { negative_points_threshold?: number | string | null }): number {
-  return Math.max(0, Math.round(Number(exam.negative_points_threshold) || 0) - 1);
+// Negative points: negative_points_threshold is how many wrong answers it
+// takes for the penalty to apply (0 behaves like 1). Once reached, every wrong
+// answer is penalized, the earlier ones included. Mirrors the server scoring.
+export function penaltyFrom(exam: { negative_points_threshold?: number | string | null }): number {
+  return Math.max(1, Math.round(Number(exam.negative_points_threshold) || 0));
 }

@@ -20,7 +20,7 @@ import { useToast } from '../components/Toast';
 import { AppCopyright } from '../components/AppCopyright';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
-import { parsePoints, freeWrong } from '../lib/points';
+import { parsePoints, penaltyFrom } from '../lib/points';
 import {
   Field,
   Toggle,
@@ -574,19 +574,19 @@ export default function ExamEditPage() {
                         className={inputClass}
                       />
                     </Field>
-                    {/* Stored as the number of the first penalized wrong answer;
-                        the editor shows the friendlier "how many are free". */}
-                    <Field label={t('examEdit.negativeFree')}>
+                    <Field label={t('examEdit.negativeFrom')}>
                       <input
                         type="number"
-                        min={0}
+                        min={1}
                         step={1}
-                        value={freeWrong(exam)}
+                        value={penaltyFrom(exam)}
                         onChange={(e) =>
                           setExam({
                             ...exam,
-                            negative_points_threshold:
-                              Math.max(0, Math.round(Number(e.target.value) || 0)) + 1,
+                            negative_points_threshold: Math.max(
+                              1,
+                              Math.round(Number(e.target.value) || 1),
+                            ),
                           })
                         }
                         className={inputClass}

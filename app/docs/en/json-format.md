@@ -73,7 +73,7 @@ Every field except `title` is optional.
 | `partial_scoring` | boolean | `false` | Multi-answer choice questions only. See [Scoring](#scoring). |
 | `negative_points_enabled` | boolean | `false` | See [Negative points](#negative-points). |
 | `negative_points_value` | number | `0` | Points one wrong question subtracts. A negative value becomes 0. |
-| `negative_points_threshold` | integer | `0` | Number of the first wrong answer that is penalized. `0` and `1` both penalize every wrong answer. A fraction is rounded. |
+| `negative_points_threshold` | integer | `0` | Number of wrong answers at which the penalty starts. Once reached, every wrong answer is penalized, the first ones included. `0` and `1` both penalize every wrong answer. A fraction is rounded. |
 
 Write real JSON `true` and `false`. Strings `"true"`, `"1"`, `"yes"`, `"da"` count as true and `"false"`, `"0"`, `"no"`, `"ne"`, `""` as false. Numbers `1` and `0` count as true and false.
 
@@ -247,11 +247,11 @@ The penalty applies when `negative_points_enabled` is on **and** `negative_point
 ```
 W = number of wrongly answered questions
 T = negative_points_threshold (0 counts as 1)
-penalized = max(0, W - (T - 1))
+penalized = W if W >= T, else 0
 total     = max(0, points earned - penalized × negative_points_value)
 ```
 
-- The first `T - 1` wrong answers are free: `T = 1` penalizes every one, `T = 3` lets two through.
+- Below `T` wrong answers there is no penalty. Once `T` is reached, **every** wrong answer is penalized, the first ones included. Example: `T = 4`, penalty 1: 3 wrong is 0, 4 wrong is -4, 5 wrong is -5.
 - The penalty is the same for every wrong question regardless of its points. A single question never goes below 0, nor does the total.
 - The exam maximum stays the sum of `points`, so the pass percentage drops with the total.
 - **Wrong** means answered and worth 0. Partial credit (`partial_scoring`) is not wrong. On a multi-correct question without `partial_scoring`, a partly correct pick scores 0 and is penalized.

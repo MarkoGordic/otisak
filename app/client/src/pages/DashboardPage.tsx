@@ -29,7 +29,7 @@ import { StatCard } from '../components/ui/StatCard';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Tabs } from '../components/ui/Tabs';
 import type { OtisakExamWithSubject, OtisakAttemptWithExam } from '../lib/types';
-import { freeWrong } from '../lib/points';
+import { penaltyFrom } from '../lib/points';
 
 type UserInfo = {
   name?: string;
@@ -498,9 +498,9 @@ export default function DashboardPage() {
                                       <AlertTriangle size={14} />
                                       <span className="text-xs">
                                         -{Number(exam.negative_points_value)}{' '}
-                                        {freeWrong(exam) > 0
-                                          ? t('dashboard.afterWrongFree', {
-                                              free: freeWrong(exam),
+                                        {penaltyFrom(exam) > 1
+                                          ? t('dashboard.afterWrongFrom', {
+                                              from: penaltyFrom(exam),
                                             })
                                           : t('dashboard.afterWrong')}
                                       </span>
