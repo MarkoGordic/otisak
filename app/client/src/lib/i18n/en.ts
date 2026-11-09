@@ -917,6 +917,8 @@ const en = {
   'room.stats.answered': '{answered}/{total} answered',
   'room.stats.timeSpent': 'Time: {time}',
   'room.stats.suspicious': '{count} suspicious',
+  'room.stats.wrong': '{count} wrong',
+  'room.stats.wrongPenalty': '{count} wrong, penalty -{penalty}',
   'room.stats.statusActive': 'Working',
   'room.stats.statusFinished': 'Submitted',
   'room.stats.statusIdle': 'Ready',

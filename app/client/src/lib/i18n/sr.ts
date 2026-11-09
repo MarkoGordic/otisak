@@ -897,6 +897,8 @@ const sr: Record<I18nKey, string> = {
   'room.stats.answered': '{answered}/{total} odgovoreno',
   'room.stats.timeSpent': 'Vreme: {time}',
   'room.stats.suspicious': '{count} sumnjivih',
+  'room.stats.wrong': '{count} netačnih',
+  'room.stats.wrongPenalty': '{count} netačnih, kazna -{penalty}',
   'room.stats.statusActive': 'U radu',
   'room.stats.statusFinished': 'Predao',
   'room.stats.statusIdle': 'Spreman',

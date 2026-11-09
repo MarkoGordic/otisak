@@ -70,6 +70,8 @@ type LiveStudent = {
   submitted: boolean;
   answered_count: number;
   current_points: number;
+  wrong_count?: number;
+  penalty_points?: number;
   started_at: string | null;
   finished_at: string | null;
   time_spent_seconds: number;
@@ -846,7 +848,14 @@ export default function ExamRoomPage() {
                   // Running points come from the same poll as answered_count.
                   // Bands: green ≥70%, orange 40–70%, red <40%; grey when the
                   // student hasn't accumulated any score yet.
-                  const currentPoints = Number(s?.current_points ?? 0);
+                  // Shown after the negative-points penalty, so it matches what
+                  // a submit right now would record.
+                  const wrongCount = Number(s?.wrong_count ?? 0);
+                  const penalty = Number(s?.penalty_points ?? 0);
+                  const currentPoints = Math.max(
+                    0,
+                    Math.round((Number(s?.current_points ?? 0) - penalty) * 100) / 100,
+                  );
                   const maxPoints = liveStats.max_points || 0;
                   const scorePct =
                     maxPoints > 0 ? Math.round((currentPoints / maxPoints) * 100) : 0;
@@ -907,7 +916,7 @@ export default function ExamRoomPage() {
                               {answered}/{total}
                             </span>
                           </div>
-                          <div className="flex items-center gap-2 mt-1">
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1">
                             <span className="text-[10px] text-[var(--text-muted)] font-mono">
                               {formatElapsed(s?.time_spent_seconds ?? 0)}
                             </span>
@@ -919,6 +928,27 @@ export default function ExamRoomPage() {
                                 className={`text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded ${scoreColor}`}
                               >
                                 {currentPoints}/{maxPoints} ({scorePct}%)
+                              </span>
+                            )}
+                            {wrongCount > 0 && (
+                              <span
+                                className={`flex items-center gap-1 text-[10px] font-mono px-1.5 py-0.5 rounded ${
+                                  penalty > 0
+                                    ? 'bg-danger-light text-danger'
+                                    : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'
+                                }`}
+                                title={
+                                  penalty > 0
+                                    ? t('room.stats.wrongPenalty', {
+                                        count: wrongCount,
+                                        penalty,
+                                      })
+                                    : t('room.stats.wrong', { count: wrongCount })
+                                }
+                              >
+                                <X size={10} />
+                                {wrongCount}
+                                {penalty > 0 && <span className="font-semibold">-{penalty}</span>}
                               </span>
                             )}
                             {suspicious > 0 && (

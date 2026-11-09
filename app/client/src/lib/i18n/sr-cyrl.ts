@@ -912,6 +912,8 @@ const srCyrl: Record<I18nKey, string> = {
   'room.stats.answered': '{answered}/{total} одговорено',
   'room.stats.timeSpent': 'Време: {time}',
   'room.stats.suspicious': '{count} сумњивих',
+  'room.stats.wrong': '{count} нетачних',
+  'room.stats.wrongPenalty': '{count} нетачних, казна -{penalty}',
   'room.stats.statusActive': 'У раду',
   'room.stats.statusFinished': 'Предао',
   'room.stats.statusIdle': 'Спреман',

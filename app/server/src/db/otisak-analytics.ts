@@ -2,6 +2,7 @@
 // ========================================
 
 import { query } from './client';
+import { penalizedWrongCount } from './otisak-scoring';
 import { getOtisakExamById } from './otisak-exams';
 import { getExamEnrollments } from './otisak-enrollments';
 import type { OtisakExamWithSubject } from './otisak-types';
@@ -96,6 +97,8 @@ export async function getLiveExamStats(examId: string): Promise<{
     submitted: boolean;
     answered_count: number;
     current_points: number;
+    wrong_count: number;
+    penalty_points: number;
     started_at: Date | null;
     finished_at: Date | null;
     time_spent_seconds: number;
@@ -113,6 +116,19 @@ export async function getLiveExamStats(examId: string): Promise<{
   );
   const total_questions = examMeta.rows[0]?.q_count ?? 0;
   const max_points = Number(examMeta.rows[0]?.max_points ?? 0);
+
+  const negRes = await query<{
+    negative_points_enabled: boolean;
+    negative_points_value: number;
+    negative_points_threshold: number;
+  }>(
+    `SELECT negative_points_enabled, negative_points_value, negative_points_threshold
+     FROM otisak_exams WHERE id = $1`,
+    [examId],
+  );
+  const neg = negRes.rows[0];
+  const penaltyValue = neg?.negative_points_enabled ? Number(neg.negative_points_value) || 0 : 0;
+  const penaltyThreshold = Number(neg?.negative_points_threshold) || 0;
 
   // Suspicious activity event types we count for the live UI badge.
   const SUSPICIOUS_TYPES = [
@@ -134,6 +150,7 @@ export async function getLiveExamStats(examId: string): Promise<{
     submitted: boolean;
     answered_count: number;
     current_points: number;
+    wrong_count: number;
     started_at: Date | null;
     finished_at: Date | null;
     time_spent_seconds: number;
@@ -154,7 +171,16 @@ export async function getLiveExamStats(examId: string): Promise<{
                   OR (aa.selected_answer_ids IS NOT NULL AND array_length(aa.selected_answer_ids, 1) > 0)
                   OR (aa.text_answer IS NOT NULL AND length(trim(aa.text_answer)) > 0)
               )::int AS answered_count,
-              COALESCE(SUM(aa.points_awarded), 0)::numeric AS current_points
+              COALESCE(SUM(aa.points_awarded), 0)::numeric AS current_points,
+              -- Same predicate as countWrongAnsweredQuestions (negative points).
+              COUNT(*) FILTER (
+                WHERE aa.points_awarded = 0
+                  AND (aa.selected_answer_id IS NOT NULL
+                       OR array_length(aa.selected_answer_ids, 1) > 0
+                       OR (aa.text_answer IS NOT NULL
+                           AND btrim(aa.text_answer) NOT IN ('', '[]', '{}')
+                           AND (aa.ai_grading_status IS NULL OR aa.ai_grading_status = 'graded')))
+              )::int AS wrong_count
        FROM otisak_attempt_answers aa
        WHERE aa.attempt_id IN (SELECT id FROM attempt_ids)
        GROUP BY aa.attempt_id
@@ -176,6 +202,7 @@ export async function getLiveExamStats(examId: string): Promise<{
             a.time_spent_seconds,
             COALESCE(an.answered_count, 0) AS answered_count,
             COALESCE(an.current_points, 0)::numeric AS current_points,
+            COALESCE(an.wrong_count, 0) AS wrong_count,
             COALESCE(s.suspicious_count, 0) AS suspicious_count
      FROM otisak_attempts a
      JOIN users u ON a.user_id = u.id
@@ -188,10 +215,21 @@ export async function getLiveExamStats(examId: string): Promise<{
   );
 
   // Normalise numeric columns coming back as strings from pg.
-  const per_student = result.rows.map((r) => ({
-    ...r,
-    current_points: Number(r.current_points || 0),
-  }));
+  // current_points is the raw sum; penalty_points is what negative points
+  // would deduct right now, so the room shows the score a submit would give.
+  const per_student = result.rows.map((r) => {
+    const wrong = Number(r.wrong_count || 0);
+    const penalty =
+      penaltyValue > 0
+        ? Math.round(penalizedWrongCount(wrong, penaltyThreshold) * penaltyValue * 100) / 100
+        : 0;
+    return {
+      ...r,
+      current_points: Number(r.current_points || 0),
+      wrong_count: wrong,
+      penalty_points: penalty,
+    };
+  });
   const finished_count = per_student.filter((r) => r.submitted).length;
 
   // Room averages only count students who have actually started (started_at
@@ -199,7 +237,10 @@ export async function getLiveExamStats(examId: string): Promise<{
   // average down even though they're not playing yet.
   const started = per_student.filter((r) => r.started_at);
   const room_average_points =
-    started.length > 0 ? started.reduce((s, r) => s + r.current_points, 0) / started.length : 0;
+    started.length > 0
+      ? started.reduce((s, r) => s + Math.max(0, r.current_points - r.penalty_points), 0) /
+        started.length
+      : 0;
   const room_average_percent =
     max_points > 0 ? Math.round((room_average_points / max_points) * 100) : 0;
 
