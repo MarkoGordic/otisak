@@ -123,6 +123,7 @@ export default function ExamPreviewPage() {
       <OtisakHeader
         centerContent={
           <div
+            title={`${t('preview.banner')}${exam.shuffle_questions || exam.shuffle_answers ? ` ${t('preview.shuffleNote')}` : ''}`}
             className={`inline-flex items-center gap-2 h-9 px-4 rounded-full border text-xs font-semibold uppercase tracking-wider ${isDark ? 'border-amber-500/30 bg-amber-500/10 text-amber-300' : 'border-amber-300 bg-amber-50 text-amber-700'}`}
           >
             <Eye className="w-3.5 h-3.5" />
@@ -130,31 +131,36 @@ export default function ExamPreviewPage() {
           </div>
         }
         actionButton={
-          <button
-            type="button"
-            onClick={close}
-            className={`inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-lg border text-xs sm:text-sm font-semibold uppercase tracking-wider transition-colors ${isDark ? 'border-white/15 bg-white/5 text-gray-200 hover:bg-white/10' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
-          >
-            <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-            <span className="hidden sm:inline">{t('preview.close')}</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setReveal((v) => !v)}
+              aria-pressed={reveal}
+              title={t('preview.showCorrect')}
+              className={`inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 rounded-lg border text-xs font-medium transition-colors ${
+                reveal
+                  ? isDark
+                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300'
+                    : 'border-emerald-300 bg-emerald-50 text-emerald-700'
+                  : isDark
+                    ? 'border-white/10 bg-transparent text-gray-400 hover:text-gray-200 hover:bg-white/5'
+                    : 'border-slate-200 bg-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden md:inline">{t('preview.answersToggle')}</span>
+            </button>
+            <button
+              type="button"
+              onClick={close}
+              className={`inline-flex items-center gap-1.5 h-9 sm:h-10 px-3 sm:px-4 rounded-lg border text-xs sm:text-sm font-semibold uppercase tracking-wider transition-colors ${isDark ? 'border-white/15 bg-white/5 text-gray-200 hover:bg-white/10' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'}`}
+            >
+              <X className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+              <span className="hidden sm:inline">{t('preview.close')}</span>
+            </button>
+          </div>
         }
       />
-
-      <div className="z-10 max-w-4xl w-full mx-auto px-3 sm:px-6 pt-4">
-        <div
-          className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 text-xs ${isDark ? 'border-amber-500/20 bg-amber-500/[0.06] text-amber-200/90' : 'border-amber-200 bg-amber-50 text-amber-800'}`}
-        >
-          <span>
-            {t('preview.banner')}
-            {(exam.shuffle_questions || exam.shuffle_answers) && <> {t('preview.shuffleNote')}</>}
-          </span>
-          <label className="inline-flex items-center gap-2 cursor-pointer font-medium">
-            <input type="checkbox" checked={reveal} onChange={(e) => setReveal(e.target.checked)} />
-            {t('preview.showCorrect')}
-          </label>
-        </div>
-      </div>
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-3 sm:px-6 py-4 sm:py-6 z-10 flex flex-col justify-center min-h-[400px] sm:min-h-[500px]">
         {question ? (

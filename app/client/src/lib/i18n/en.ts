@@ -620,6 +620,7 @@ const en = {
   'preview.shuffleNote':
     'Questions and answers are in their base order; students get them shuffled.',
   'preview.showCorrect': 'Show correct answers',
+  'preview.answersToggle': 'Answers',
   'preview.correct': 'Correct answer',
   'preview.correctOrder': 'Correct order',
   'preview.correctPairs': 'Correct pairs',

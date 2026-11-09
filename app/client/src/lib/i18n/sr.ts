@@ -602,6 +602,7 @@ const sr: Record<I18nKey, string> = {
   'preview.banner': 'Ovako ispit vide studenti. Odgovori se ne čuvaju i ništa se ne šalje.',
   'preview.shuffleNote': 'Pitanja i odgovori su u osnovnom redosledu, a studentima se mešaju.',
   'preview.showCorrect': 'Prikaži tačne odgovore',
+  'preview.answersToggle': 'Tačni odgovori',
   'preview.correct': 'Tačan odgovor',
   'preview.correctOrder': 'Tačan redosled',
   'preview.correctPairs': 'Tačni parovi',

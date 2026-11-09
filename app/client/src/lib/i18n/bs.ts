@@ -616,6 +616,7 @@ const bs: Record<I18nKey, string> = {
   'preview.banner': 'Овако испит виде студенти. Одговори се не чувају и ништа се не шаље.',
   'preview.shuffleNote': 'Питања и одговори су у основном редослиједу, а студентима се мијешају.',
   'preview.showCorrect': 'Прикажи тачне одговоре',
+  'preview.answersToggle': 'Тачни одговори',
   'preview.correct': 'Тачан одговор',
   'preview.correctOrder': 'Тачан редослијед',
   'preview.correctPairs': 'Тачни парови',
