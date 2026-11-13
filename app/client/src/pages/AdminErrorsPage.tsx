@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, ScrollText, Search, RefreshCw } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
-import { AppCopyright } from '../components/AppCopyright';
+import { PageCopyright } from '../components/AppCopyright';
 import { api } from '../lib/api';
 
 type UserInfo = { name?: string; role?: string };
@@ -216,9 +216,7 @@ export default function AdminErrorsPage() {
               </div>
             )}
           </div>
-          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
-            <AppCopyright />
-          </div>
+          <PageCopyright />
         </main>
       </div>
     </div>

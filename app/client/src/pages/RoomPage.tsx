@@ -35,6 +35,7 @@ import {
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Sidebar, MobileNav } from '../components/Sidebar';
+import { PageCopyright } from '../components/AppCopyright';
 import { formatElapsed } from '../lib/format';
 import { useLang } from '../components/LangProvider';
 import { useToast } from '../components/Toast';
@@ -577,6 +578,7 @@ export default function ExamRoomPage() {
               )}
             </div>
           </main>
+          <PageCopyright />
         </div>
       </div>
     );
@@ -1509,6 +1511,7 @@ export default function ExamRoomPage() {
             </>
           )}
         </main>
+        <PageCopyright />
       </div>
     </div>
   );

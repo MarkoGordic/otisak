@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { AppCopyright } from '../components/AppCopyright';
 import {
   Loader2,
   ArrowLeft,
@@ -101,6 +102,20 @@ const SUSPICIOUS = new Set([
   'print_attempt',
 ]);
 
+// Same wall clock as the PDF report (server formats in Europe/Belgrade too).
+function formatStamp(at: string | null | undefined): string {
+  if (!at) return '-';
+  return new Date(at).toLocaleString('sr-RS', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    timeZone: 'Europe/Belgrade',
+  });
+}
+
 export default function StudentReportPage() {
   const navigate = useNavigate();
   const { locale } = useLang();
@@ -183,6 +198,17 @@ export default function StudentReportPage() {
               <p className="text-sm text-blue-300 font-mono mt-1">{student.index_number}</p>
             )}
             <p className="text-xs text-gray-500 mt-1">{student.email}</p>
+            <div className="flex gap-6 mt-3">
+              {[
+                ['Početak', attempt.started_at],
+                ['Kraj', attempt.finished_at],
+              ].map(([label, at]) => (
+                <div key={label}>
+                  <p className="text-[9px] uppercase tracking-[2px] text-gray-500">{label}</p>
+                  <p className="text-xs font-mono text-gray-300 mt-0.5">{formatStamp(at)}</p>
+                </div>
+              ))}
+            </div>
           </div>
           <div
             className={`rounded-xl border-2 p-5 text-center ${passed ? 'bg-green-900/10 border-green-500/30' : 'bg-red-900/10 border-red-500/30'}`}
@@ -445,6 +471,13 @@ export default function StudentReportPage() {
           )}
         </div>
       </main>
+      {/* The report is always dark, whatever the app theme: keep the light pink. */}
+      <footer
+        className="max-w-5xl mx-auto px-4 sm:px-6 pb-8 pt-2 flex justify-center"
+        style={{ '--k-pink': '#f472b6' } as CSSProperties}
+      >
+        <AppCopyright className="text-center !text-gray-500" />
+      </footer>
     </div>
   );
 }

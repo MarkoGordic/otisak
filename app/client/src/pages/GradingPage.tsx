@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { Loader2, ArrowLeft, ClipboardCheck, CheckCircle2, Save, Info } from 'lucide-react';
 
 import { Sidebar, MobileNav } from '../components/Sidebar';
+import { PageCopyright } from '../components/AppCopyright';
 import { useLang } from '../components/LangProvider';
 import { useToast } from '../components/Toast';
 import { Badge } from '../components/ui/Badge';
@@ -300,6 +301,7 @@ export default function GradingPage() {
             </>
           )}
         </main>
+        <PageCopyright />
       </div>
     </div>
   );

@@ -297,3 +297,57 @@
 .docs-prose h4 {
   scroll-margin-top: 5rem;
 }
+
+/* Copyright signature: К. in pink italic; on hover/focus the heart beats.
+   Deeper pink on light backgrounds; the light one washes out on white. */
+:root {
+  --k-pink: #db2777;
+}
+[data-theme='dark'] {
+  --k-pink: #f472b6;
+}
+.k-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+  cursor: default;
+  outline: none;
+}
+.k-heart {
+  display: inline-block;
+  transform-origin: center;
+}
+.k-sig {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-style: italic;
+  color: var(--k-pink);
+  font-size: 1.08em;
+}
+.k-group:hover .k-heart,
+.k-group:focus-visible .k-heart {
+  animation: k-beat 1.1s ease-in-out infinite;
+}
+@keyframes k-beat {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  15% {
+    transform: scale(1.3);
+  }
+  30% {
+    transform: scale(1);
+  }
+  45% {
+    transform: scale(1.15);
+  }
+  60% {
+    transform: scale(1);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-group:hover .k-heart,
+  .k-group:focus-visible .k-heart {
+    animation: none;
+  }
+}

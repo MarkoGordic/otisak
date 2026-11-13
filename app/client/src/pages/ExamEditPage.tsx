@@ -17,7 +17,7 @@ import {
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { useToast } from '../components/Toast';
-import { AppCopyright } from '../components/AppCopyright';
+import { PageCopyright } from '../components/AppCopyright';
 import { Badge } from '../components/ui/Badge';
 import { Button } from '../components/ui/Button';
 import { parsePoints, penaltyFrom } from '../lib/points';
@@ -706,9 +706,7 @@ export default function ExamEditPage() {
               </Section>
             </div>
           </div>
-          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
-            <AppCopyright />
-          </div>
+          <PageCopyright />
         </main>
       </div>
     </div>

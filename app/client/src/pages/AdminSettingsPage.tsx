@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, Settings, Shield, BookOpen, Fingerprint } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
-import { AppCopyright } from '../components/AppCopyright';
+import { PageCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 import { useLang } from '../components/LangProvider';
 import { useToast } from '../components/Toast';
@@ -242,9 +242,7 @@ export default function AdminSettingsPage() {
               </div>
             </div>
           </div>
-          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
-            <AppCopyright />
-          </div>
+          <PageCopyright />
         </main>
       </div>
     </div>

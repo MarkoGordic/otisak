@@ -15,6 +15,7 @@ import {
 
 import { formatDateSr as formatDate, formatDurationLong as formatDuration } from '../lib/format';
 import { Sidebar, MobileNav } from '../components/Sidebar';
+import { PageCopyright } from '../components/AppCopyright';
 import { useLang } from '../components/LangProvider';
 import { Badge } from '../components/ui/Badge';
 import { StatCard } from '../components/ui/StatCard';
@@ -338,6 +339,7 @@ export default function UserProfilePage() {
             </>
           ) : null}
         </main>
+        <PageCopyright />
       </div>
     </div>
   );

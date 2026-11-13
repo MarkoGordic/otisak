@@ -7,6 +7,7 @@ import { BookOpen, Menu, X, ChevronRight, ExternalLink } from 'lucide-react';
 import 'highlight.js/styles/github-dark-dimmed.css';
 
 import { Sidebar, MobileNav } from '../components/Sidebar';
+import { AppCopyright, PageCopyright } from '../components/AppCopyright';
 import { useLang } from '../components/LangProvider';
 import {
   type DocsLanguage,
@@ -157,6 +158,7 @@ export default function DocsPage() {
             <div className="p-4 sm:p-6 lg:p-8 max-w-[1280px] mx-auto bg-[var(--bg-primary)] min-h-full">
               <div className="grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">{content}</div>
             </div>
+            <PageCopyright />
           </main>
         </div>
       </div>
@@ -218,6 +220,9 @@ export default function DocsPage() {
       <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-8 grid gap-8 lg:grid-cols-[220px_minmax(0,1fr)]">
         {content}
       </div>
+      <footer className="max-w-[1280px] mx-auto px-4 sm:px-6 pb-8 pt-2 flex justify-center">
+        <AppCopyright className="text-center" />
+      </footer>
     </div>
   );
 }

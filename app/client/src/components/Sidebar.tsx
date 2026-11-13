@@ -22,6 +22,7 @@ import { useTheme } from './ThemeProvider';
 import { useLang } from './LangProvider';
 import { LanguagePicker } from './LanguagePicker';
 import { ChangePasswordModal } from './account/ChangePasswordModal';
+import { AppCopyright } from './AppCopyright';
 
 type SidebarProps = {
   userName?: string;
@@ -234,6 +235,7 @@ export function Sidebar({ userName, userRole, userAvatar }: SidebarProps) {
             <LogOut size={15} />
           </button>
         </div>
+        <AppCopyright compact className="text-center pt-0.5 -mx-1.5" />
       </div>
       {showPasswordModal && <ChangePasswordModal onClose={() => setShowPasswordModal(false)} />}
     </aside>

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
-import { AppCopyright } from '../components/AppCopyright';
+import { PageCopyright } from '../components/AppCopyright';
 import { Button } from '../components/ui/Button';
 
 type ExamLite = {
@@ -433,9 +433,7 @@ export default function AdminHomePage() {
               ))}
             </div>
           </div>
-          <div className="mt-auto px-4 pb-6 pt-2 flex justify-center">
-            <AppCopyright />
-          </div>
+          <PageCopyright />
         </main>
       </div>
     </div>
