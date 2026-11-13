@@ -2,6 +2,7 @@ import { getOtisakExamById, getUserAttempts, getAttemptResults } from '../db/oti
 import { findUserById } from '../db/users';
 import { getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
 import { reportStrings, type ReportLocale, type ReportStrings } from './reportStrings';
+import { REPORT_TIME_ZONE, fileStamp } from './reportTime';
 
 type Awaitable<T> = T | Promise<T>;
 type StudentReportPayload = {
@@ -44,6 +45,7 @@ function formatTime(date: Date | string, dateLocale: string): string {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
+    timeZone: REPORT_TIME_ZONE,
   });
 }
 function formatDate(date: Date | string, dateLocale: string): string {
@@ -51,7 +53,12 @@ function formatDate(date: Date | string, dateLocale: string): string {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
+    timeZone: REPORT_TIME_ZONE,
   });
+}
+function formatDateTime(date: Date | string | null, dateLocale: string): string {
+  if (!date) return '-';
+  return `${formatDate(date, dateLocale)} ${formatTime(date, dateLocale)}`;
 }
 function formatDuration(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -245,7 +252,17 @@ export async function buildStudentReportHTML(
       <div style="font-size:9px;text-transform:uppercase;letter-spacing:2px;color:#3b82f6;margin-bottom:8px;">${S.exam}</div>
       <div style="font-size:16px;font-weight:600;color:#f1f5f9;">${escapeHtml(exam.title)}</div>
       <div style="font-size:11px;color:#94a3b8;margin-top:2px;">${escapeHtml(exam.subject_name || '')}</div>
-      <div style="font-size:10px;color:#6b7280;margin-top:4px;">${formatDate(attempt.started_at, dl)} | ${S.durationLabel}: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
+      <div style="font-size:10px;color:#6b7280;margin-top:4px;">${S.durationLabel}: ${formatDuration(Number(attempt.time_spent_seconds))}</div>
+      <div style="display:flex;gap:16px;margin-top:8px;">
+        <div>
+          <div style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7280;">${S.startedLabel}</div>
+          <div class="mono" style="font-size:11px;color:#cbd5e1;margin-top:1px;">${formatDateTime(attempt.started_at, dl)}</div>
+        </div>
+        <div>
+          <div style="font-size:8px;text-transform:uppercase;letter-spacing:1.5px;color:#6b7280;">${S.finishedLabel}</div>
+          <div class="mono" style="font-size:11px;color:#cbd5e1;margin-top:1px;">${formatDateTime(attempt.finished_at, dl)}</div>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -361,7 +378,9 @@ export async function buildStudentReportHTML(
     ok: true,
     data: {
       html,
-      filenameBase: `otisak-izvestaj-${safeName}`,
+      // Start time in the name so two attempts (or two exams) never collide
+      // and the file sorts by when the student sat it.
+      filenameBase: `otisak-izvestaj-${safeName}-${fileStamp(attempt.started_at)}`,
       studentLabel: student.name || student.email,
       totalPoints,
       maxPoints,

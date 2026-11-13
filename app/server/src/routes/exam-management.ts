@@ -33,6 +33,7 @@ import {
   inlinePayloadImages,
 } from '../lib/examArchive';
 import archiver from 'archiver';
+import { fileStamp } from '../lib/reportTime';
 import { requireAuth, requireRole } from '../middleware';
 import { getExamId, assertCanManageExam } from './exam-shared';
 
@@ -412,11 +413,14 @@ router.get(
       // Stream the ZIP directly to the response so a 200-student export doesn't have to
       // buffer in memory before the user starts downloading.
       const safeBase = (exam.title || 'otisak').replace(/[^a-z0-9._-]+/gi, '_');
-      // Timestamp in the filename so the admin can re-download later (e.g. after AI
-      // re-grading) and not overwrite an earlier export. Format: 2026-05-12_14-32.
-      const now = new Date();
-      const pad = (n: number) => n.toString().padStart(2, '0');
-      const stamp = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}_${pad(now.getHours())}-${pad(now.getMinutes())}`;
+      // The filename carries when the students started the exam (the earliest
+      // attempt start), so exports of different sittings never collide and
+      // sort by date. Falls back to now for attempts without a start time.
+      const firstStart = submitted
+        .map((r) => (r.started_at ? new Date(r.started_at).getTime() : NaN))
+        .filter((t) => !Number.isNaN(t))
+        .reduce((a, b) => Math.min(a, b), Infinity);
+      const stamp = fileStamp(Number.isFinite(firstStart) ? new Date(firstStart) : new Date());
       const zipName = `${safeBase}-rezultati-${stamp}.zip`;
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${zipName}"`);

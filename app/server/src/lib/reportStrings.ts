@@ -10,6 +10,8 @@ export interface ReportStrings {
   student: string;
   exam: string;
   durationLabel: string;
+  startedLabel: string;
+  finishedLabel: string;
   // score box
   passed: string;
   notPassed: string;
@@ -71,6 +73,8 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     student: 'Student',
     exam: 'Exam',
     durationLabel: 'Duration',
+    startedLabel: 'Started',
+    finishedLabel: 'Finished',
     passed: 'PASSED',
     notPassed: 'NOT PASSED',
     thresholdLabel: 'Threshold',
@@ -145,6 +149,8 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     student: 'Student',
     exam: 'Ispit',
     durationLabel: 'Trajanje',
+    startedLabel: 'Početak',
+    finishedLabel: 'Kraj',
     passed: 'POLOŽENO',
     notPassed: 'NIJE POLOŽENO',
     thresholdLabel: 'Prag',
@@ -219,6 +225,8 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     student: 'Студент',
     exam: 'Испит',
     durationLabel: 'Трајање',
+    startedLabel: 'Почетак',
+    finishedLabel: 'Крај',
     passed: 'ПОЛОЖЕНО',
     notPassed: 'НИЈЕ ПОЛОЖЕНО',
     thresholdLabel: 'Праг',
@@ -293,6 +301,8 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     student: 'Студент',
     exam: 'Испит',
     durationLabel: 'Трајање',
+    startedLabel: 'Почетак',
+    finishedLabel: 'Крај',
     passed: 'ПОЛОЖЕНО',
     notPassed: 'НИЈЕ ПОЛОЖЕНО',
     thresholdLabel: 'Праг',
