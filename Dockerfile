@@ -82,6 +82,16 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
         libgbm1 \
         libxss1
 
+# PDFs render with Puppeteer's own chrome-headless-shell, pinned to the
+# version this puppeteer release expects. Debian's chromium 150 dies with a
+# Trace/breakpoint trap on every page in this container (even about:blank),
+# which silently broke every report and results ZIP. The apt chromium above
+# stays only as the easy way to pull in the shared libraries it needs.
+ARG CHROME_HEADLESS_SHELL_VERSION=147.0.7727.57
+RUN npx -y @puppeteer/browsers@2 install chrome-headless-shell@${CHROME_HEADLESS_SHELL_VERSION} --path /opt/chs \
+    && ln -s /opt/chs/chrome-headless-shell/linux-${CHROME_HEADLESS_SHELL_VERSION}/chrome-headless-shell-linux64/chrome-headless-shell /usr/local/bin/chrome-headless-shell \
+    && chrome-headless-shell --version
+
 RUN groupadd --system --gid 1001 otisak \
     && useradd --system --uid 1001 --gid otisak --create-home otisak
 
@@ -104,7 +114,7 @@ EXPOSE 3001
 ENV NODE_ENV=production \
     PORT=3001 \
     CLIENT_DIST_PATH=/app/client/dist \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    PUPPETEER_EXECUTABLE_PATH=/usr/local/bin/chrome-headless-shell \
     PUPPETEER_SKIP_DOWNLOAD=true \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
