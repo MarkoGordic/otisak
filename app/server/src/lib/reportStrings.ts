@@ -37,6 +37,9 @@ export interface ReportStrings {
   correctAnswerLabel: string;
   openAnswerLabel: string;
   noAnswerText: string;
+  summaryCorrect: string;
+  summaryWrong: string;
+  pageWord: string;
   // timeline
   timelineTitle: string;
   eventsWord: string;
@@ -96,6 +99,9 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     correctAnswerLabel: 'Correct answer',
     openAnswerLabel: 'Answer',
     noAnswerText: 'No answer',
+    summaryCorrect: 'Correct',
+    summaryWrong: 'Wrong',
+    pageWord: 'Page',
     timelineTitle: 'Activity timeline',
     eventsWord: 'events',
     andMoreEvents: 'and',
@@ -172,6 +178,9 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     correctAnswerLabel: 'Tačan odgovor',
     openAnswerLabel: 'Odgovor',
     noAnswerText: 'Bez odgovora',
+    summaryCorrect: 'Tačno',
+    summaryWrong: 'Netačno',
+    pageWord: 'Strana',
     timelineTitle: 'Hronologija aktivnosti',
     eventsWord: 'događaja',
     andMoreEvents: 'i još',
@@ -248,6 +257,9 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     correctAnswerLabel: 'Тачан одговор',
     openAnswerLabel: 'Одговор',
     noAnswerText: 'Без одговора',
+    summaryCorrect: 'Тачно',
+    summaryWrong: 'Нетачно',
+    pageWord: 'Страна',
     timelineTitle: 'Хронологија активности',
     eventsWord: 'догађаја',
     andMoreEvents: 'и још',
@@ -324,6 +336,9 @@ export const REPORT_STRINGS: Record<ReportLocale, ReportStrings> = {
     correctAnswerLabel: 'Тачан одговор',
     openAnswerLabel: 'Одговор',
     noAnswerText: 'Без одговора',
+    summaryCorrect: 'Тачно',
+    summaryWrong: 'Нетачно',
+    pageWord: 'Страна',
     timelineTitle: 'Хронологија активности',
     eventsWord: 'догађаја',
     andMoreEvents: 'и још',

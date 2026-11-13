@@ -2,7 +2,7 @@ import { getOtisakExamById } from '../db/otisak-exams';
 import { getOtisakQuestions } from '../db/otisak-questions';
 import type { OtisakQuestionWithAnswers } from '../db/otisak-types';
 import { examPrintStrings } from './examPrintStrings';
-import { inlineStoredImage } from './images';
+import { renderQuestionMedia } from './questionMedia';
 import type { ReportLocale } from './reportStrings';
 
 export type PrintableExamResult =
@@ -177,31 +177,6 @@ function renderFillBlankText(text: string): string {
     .join('');
 }
 
-function parseCodeSnippet(content: string): string {
-  try {
-    const parsed = JSON.parse(content) as { snippet?: unknown };
-    if (parsed && typeof parsed.snippet === 'string') return parsed.snippet;
-  } catch {
-    // Not JSON: a bare snippet.
-  }
-  return content;
-}
-
-// The picture or code block that sits between the prompt and the options.
-// Uploaded images are inlined as data: URLs because the headless browser that
-// renders this page has no session cookie to fetch them with.
-async function renderMedia(q: OtisakQuestionWithAnswers): Promise<string> {
-  if (!q.content) return '';
-  if (q.type === 'image') {
-    const src = await inlineStoredImage(q.content);
-    return `<img src="${escapeHtml(src)}" alt="" style="display:block;max-width:100%;max-height:300px;margin:6px 0 4px;border:1px solid #bbb;border-radius:4px;" />`;
-  }
-  if (q.type === 'code') {
-    return `<pre style="white-space:pre-wrap;font-family:'JetBrains Mono','DejaVu Sans Mono',monospace;font-size:10.5px;line-height:1.4;border:1px solid #bbb;border-radius:4px;padding:6px 9px;margin:6px 0 4px;">${escapeHtml(parseCodeSnippet(q.content))}</pre>`;
-  }
-  return '';
-}
-
 export async function buildPrintableExamHTML(
   examId: string,
   locale?: ReportLocale | string,
@@ -220,7 +195,7 @@ export async function buildPrintableExamHTML(
   meta.push(`${questions.length} ${escapeHtml(S.questions)}`);
   meta.push(`${maxPoints} ${escapeHtml(S.pointsShort)}`);
 
-  const media = await Promise.all(questions.map(renderMedia));
+  const media = await Promise.all(questions.map((q) => renderQuestionMedia(q, 'print')));
 
   const questionsHtml = questions
     .map((q, idx) => {

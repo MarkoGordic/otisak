@@ -94,6 +94,9 @@ router.get(
               index: i + 1,
               text: q.question.text,
               type: q.question.type,
+              // Code snippet JSON or image URL, so the report shows the
+              // question the way the student saw it.
+              content: q.question.content,
               points: Number(q.question.points),
               points_awarded: Number(q.points_awarded),
               selected_answer_ids: q.selected_answer_ids,
@@ -248,7 +251,7 @@ router.get(
         args: ['--no-sandbox', '--disable-setuid-sandbox'],
       });
       try {
-        const pdf = await renderHtmlToPdf(built.data.html, browser);
+        const pdf = await renderHtmlToPdf(built.data.html, browser, built.data.pdfOptions);
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader(
           'Content-Disposition',
@@ -466,7 +469,7 @@ router.get(
           try {
             const built = await buildStudentReportHTML(examId, row.user_id, locale);
             if (!built.ok) continue;
-            const pdf = await renderHtmlToPdf(built.data.html, browser);
+            const pdf = await renderHtmlToPdf(built.data.html, browser, built.data.pdfOptions);
             archive.append(pdf, { name: `izvestaji/${built.data.filenameBase}.pdf` });
           } catch (err) {
             console.error(`export-results: failed to render PDF for ${row.user_id}`, err);

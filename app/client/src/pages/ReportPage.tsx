@@ -2,6 +2,8 @@ import { useEffect, useState, type CSSProperties } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AppCopyright } from '../components/AppCopyright';
+import { CodeBlock } from '../components/otisak';
+import { parseCodeContent } from '../lib/codeQuestion';
 import {
   Loader2,
   ArrowLeft,
@@ -18,6 +20,7 @@ import {
   EyeOff,
   Copy,
   Monitor,
+  Minus,
 } from 'lucide-react';
 import { ToggleCluster } from '../components/ToggleCluster';
 import { useLang } from '../components/LangProvider';
@@ -44,6 +47,7 @@ type ReportData = {
       index: number;
       text: string;
       type: string;
+      content: string | null;
       points: number;
       points_awarded: number;
       selected_answer_ids: string[];
@@ -114,6 +118,20 @@ function formatStamp(at: string | null | undefined): string {
     second: '2-digit',
     timeZone: 'Europe/Belgrade',
   });
+}
+
+type ReportQuestion = NonNullable<ReportData['results']>['questions'][number];
+
+// Same three states as the PDF report: a skipped question is not a wrong one.
+function questionState(q: ReportQuestion): 'correct' | 'wrong' | 'unanswered' {
+  if (q.points_awarded > 0) return 'correct';
+  if (q.selected_answer_ids.length === 0 && !q.text_answer?.trim()) return 'unanswered';
+  return 'wrong';
+}
+
+function codeProps(content: string): { code: string; language?: string } {
+  const { snippet, language } = parseCodeContent(content);
+  return { code: snippet, language };
 }
 
 export default function StudentReportPage() {
@@ -324,17 +342,36 @@ export default function StudentReportPage() {
             <h2 className="text-[10px] uppercase tracking-[3px] text-blue-400 font-semibold mb-3">
               Odgovori ({results.questions.length} pitanja)
             </h2>
+            <div className="flex flex-wrap gap-4 -mt-1 mb-3 text-xs text-gray-400">
+              {(
+                [
+                  ['Tačno', 'correct', 'bg-green-400'],
+                  ['Netačno', 'wrong', 'bg-red-400'],
+                  ['Bez odgovora', 'unanswered', 'bg-slate-400'],
+                ] as const
+              ).map(([label, key, dot]) => (
+                <span key={key} className="flex items-center gap-1.5">
+                  <span className={`w-1.5 h-1.5 rounded-full ${dot}`} />
+                  {label}{' '}
+                  <b className="font-mono text-gray-200">
+                    {results.questions.filter((q) => questionState(q) === key).length}
+                  </b>
+                </span>
+              ))}
+            </div>
             <div className="space-y-3">
               {results.questions.map((q, idx) => {
-                const correct = q.points_awarded > 0;
                 const pending = q.ai_grading_status === 'pending';
+                const state = questionState(q);
+                const correct = state === 'correct';
+                const unanswered = state === 'unanswered';
                 return (
                   <motion.div
                     key={idx}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: idx * 0.03 }}
-                    className={`rounded-xl border p-4 ${pending ? 'border-amber-500/30 bg-amber-500/[0.03]' : correct ? 'border-green-500/20 bg-green-500/[0.02]' : 'border-red-500/20 bg-red-500/[0.02]'}`}
+                    className={`rounded-xl border p-4 ${pending ? 'border-amber-500/30 bg-amber-500/[0.03]' : correct ? 'border-green-500/20 bg-green-500/[0.02]' : unanswered ? 'border-slate-500/30 bg-slate-500/[0.05]' : 'border-red-500/20 bg-red-500/[0.02]'}`}
                   >
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
@@ -342,18 +379,37 @@ export default function StudentReportPage() {
                           <Clock size={14} className="text-amber-400" />
                         ) : correct ? (
                           <Check size={14} className="text-green-400" />
+                        ) : unanswered ? (
+                          <Minus size={14} className="text-slate-400" />
                         ) : (
                           <X size={14} className="text-red-400" />
                         )}
                         <span className="text-xs text-gray-500">Pitanje {q.index}</span>
                       </div>
-                      <span
-                        className={`text-xs font-mono font-bold ${pending ? 'text-amber-400' : correct ? 'text-green-400' : 'text-red-400'}`}
-                      >
-                        {pending ? '…' : q.points_awarded}/{q.points}
-                      </span>
+                      <div className="flex items-center gap-2">
+                        {unanswered && !pending && (
+                          <span className="text-[9px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-slate-400/15 text-slate-300">
+                            Bez odgovora
+                          </span>
+                        )}
+                        <span
+                          className={`text-xs font-mono font-bold ${pending ? 'text-amber-400' : correct ? 'text-green-400' : unanswered ? 'text-slate-400' : 'text-red-400'}`}
+                        >
+                          {pending ? '…' : q.points_awarded}/{q.points}
+                        </span>
+                      </div>
                     </div>
-                    <p className="text-sm text-gray-300 mb-3">{q.text}</p>
+                    <p className="text-sm text-gray-300 mb-3 whitespace-pre-wrap">{q.text}</p>
+                    {q.type === 'image' && q.content && (
+                      <div className="mb-3 bg-white p-1.5 rounded-lg max-w-md">
+                        <img src={q.content} alt="" className="w-full h-auto rounded" />
+                      </div>
+                    )}
+                    {q.type === 'code' && q.content && (
+                      <div className="mb-3">
+                        <CodeBlock {...codeProps(q.content)} />
+                      </div>
+                    )}
                     {q.type === 'open_text' ? (
                       <div className="space-y-2">
                         <div className="bg-[#111827] rounded-lg p-3 text-xs text-gray-400 whitespace-pre-wrap">

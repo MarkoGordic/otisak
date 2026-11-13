@@ -3,6 +3,7 @@ import { findUserById } from '../db/users';
 import { getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
 import { reportStrings, type ReportLocale, type ReportStrings } from './reportStrings';
 import { REPORT_TIME_ZONE, fileStamp } from './reportTime';
+import { renderQuestionMedia } from './questionMedia';
 
 type Awaitable<T> = T | Promise<T>;
 type StudentReportPayload = {
@@ -15,6 +16,8 @@ type StudentReportPayload = {
   percentage: number;
   passed: boolean;
   timeSpentSeconds: number;
+  // Page footer (name, index, page N/M); pass to renderHtmlToPdf.
+  pdfOptions: RenderPdfOptions;
 };
 
 export type StudentReportResult =
@@ -74,6 +77,9 @@ function checkSvg(color: string, size = 13): string {
 }
 function crossSvg(color: string, size = 13): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+}
+function dashSvg(color: string, size = 13): string {
+  return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="3.2" stroke-linecap="round" style="flex:0 0 auto;"><line x1="6" y1="12" x2="18" y2="12"/></svg>`;
 }
 function warnSvg(color: string, size = 12): string {
   return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="${color}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:0 0 auto;vertical-align:-2px;"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
@@ -143,60 +149,108 @@ export async function buildStudentReportHTML(
     return `<span style="margin-left:auto;flex:0 0 auto;${styles}font-size:8.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:2px 7px;border-radius:999px;white-space:nowrap;">${text}</span>`;
   };
 
-  const questionsHtml =
-    results?.questions
-      .map((q, idx) => {
-        const correct = q.points_awarded > 0;
+  // Three states per question. "Unanswered" is its own colour so a skipped
+  // question never reads as a wrong answer. Blank structured answers are
+  // stored as NULL, so no selection and no text means nothing was given.
+  type QState = 'correct' | 'wrong' | 'unanswered';
+  const questionState = (q: NonNullable<typeof results>['questions'][number]): QState =>
+    q.points_awarded > 0
+      ? 'correct'
+      : q.selected_answer_ids.length === 0 && !(q.text_answer && q.text_answer.trim())
+        ? 'unanswered'
+        : 'wrong';
+  const STATE_STYLE: Record<
+    QState,
+    { border: string; bg: string; fg: string; mark: (size?: number) => string }
+  > = {
+    correct: {
+      border: '#065f46',
+      bg: 'rgba(5,46,22,0.28)',
+      fg: '#34d399',
+      mark: (n) => checkSvg('#34d399', n),
+    },
+    wrong: {
+      border: '#7f1d1d',
+      bg: 'rgba(69,10,10,0.28)',
+      fg: '#f87171',
+      mark: (n) => crossSvg('#f87171', n),
+    },
+    unanswered: {
+      border: '#334155',
+      bg: 'rgba(51,65,85,0.22)',
+      fg: '#94a3b8',
+      mark: (n) => dashSvg('#94a3b8', n),
+    },
+  };
+  const questionList = results?.questions ?? [];
+  const stateCounts = { correct: 0, wrong: 0, unanswered: 0 };
+  for (const q of questionList) stateCounts[questionState(q)]++;
 
-        let body: string;
-        if (q.answers.length > 0) {
-          // Choice question: mark every picked answer ("Your answer") and every
-          // correct answer, so it is obvious what the student chose vs the key.
-          body = q.answers
-            .map((a) => {
-              const selected = q.selected_answer_ids.includes(a.id);
-              const isCorrect = q.correct_answer_ids.includes(a.id);
-              let bg = '#0f1623';
-              let border = '#1f2937';
-              let mark = `<span style="display:inline-block;width:13px;flex:0 0 auto;"></span>`;
-              let badge = '';
-              if (isCorrect) {
-                bg = 'rgba(5,46,22,0.5)';
-                border = '#059669';
-                mark = checkSvg('#34d399');
-                badge = selected
-                  ? tag(`${S.yourAnswerTag} · ${S.correctTag}`, 'yours-right')
-                  : tag(S.correctAnswerLabel, 'correct');
-              } else if (selected) {
-                bg = 'rgba(69,10,10,0.5)';
-                border = '#dc2626';
-                mark = crossSvg('#f87171');
-                badge = tag(S.yourAnswerTag, 'yours-wrong');
-              }
-              return `<div style="padding:7px 11px;margin:4px 0;border-radius:7px;background:${bg};border:1px solid ${border};font-size:11px;color:#e5e7eb;display:flex;align-items:center;gap:9px;line-height:1.4;">
+  const questionCards = await Promise.all(
+    questionList.map(async (q, idx) => {
+      const state = questionState(q);
+      const st = STATE_STYLE[state];
+      const media = await renderQuestionMedia(q.question, 'dark');
+
+      let body: string;
+      if (q.answers.length > 0) {
+        // Choice question: mark every picked answer ("Your answer") and every
+        // correct answer, so it is obvious what the student chose vs the key.
+        body = q.answers
+          .map((a) => {
+            const selected = q.selected_answer_ids.includes(a.id);
+            const isCorrect = q.correct_answer_ids.includes(a.id);
+            let bg = '#0f1623';
+            let border = '#1f2937';
+            let mark = `<span style="display:inline-block;width:13px;flex:0 0 auto;"></span>`;
+            let badge = '';
+            if (isCorrect) {
+              bg = 'rgba(5,46,22,0.5)';
+              border = '#059669';
+              mark = checkSvg('#34d399');
+              badge = selected
+                ? tag(`${S.yourAnswerTag} · ${S.correctTag}`, 'yours-right')
+                : tag(S.correctAnswerLabel, 'correct');
+            } else if (selected) {
+              bg = 'rgba(69,10,10,0.5)';
+              border = '#dc2626';
+              mark = crossSvg('#f87171');
+              badge = tag(S.yourAnswerTag, 'yours-wrong');
+            }
+            return `<div style="padding:7px 11px;margin:4px 0;border-radius:7px;background:${bg};border:1px solid ${border};font-size:11px;color:#e5e7eb;display:flex;align-items:center;gap:9px;line-height:1.4;">
           ${mark}<span style="flex:1 1 auto;">${escapeHtml(a.text)}</span>${badge}
         </div>`;
-            })
-            .join('');
-        } else {
-          // Open-text and compound types (ordering / matching / fill_blank): show
-          // the student's raw response.
-          body = `<div style="padding:9px 11px;border-radius:7px;background:#0f1623;border:1px solid #1f2937;font-size:11px;color:#cbd5e1;line-height:1.5;">
+          })
+          .join('');
+      } else {
+        // Open-text and compound types (ordering / matching / fill_blank): show
+        // the student's raw response.
+        body = `<div style="padding:9px 11px;border-radius:7px;background:#0f1623;border:1px solid #1f2937;font-size:11px;color:#cbd5e1;line-height:1.5;">
         <span style="color:#64748b;font-size:9px;text-transform:uppercase;letter-spacing:1px;">${S.yourAnswerTag}</span><br/>
         ${q.text_answer ? escapeHtml(q.text_answer) : `<em style="color:#64748b;">${S.noAnswerText}</em>`}
       </div>`;
-        }
+      }
 
-        return `<div style="margin-bottom:14px;padding:14px;border-radius:10px;border:1px solid ${correct ? '#065f46' : '#7f1d1d'};background:${correct ? 'rgba(5,46,22,0.28)' : 'rgba(69,10,10,0.28)'};">
-      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px;">
-        <span style="display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:2px;color:${correct ? '#34d399' : '#f87171'};">${correct ? checkSvg('#34d399', 12) : crossSvg('#f87171', 12)} ${S.questionWord} ${idx + 1}</span>
-        <span class="mono" style="font-size:11px;font-weight:bold;color:${correct ? '#34d399' : '#f87171'};">${Number(q.points_awarded)}/${Number(q.question.points)} ${S.pointsShort}</span>
+      return `<div class="q-card" style="margin-bottom:14px;padding:14px;border-radius:10px;border:1px solid ${st.border};background:${st.bg};">
+      <div class="q-head" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px;">
+        <span style="display:flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:2px;color:${st.fg};">${st.mark(12)} ${S.questionWord} ${idx + 1}</span>
+        <span style="display:flex;align-items:center;gap:8px;">
+          ${state === 'unanswered' ? `<span style="font-size:8.5px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;padding:2px 8px;border-radius:999px;background:rgba(148,163,184,0.15);color:#cbd5e1;white-space:nowrap;">${S.noAnswerText}</span>` : ''}
+          <span class="mono" style="font-size:11px;font-weight:bold;color:${st.fg};">${Number(q.points_awarded)}/${Number(q.question.points)} ${S.pointsShort}</span>
+        </span>
       </div>
-      <p style="font-size:12px;color:#f1f5f9;margin-bottom:10px;line-height:1.5;">${escapeHtml(q.question.text)}</p>
+      <p class="q-text" style="font-size:12px;color:#f1f5f9;margin-bottom:10px;line-height:1.5;white-space:pre-wrap;">${escapeHtml(q.question.text)}</p>
+      ${media}
       ${body}
     </div>`;
-      })
-      .join('') || '';
+    }),
+  );
+  const questionsHtml = questionCards.join('');
+  const countChip = (label: string, n: number, color: string) =>
+    `<span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;color:#94a3b8;"><span style="width:7px;height:7px;border-radius:999px;background:${color};display:inline-block;"></span>${label} <b class="mono" style="color:#e5e7eb;">${n}</b></span>`;
+  const countsHtml = questionList.length
+    ? `<div class="section-title" style="display:flex;gap:16px;flex-wrap:wrap;margin:-4px 0 12px;">${countChip(S.summaryCorrect, stateCounts.correct, '#34d399')}${countChip(S.summaryWrong, stateCounts.wrong, '#f87171')}${countChip(S.noAnswerText, stateCounts.unanswered, '#94a3b8')}</div>`
+    : '';
 
   const enrichedActivity = await enrichActivityEventData(examId, activityLog);
   const timelineHtml = enrichedActivity
@@ -223,9 +277,18 @@ export async function buildStudentReportHTML(
 <meta charset="UTF-8">
 <title>OTISAK - ${escapeHtml(student.name || student.email)}</title>
 <style>
-  @page { size: A4; margin: 0; }
+  /* Bottom margin holds the page footer (name, page N/M). The padding is
+     cloned onto every page fragment, so page 2+ get the same top margin
+     instead of starting flush against the paper edge. */
+  @page { size: A4; margin: 0 0 10mm 0; }
   ${FONT_HEAD}
-  .page { background:#070b14; padding:14mm 12mm; }
+  .page { background:#070b14; padding:12mm 12mm 6mm; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+  /* A question card moves to the next page whole rather than splitting; one
+     taller than a page still breaks, but never between its head and text. */
+  .q-card { break-inside:avoid; }
+  .q-head, .q-text { break-after:avoid; }
+  .section-title { break-after:avoid; }
+  tr { break-inside:avoid; }
 </style>
 </head>
 <body>
@@ -281,7 +344,7 @@ export async function buildStudentReportHTML(
   }
 
   <div style="margin-bottom:24px;">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">${S.activityStats}</div>
+    <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">${S.activityStats}</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;">
       ${[
         { label: S.statTotalEvents, value: stats.totalEvents, color: '#3b82f6' },
@@ -340,12 +403,13 @@ export async function buildStudentReportHTML(
   }
 
   <div style="margin-bottom:24px;">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">${S.answersPerQuestion}</div>
+    <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">${S.answersPerQuestion}</div>
+    ${countsHtml}
     ${questionsHtml}
   </div>
 
   <div style="margin-bottom:24px;">
-    <div style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">${S.timelineTitle} (${activityLog.length} ${S.eventsWord})</div>
+    <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:3px;color:#3b82f6;margin-bottom:12px;font-weight:600;">${S.timelineTitle} (${activityLog.length} ${S.eventsWord})</div>
     <div style="border-radius:10px;background:#0d1117;border:1px solid #1f2937;overflow:hidden;">
       <table style="width:100%;border-collapse:collapse;">
         <thead>
@@ -387,6 +451,11 @@ export async function buildStudentReportHTML(
       percentage,
       passed,
       timeSpentSeconds: Number(attempt.time_spent_seconds),
+      pdfOptions: {
+        displayHeaderFooter: true,
+        headerTemplate: '<div></div>',
+        footerTemplate: `<div style="-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#070b14;width:100%;height:10mm;margin:0;padding:0 12mm;color:#64748b;font-size:7.5px;display:flex;align-items:center;justify-content:space-between;font-family:'DejaVu Sans',Arial,sans-serif;"><span>OTISAK · ${escapeHtml(student.name || student.email)}${student.index_number ? ' · ' + escapeHtml(student.index_number) : ''}</span><span>${S.pageWord} <span class="pageNumber"></span>/<span class="totalPages"></span></span></div>`,
+      },
     },
   };
 }
@@ -451,7 +520,8 @@ export function buildResultsTableHTML(args: {
 <style>
   @page { size: A4 landscape; margin: 0; }
   ${FONT_HEAD}
-  .page { background:#070b14; padding:12mm 12mm; }
+  .page { background:#070b14; padding:12mm 12mm; box-decoration-break:clone; -webkit-box-decoration-break:clone; }
+  tr { break-inside:avoid; }
 </style>
 </head>
 <body>
