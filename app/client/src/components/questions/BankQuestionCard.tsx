@@ -1,6 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { Check, Code, FileText, Image as ImageIcon, MessageSquare, Trash2 } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Check,
+  Code,
+  FileText,
+  Image as ImageIcon,
+  ListOrdered,
+  MessageSquare,
+  TextCursorInput,
+  Trash2,
+} from 'lucide-react';
 import { useLang } from '../LangProvider';
 import { CodeBlock } from '../otisak';
 import { typeLabelKey, type BankQuestion } from './types';
@@ -10,7 +20,72 @@ const typeIcons: Record<string, React.ReactNode> = {
   code: <Code size={13} />,
   image: <ImageIcon size={13} />,
   open_text: <MessageSquare size={13} />,
+  ordering: <ListOrdered size={13} />,
+  matching: <ArrowLeftRight size={13} />,
+  fill_blank: <TextCursorInput size={13} />,
 };
+
+function parseContent(content: string | null | undefined): Record<string, unknown> {
+  try {
+    const v = JSON.parse(content || '');
+    return v && typeof v === 'object' ? v : {};
+  } catch {
+    return {};
+  }
+}
+
+const strings = (v: unknown): string[] =>
+  Array.isArray(v) ? v.filter((x): x is string => typeof x === 'string') : [];
+
+// The solution of an ordering / matching / fill_blank question, read from its
+// exam-shaped JSON. These have no answer list; the content IS the key.
+function StructuredKey({ q }: { q: BankQuestion }) {
+  const c = parseContent(q.content);
+  const row =
+    'rounded-lg border border-transparent bg-success-light text-success px-2.5 py-1.5 text-xs leading-snug';
+  if (q.type === 'ordering') {
+    return (
+      <ol className="mt-3 grid gap-1.5">
+        {strings(c.items).map((item, i) => (
+          <li key={i} className={`${row} flex gap-2`}>
+            <span className="font-mono tabular-nums">{i + 1}.</span>
+            <span className="break-words min-w-0">{item}</span>
+          </li>
+        ))}
+      </ol>
+    );
+  }
+  if (q.type === 'matching') {
+    const right = strings(c.right);
+    return (
+      <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+        {strings(c.left).map((l, i) => (
+          <li key={i} className={`${row} flex items-center gap-2`}>
+            <span className="break-words min-w-0">{l}</span>
+            <ArrowLeftRight size={11} className="flex-shrink-0 opacity-60" />
+            <span className="break-words min-w-0">{right[i]}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  if (q.type === 'fill_blank') {
+    const blanks = Array.isArray(c.blanks)
+      ? (c.blanks as Array<{ id?: string; correct?: string }>)
+      : [];
+    return (
+      <ul className="mt-3 flex flex-wrap gap-1.5">
+        {blanks.map((b, i) => (
+          <li key={i} className={`${row} flex gap-1.5`}>
+            <span className="font-mono opacity-70">{b.id}</span>
+            <span className="break-words min-w-0">{b.correct}</span>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  return null;
+}
 
 // One bank question, shown the way a student will meet it: full text, the
 // highlighted snippet or image, and every answer with the correct ones marked.
@@ -31,7 +106,13 @@ export function BankQuestionCard({
   onDelete: () => void;
 }) {
   const { t } = useLang();
-  const multi = q.answers.filter((a) => a.is_correct).length > 1;
+  const multi =
+    typeof q.multi_answer === 'boolean'
+      ? q.multi_answer
+      : q.answers.filter((a) => a.is_correct).length > 1;
+  // fill_blank text shows its ___A___ markers as short slots.
+  const shownText =
+    q.type === 'fill_blank' ? q.text.replace(/___([A-Z0-9_]+)___/g, '[ $1 ]') : q.text;
 
   return (
     <motion.article
@@ -68,7 +149,7 @@ export function BankQuestionCard({
       </header>
 
       <p className="text-sm leading-relaxed text-[var(--text-primary)] whitespace-pre-line">
-        {q.text}
+        {shownText}
       </p>
 
       {q.type === 'code' && q.code_snippet && (
@@ -109,6 +190,14 @@ export function BankQuestionCard({
             </li>
           ))}
         </ul>
+      )}
+
+      <StructuredKey q={q} />
+
+      {q.explanation && (
+        <p className="mt-3 text-xs leading-relaxed text-[var(--text-muted)] whitespace-pre-line">
+          {q.explanation}
+        </p>
       )}
 
       {q.tags.length > 0 && (

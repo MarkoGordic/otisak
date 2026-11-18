@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Plus, Search, BookOpen, FileText, X } from 'lucide-react';
+import { Loader2, Plus, Search, BookOpen, FileText, X, Upload } from 'lucide-react';
 import { Sidebar, MobileNav } from '../components/Sidebar';
 import { useLang } from '../components/LangProvider';
 import { PageCopyright } from '../components/AppCopyright';
@@ -10,6 +10,7 @@ import { Dropdown } from '../components/ui/Dropdown';
 import { EmptyState } from '../components/ui/EmptyState';
 import { BankQuestionCard } from '../components/questions/BankQuestionCard';
 import { CreateBankQuestionModal } from '../components/questions/CreateBankQuestionModal';
+import { ImportBankModal } from '../components/questions/ImportBankModal';
 import type { BankQuestion, BankSubject, BankTagCount } from '../components/questions/types';
 
 type UserInfo = { name?: string; role?: string; avatar_url?: string };
@@ -43,6 +44,7 @@ export default function QuestionBankPage() {
   const [typeFilter, setTypeFilter] = useState('');
   const [tagFilter, setTagFilter] = useState('');
   const [showCreate, setShowCreate] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
@@ -220,14 +222,24 @@ export default function QuestionBankPage() {
                   )}
                 </div>
               </div>
-              <Button
-                variant="primary"
-                leftIcon={<Plus size={16} />}
-                onClick={() => setShowCreate(true)}
-                disabled={!selectedSubject}
-              >
-                {t('questions.add')}
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  leftIcon={<Upload size={16} />}
+                  onClick={() => setShowImport(true)}
+                  disabled={!selectedSubject}
+                >
+                  {t('bankImport.button')}
+                </Button>
+                <Button
+                  variant="primary"
+                  leftIcon={<Plus size={16} />}
+                  onClick={() => setShowCreate(true)}
+                  disabled={!selectedSubject}
+                >
+                  {t('questions.add')}
+                </Button>
+              </div>
             </div>
 
             {/* Filters: sticky so they stay reachable deep in a long bank */}
@@ -249,6 +261,9 @@ export default function QuestionBankPage() {
                       { value: 'code', label: t('questions.code') },
                       { value: 'image', label: t('questions.image') },
                       { value: 'open_text', label: t('questions.openText') },
+                      { value: 'ordering', label: t('results.ordering') },
+                      { value: 'matching', label: t('results.matching') },
+                      { value: 'fill_blank', label: t('results.fillBlanks') },
                     ]}
                     value={typeFilter}
                     onChange={setTypeFilter}
@@ -371,6 +386,15 @@ export default function QuestionBankPage() {
           <PageCopyright />
         </main>
       </div>
+
+      {showImport && selectedSubject && (
+        <ImportBankModal
+          subjectId={selectedSubject}
+          subjectName={subjectName}
+          onClose={() => setShowImport(false)}
+          onImported={() => loadQuestions(0)}
+        />
+      )}
 
       {showCreate && selectedSubject && (
         <CreateBankQuestionModal

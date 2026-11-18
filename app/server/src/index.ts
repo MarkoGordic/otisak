@@ -21,6 +21,7 @@ import usersRoutes from './routes/users';
 import clientLogRoutes from './routes/clientLog';
 import imageRoutes from './routes/images';
 import { IMPORT_JSON_PATH } from './routes/exam-collection';
+import { BANK_IMPORT_JSON_PATH } from './routes/questions';
 import { setupWebSocket } from './ws/events';
 import { startLiveStatsAggregator, stopLiveStatsAggregator } from './ws/liveStatsAggregator';
 import { startExamExpiryWatcher, stopExamExpiryWatcher } from './jobs/examExpiryWatcher';
@@ -124,7 +125,7 @@ app.use(
 // A smaller cap reduces blast radius from a malicious or runaway client.
 // The verify hook keeps the raw bytes on req.rawBody for the ELPIS ID webhook
 // receiver, whose HMAC signature is computed over the exact wire payload.
-// Exam import is the one JSON body that legitimately exceeds 1 MB: an exported
+// Exam and question bank import are the JSON bodies that legitimately exceed 1 MB: an exported
 // exam carries its images inline as data: URLs (see export-json). It is skipped
 // here and parsed by the route itself with a larger limit, after auth, so an
 // anonymous client can't make the server buffer a big body.
@@ -134,7 +135,8 @@ const jsonParser = express.json({
     (req as express.Request).rawBody = buf;
   },
 });
-app.use((req, res, next) => (req.path === IMPORT_JSON_PATH ? next() : jsonParser(req, res, next)));
+const LARGE_JSON_PATHS = new Set([IMPORT_JSON_PATH, BANK_IMPORT_JSON_PATH]);
+app.use((req, res, next) => (LARGE_JSON_PATHS.has(req.path) ? next() : jsonParser(req, res, next)));
 
 // API Routes (all under /api)
 app.use('/api/auth', authRoutes);

@@ -20,10 +20,17 @@ import type {
 // QUESTION BANK GENERATION
 // ========================================
 
+export type BankDrawReport = Array<{ tag: string; requested: number; picked: number }>;
+
+// Draws questions for each tag rule into the exam. Practice runs call it on an
+// empty child exam; a real exam's editor appends to its existing questions,
+// hence `startPosition` and the optional per-rule report.
 export async function generateQuestionsFromBank(
   examId: string,
   subjectId: string,
-  tagRules: OtisakExamTagRule[],
+  tagRules: Array<Pick<OtisakExamTagRule, 'tag' | 'question_count' | 'points_per_question'>>,
+  startPosition = 0,
+  report?: BankDrawReport,
 ): Promise<OtisakQuestionWithAnswers[]> {
   const generatedQuestions: OtisakQuestionWithAnswers[] = [];
   const usedBankQuestionIds = new Set<string>();
@@ -41,8 +48,13 @@ export async function generateQuestionsFromBank(
       code_snippet: string | null;
       code_language: string | null;
       image_url: string | null;
+      content: string | null;
+      multi_answer: boolean | null;
+      explanation: string | null;
+      ai_grading_instructions: string | null;
     }>(
-      `SELECT id, type, text, code_snippet, code_language, image_url
+      `SELECT id, type, text, code_snippet, code_language, image_url,
+              content, multi_answer, explanation, ai_grading_instructions
        FROM otisak_question_bank
        WHERE subject_id = $1
          ${isWildcard ? '' : `AND $2 = ANY(tags)`}
@@ -69,28 +81,47 @@ export async function generateQuestionsFromBank(
       usedQuestionTexts.add(normalizedText);
       picked++;
 
-      const position = generatedQuestions.length;
+      const position = startPosition + generatedQuestions.length;
       // A code snippet keeps its language in the same {"snippet","language"} JSON
       // the exam editor writes; a bare snippet would lose it and render unhighlighted.
+      // ordering / matching / fill_blank carry their exam-shaped JSON as is.
       const content = bq.code_snippet
         ? bq.code_language
           ? JSON.stringify({ snippet: bq.code_snippet, language: bq.code_language })
           : bq.code_snippet
-        : bq.image_url || null;
+        : bq.content || bq.image_url || null;
 
       const bankAnswers = await query<{ text: string; is_correct: boolean; position: number }>(
         `SELECT text, is_correct, position FROM otisak_question_bank_answers
          WHERE question_id = $1 ORDER BY position ASC`,
         [bq.id],
       );
-      // The bank has no multi_answer column, so derive it here: without it a
+      // An explicit multi_answer wins; otherwise derive it: without it a
       // question with two correct answers renders as radios and can't be answered.
-      const multiAnswer = bankAnswers.rows.filter((a) => a.is_correct).length > 1;
+      const multiAnswer =
+        typeof bq.multi_answer === 'boolean'
+          ? bq.multi_answer
+          : bankAnswers.rows.filter((a) => a.is_correct).length > 1;
 
+      // explanation and ai_grading_instructions travel too: an open_text drawn
+      // without its instructions silently lost AI grading.
       const qResult = await query<OtisakQuestion>(
-        `INSERT INTO otisak_questions (exam_id, type, text, content, points, position, bank_question_id, multi_answer)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-        [examId, bq.type, bq.text, content, rule.points_per_question, position, bq.id, multiAnswer],
+        `INSERT INTO otisak_questions
+           (exam_id, type, text, content, points, position, bank_question_id, multi_answer,
+            explanation, ai_grading_instructions)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+        [
+          examId,
+          bq.type,
+          bq.text,
+          content,
+          rule.points_per_question,
+          position,
+          bq.id,
+          multiAnswer,
+          bq.explanation,
+          bq.ai_grading_instructions,
+        ],
       );
       const question = qResult.rows[0];
 
@@ -105,6 +136,7 @@ export async function generateQuestionsFromBank(
       }
       generatedQuestions.push({ ...question, answers });
     }
+    report?.push({ tag: rule.tag, requested: rule.question_count, picked });
   }
   return generatedQuestions;
 }

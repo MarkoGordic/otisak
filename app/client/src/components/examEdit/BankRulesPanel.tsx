@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlertTriangle, Plus, Save, Shuffle, Trash2 } from 'lucide-react';
+import { AlertTriangle, Download, Plus, Save, Shuffle, Trash2 } from 'lucide-react';
 import { useLang } from '../LangProvider';
 import { useToast } from '../Toast';
 import { Button } from '../ui/Button';
@@ -10,7 +10,9 @@ type Rule = { tag: string; question_count: string; points_per_question: string }
 type TagCount = { tag: string; count: number };
 
 // Bank rules for a practice template: each run draws `question_count` random
-// questions tagged `tag` from the subject's bank. Before this panel the rules
+// questions tagged `tag` from the subject's bank. With mode="draw" (a real
+// exam) the same rows instead draw once, right now, and append the questions
+// to the exam, so every student gets the same set. Before this panel the rules
 // could only be set in SQL, which is how several published tests silently lost
 // theirs and handed students empty tests.
 export function BankRulesPanel({
@@ -18,11 +20,13 @@ export function BankRulesPanel({
   subjectId,
   initialRules,
   onSaved,
+  mode = 'rules',
 }: {
   examId: string;
   subjectId: string | null | undefined;
   initialRules: Array<{ tag: string; question_count: number; points_per_question: number }>;
   onSaved: () => void;
+  mode?: 'rules' | 'draw';
 }) {
   const { t } = useLang();
   const toast = useToast();
@@ -65,6 +69,7 @@ export function BankRulesPanel({
         points_per_question: parsePoints(r.points_per_question, 2),
       }));
     if (payload.some((r) => r.question_count < 1)) return toast.error(t('bankRules.countInvalid'));
+    if (mode === 'draw') return draw(payload);
     setSaving(true);
     try {
       const res = await fetch('/api/otisak/exams', {
@@ -87,9 +92,50 @@ export function BankRulesPanel({
     }
   };
 
+  const draw = async (
+    payload: Array<{ tag: string; question_count: number; points_per_question: number }>,
+  ) => {
+    if (payload.length === 0) return toast.error(t('bankRules.countInvalid'));
+    setSaving(true);
+    try {
+      const res = await fetch(`/api/otisak/exams/${examId}/bank-draw`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ rules: payload }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(
+          d.code === 'EXAM_NOT_DRAFT'
+            ? t('bankDraw.notDraft')
+            : d.error || t('examEdit.saveFailed'),
+        );
+        return;
+      }
+      toast.success(t('bankDraw.added', { count: d.added ?? 0 }));
+      const short = (d.report || []).filter(
+        (r: { requested: number; picked: number }) => r.picked < r.requested,
+      );
+      for (const r of short) {
+        toast.warning(
+          t('bankDraw.short', { tag: r.tag, picked: r.picked, requested: r.requested }),
+        );
+      }
+      setRules([]);
+      onSaved();
+    } catch {
+      toast.error(t('examEdit.saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div className="space-y-3">
-      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{t('bankRules.help')}</p>
+      <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
+        {t(mode === 'draw' ? 'bankDraw.help' : 'bankRules.help')}
+      </p>
 
       {!subjectId && (
         <div className="flex items-center gap-2 text-xs text-warning">
@@ -192,11 +238,12 @@ export function BankRulesPanel({
         <Button
           variant="secondary"
           size="sm"
-          leftIcon={<Save size={14} />}
+          leftIcon={mode === 'draw' ? <Download size={14} /> : <Save size={14} />}
           loading={saving}
           onClick={save}
+          disabled={mode === 'draw' && rules.length === 0}
         >
-          {t('bankRules.save')}
+          {t(mode === 'draw' ? 'bankDraw.submit' : 'bankRules.save')}
         </Button>
       </div>
     </div>

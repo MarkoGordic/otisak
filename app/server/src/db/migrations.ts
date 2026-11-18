@@ -349,6 +349,30 @@ const steps: readonly Step[] = [
     `);
     },
   ],
+
+  [
+    '022_question_bank_all_types',
+    async () => {
+      // The bank takes every question type an exam does (file import), so
+      // ordering / matching / fill_blank keep their JSON in `content`, and
+      // multi_answer / explanation travel with the question into an exam.
+      await query(`
+      ALTER TABLE otisak_question_bank
+      DROP CONSTRAINT IF EXISTS otisak_question_bank_type_check
+    `);
+      await query(`
+      ALTER TABLE otisak_question_bank
+      ADD CONSTRAINT otisak_question_bank_type_check
+      CHECK (type IN ('text', 'code', 'image', 'open_text', 'ordering', 'matching', 'fill_blank'))
+    `);
+      await query(`
+      ALTER TABLE otisak_question_bank
+      ADD COLUMN IF NOT EXISTS content TEXT,
+      ADD COLUMN IF NOT EXISTS multi_answer BOOLEAN,
+      ADD COLUMN IF NOT EXISTS explanation TEXT
+    `);
+    },
+  ],
 ];
 
 export async function runMigrations(): Promise<void> {

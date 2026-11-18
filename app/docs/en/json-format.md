@@ -259,6 +259,26 @@ total     = max(0, points earned - penalized × negative_points_value)
 - A question with `points: 0` scores 0 even when correct, so it gets penalized. Don't use it with negative points.
 - Changing scoring on an exam that already has submissions rescores them.
 
+## Question bank
+
+The same format imports into the question bank (**Question bank**, **Import** button). The file is just the `questions` list, and each question may carry tags:
+
+```json
+{
+  "version": 1,
+  "questions": [
+    { "type": "text", "text": "...", "points": 1, "tags": ["soa", "midterm-1"], "multi_answer": false,
+      "answers": [ { "text": "...", "is_correct": true }, { "text": "...", "is_correct": false } ] }
+  ]
+}
+```
+
+- All seven types are supported, with the same fields as in an exam. Images go in a ZIP the same way.
+- `tags` is a list of labels. Exams draw questions by them: a practice exam on every run, a real exam once, with **Add questions from the bank** in the editor while it is a draft.
+- Without `points` a question is worth 1. When drawn, the rule sets the points anyway.
+- An exam file (with `exam`) imports into the bank too; `exam` is ignored.
+- **The bank import is strict:** every question is checked, and if any is invalid nothing is imported. The app lists the question number and reason for each problem. Beyond the exam's rules it also refuses a choice question with no correct answer, `multi_answer: false` with several correct, a lowercase blank marker, and an image given as a path but imported without a ZIP.
+
 ## Ignored on import
 
 These are accepted and skipped rather than rejected, so older exports keep working:

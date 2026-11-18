@@ -1,9 +1,10 @@
-import { Router, Request, Response } from 'express';
+import express, { Router, Request, Response } from 'express';
 import {
   getOtisakQuestionBankQuestions,
   getOtisakQuestionBankSummary,
   createOtisakQuestionBankQuestion,
   deleteOtisakQuestionBankQuestion,
+  createOtisakQuestionBankQuestions,
   type OtisakQuestionBankType,
 } from '../db/otisak-question-bank';
 import { getOtisakSubjects } from '../db/otisak';
@@ -11,6 +12,14 @@ import { isSubjectManageableByUser, getAssignedSubjectIds } from '../db/auth-hel
 import { query } from '../db/client';
 import { requireAuth, requireRole } from '../middleware';
 import { isStoredImageUrl } from '../lib/images';
+import { parseBankFile, type BankImportIssue } from '../lib/importBank';
+import {
+  ExamArchiveError,
+  MAX_ZIP_BYTES,
+  readExamZip,
+  resolveArchiveImages,
+} from '../lib/examArchive';
+import type { ExamImportInput } from '../lib/importExam';
 
 const router = Router();
 
@@ -67,6 +76,94 @@ router.get('/', async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+// Question bank import, same two shapes as the exam import:
+//   POST /questions/import-json  body: { subject_id, questions: [...] }
+//   POST /questions/import-zip?subject_id=..  body: the raw .zip (questions JSON + images)
+// The file format is lib/importBank.ts. All or nothing: a file with any bad
+// question is refused with the list of problems (index is 1-based).
+export const BANK_IMPORT_JSON_PATH = '/api/otisak/questions/import-json';
+
+class BankIssuesError extends Error {
+  constructor(readonly issues: BankImportIssue[]) {
+    super('INVALID_QUESTIONS');
+  }
+}
+
+async function runBankImport(
+  req: Request,
+  res: Response,
+  subjectIdIn: unknown,
+  resolve: () => Promise<unknown>,
+) {
+  try {
+    const user = req.user!;
+    const subjectId = typeof subjectIdIn === 'string' && subjectIdIn ? subjectIdIn : null;
+    if (!subjectId) {
+      return res.status(400).json({ error: 'Subject is required', code: 'SUBJECT_REQUIRED' });
+    }
+    const allowed = await isSubjectManageableByUser(user.id, subjectId, user.role === 'admin');
+    if (!allowed) return res.status(403).json({ error: 'Not assigned to this subject' });
+
+    // Check every question before any image is stored, then resolve the zip's
+    // images, then check again (an image path not in the zip is reported).
+    const body = await resolve();
+    const { inputs, issues } = parseBankFile(body, subjectId);
+    if (issues.length > 0) {
+      return res
+        .status(400)
+        .json({ error: 'Invalid questions', code: 'INVALID_QUESTIONS', issues });
+    }
+    const imported = await createOtisakQuestionBankQuestions(inputs, user.id);
+    return res.json({ imported });
+  } catch (error) {
+    if (error instanceof BankIssuesError) {
+      return res
+        .status(400)
+        .json({ error: 'Invalid questions', code: 'INVALID_QUESTIONS', issues: error.issues });
+    }
+    if (error instanceof ExamArchiveError) {
+      return res.status(error.message === 'ZIP_TOO_LARGE' ? 413 : 400).json({
+        error: error.message,
+        code: error.message,
+        details: error.details,
+      });
+    }
+    console.error('Import question bank error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+router.post(
+  '/import-json',
+  express.json({ limit: '40mb' }),
+  async (req: Request, res: Response) => {
+    const body = req.body || {};
+    return runBankImport(req, res, body.subject_id, async () => body);
+  },
+);
+
+router.post(
+  '/import-zip',
+  express.raw({ type: () => true, limit: MAX_ZIP_BYTES }),
+  async (req: Request, res: Response) => {
+    const buf = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+    return runBankImport(req, res, req.query.subject_id, async () => {
+      const archive = readExamZip(buf);
+      // Refuse a malformed file before storing any of its images.
+      const pre = parseBankFile(
+        { questions: (archive.body as unknown as { questions?: unknown }).questions },
+        'x',
+      );
+      const real = pre.issues.filter((i) => i.code !== 'IMAGE_NOT_IN_ZIP');
+      if (real.length > 0) throw new BankIssuesError(real);
+      return resolveArchiveImages(
+        { ...archive, body: archive.body as ExamImportInput },
+        req.user!.id,
+      );
+    });
+  },
+);
 
 // POST /questions
 router.post('/', async (req: Request, res: Response) => {

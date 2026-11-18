@@ -259,6 +259,26 @@ ukupno   = max(0, zbir osvojenih bodova - kažnjena × negative_points_value)
 - Pitanje sa `points: 0` nosi 0 i kada je tačno, pa se kažnjava. Ne koristi ga uz negativne bodove.
 - Promena bodovanja na ispitu koji već ima predate radove ponovo boduje te radove.
 
+## Banka pitanja
+
+Isti format služi i za uvoz u banku pitanja (**Banka pitanja**, dugme **Uvezi**). Fajl je samo lista `questions`, a svako pitanje može da ima i oznake:
+
+```json
+{
+  "version": 1,
+  "questions": [
+    { "type": "text", "text": "...", "points": 1, "tags": ["soa", "kolokvijum-1"], "multi_answer": false,
+      "answers": [ { "text": "...", "is_correct": true }, { "text": "...", "is_correct": false } ] }
+  ]
+}
+```
+
+- Podržano je svih sedam tipova, sa istim poljima kao kod ispita. Slike idu u ZIP na isti način.
+- `tags` je lista oznaka. Po njima ispit izvlači pitanja: na vežbi pri svakom pokretanju, a na pravom ispitu jednom, dugmetom **Dodaj pitanja iz banke** u editoru, dok je ispit nacrt.
+- Bez `points` pitanje nosi 1 bod. Pri izvlačenju bodove ionako određuje pravilo.
+- Fajl ispita (sa `exam`) može da se uveze i u banku. `exam` se zanemaruje.
+- **Uvoz u banku je strog:** proverava se svako pitanje, i ako ijedno nije ispravno, ništa se ne uvozi. Aplikacija navodi broj pitanja i razlog za svaki problem. Pored grešaka koje važe i za ispit, odbija se i pitanje sa ponuđenim odgovorima bez tačnog odgovora, sa `multi_answer: false` i više tačnih, sa prazninom pisanom malim slovima, kao i pitanje sa slikom zadatom putanjom, a uvezeno bez ZIP-a.
+
 ## Zanemaruje se pri uvozu
 
 Ovo se prihvata i preskače umesto da obori uvoz, da bi stariji izvozi i dalje radili:

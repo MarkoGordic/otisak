@@ -17,6 +17,8 @@ import {
   getExamStats,
   getExamGradingItems,
   gradeOpenTextAnswer,
+  generateQuestionsFromBank,
+  type BankDrawReport,
 } from '../db/otisak';
 import { getActivityLog, getActivityStats, enrichActivityEventData } from '../db/activity-log';
 import { findUserById } from '../db/users';
@@ -835,6 +837,69 @@ router.get(
       return res.json(stats);
     } catch (error) {
       console.error('Exam stats error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+// POST /exams/:examId/bank-draw - draw questions from the subject's bank into
+// this exam, once, by tag rules: [{ tag, question_count, points_per_question }].
+// Appended after the existing questions; every student then gets the same set
+// (practice templates instead draw a fresh set per run). Only while the exam
+// has not been opened to students.
+router.post(
+  '/bank-draw',
+  requireAuth,
+  requireRole(['admin', 'assistant', 'professor']),
+  async (req: Request, res: Response) => {
+    try {
+      const examId = getExamId(req);
+      if (!(await assertCanManageExam(req, res, examId))) return;
+      const exam = await getOtisakExamById(examId);
+      if (!exam) return res.status(404).json({ error: 'Exam not found' });
+      if (exam.status !== 'draft' && exam.status !== 'scheduled') {
+        return res.status(409).json({ error: 'Exam is already open', code: 'EXAM_NOT_DRAFT' });
+      }
+      if (!exam.subject_id) {
+        return res.status(400).json({ error: 'Exam has no subject', code: 'SUBJECT_REQUIRED' });
+      }
+
+      const rulesIn: unknown[] = Array.isArray(req.body?.rules) ? req.body.rules : [];
+      const rules = rulesIn
+        .map((r) => {
+          const o = (r && typeof r === 'object' ? r : {}) as Record<string, unknown>;
+          return {
+            tag: typeof o.tag === 'string' ? o.tag.trim() : '',
+            question_count: Math.floor(Number(o.question_count)),
+            points_per_question: Number(o.points_per_question ?? 1),
+          };
+        })
+        .filter((r) => r.tag);
+      const invalid =
+        rules.length === 0 ||
+        rules.some(
+          (r) =>
+            !Number.isFinite(r.question_count) ||
+            r.question_count < 1 ||
+            r.question_count > 200 ||
+            !Number.isFinite(r.points_per_question) ||
+            r.points_per_question < 0,
+        );
+      if (invalid) return res.status(400).json({ error: 'Invalid rules', code: 'INVALID_RULES' });
+
+      const existing = await getOtisakQuestions(examId);
+      const startPosition = existing.reduce((m, q) => Math.max(m, Number(q.position) + 1), 0);
+      const report: BankDrawReport = [];
+      const added = await generateQuestionsFromBank(
+        examId,
+        exam.subject_id,
+        rules,
+        startPosition,
+        report,
+      );
+      return res.json({ added: added.length, report });
+    } catch (error) {
+      console.error('Bank draw error:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   },

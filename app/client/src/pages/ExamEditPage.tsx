@@ -651,6 +651,25 @@ export default function ExamEditPage() {
               </Section>
             )}
 
+            {/* Real exam: draw questions from the bank once, into this exam.
+                Only before students can open it. */}
+            {!isPractice && (exam.status === 'draft' || exam.status === 'scheduled') && (
+              <Section
+                icon={<Shuffle size={16} />}
+                title={t('bankDraw.title')}
+                open={!!open.bank}
+                onToggle={() => toggle('bank')}
+              >
+                <BankRulesPanel
+                  mode="draw"
+                  examId={exam.id}
+                  subjectId={exam.subject_id}
+                  initialRules={[]}
+                  onSaved={load}
+                />
+              </Section>
+            )}
+
             {/* Questions */}
             <div className="flex items-center justify-between mt-8 mb-3">
               <h2 className="flex items-center gap-2 text-[11px] uppercase tracking-[0.14em] text-[var(--text-muted)] font-semibold">

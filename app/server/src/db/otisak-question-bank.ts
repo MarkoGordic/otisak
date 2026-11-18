@@ -1,7 +1,17 @@
+import type { PoolClient } from 'pg';
 import { query, transaction } from './client';
 import { internDataUrl } from '../lib/images';
 
-export type OtisakQuestionBankType = 'text' | 'code' | 'image' | 'open_text';
+export const BANK_QUESTION_TYPES = [
+  'text',
+  'code',
+  'image',
+  'open_text',
+  'ordering',
+  'matching',
+  'fill_blank',
+] as const;
+export type OtisakQuestionBankType = (typeof BANK_QUESTION_TYPES)[number];
 
 export interface OtisakQuestionBankAnswer {
   id: string;
@@ -24,6 +34,9 @@ export interface OtisakQuestionBankQuestion {
   code_language: string | null;
   image_url: string | null;
   ai_grading_instructions: string | null;
+  content: string | null;
+  multi_answer: boolean | null;
+  explanation: string | null;
   created_at: Date;
   updated_at: Date;
   answers: OtisakQuestionBankAnswer[];
@@ -39,6 +52,9 @@ export interface CreateOtisakQuestionBankQuestionInput {
   code_language?: string | null;
   image_url?: string | null;
   ai_grading_instructions?: string | null;
+  content?: string | null;
+  multi_answer?: boolean | null;
+  explanation?: string | null;
   answers: Array<{
     text: string;
     is_correct: boolean;
@@ -144,6 +160,9 @@ export async function getOtisakQuestionBankQuestions(params: {
     code_language: string | null;
     image_url: string | null;
     ai_grading_instructions: string | null;
+    content: string | null;
+    multi_answer: boolean | null;
+    explanation: string | null;
     created_at: Date;
     updated_at: Date;
   }>(
@@ -160,6 +179,9 @@ export async function getOtisakQuestionBankQuestions(params: {
       q.code_language,
       q.image_url,
       q.ai_grading_instructions,
+      q.content,
+      q.multi_answer,
+      q.explanation,
       q.created_at,
       q.updated_at
      FROM otisak_question_bank q
@@ -187,6 +209,9 @@ export async function getOtisakQuestionBankQuestions(params: {
     code_language: row.code_language,
     image_url: row.image_url,
     ai_grading_instructions: row.ai_grading_instructions,
+    content: row.content,
+    multi_answer: row.multi_answer,
+    explanation: row.explanation,
     created_at: row.created_at,
     updated_at: row.updated_at,
     answers: answersByQuestionId.get(row.id) || [],
@@ -231,88 +256,122 @@ export async function createOtisakQuestionBankQuestion(
   actorUserId: string,
 ): Promise<OtisakQuestionBankQuestion> {
   input = { ...input, image_url: await internDataUrl(input.image_url, actorUserId) };
+  return transaction((client) => insertBankQuestion(client, input, actorUserId));
+}
+
+// Many questions in one transaction (file import): all land or none do.
+// Inline data: images are stored before the transaction opens.
+export async function createOtisakQuestionBankQuestions(
+  inputs: CreateOtisakQuestionBankQuestionInput[],
+  actorUserId: string,
+): Promise<number> {
+  const prepared: CreateOtisakQuestionBankQuestionInput[] = [];
+  for (const input of inputs) {
+    prepared.push({ ...input, image_url: await internDataUrl(input.image_url, actorUserId) });
+  }
   return transaction(async (client) => {
-    const tags = normalizeTags(input.tags);
-
-    const questionResult = await client.query<{
-      id: string;
-      subject_id: string;
-      type: OtisakQuestionBankType;
-      text: string;
-      points: number;
-      tags: string[] | null;
-      code_snippet: string | null;
-      code_language: string | null;
-      image_url: string | null;
-      ai_grading_instructions: string | null;
-      created_at: Date;
-      updated_at: Date;
-    }>(
-      `INSERT INTO otisak_question_bank (
-        subject_id,
-        type,
-        text,
-        points,
-        tags,
-        code_snippet,
-        code_language,
-        image_url,
-        ai_grading_instructions,
-        created_by,
-        updated_by
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $10)
-      RETURNING *`,
-      [
-        input.subject_id,
-        input.type,
-        input.text,
-        input.points,
-        tags,
-        input.code_snippet || null,
-        input.code_language || null,
-        input.image_url || null,
-        input.ai_grading_instructions || null,
-        actorUserId,
-      ],
-    );
-
-    const question = questionResult.rows[0];
-
-    const answers: OtisakQuestionBankAnswer[] = [];
-    for (let i = 0; i < input.answers.length; i++) {
-      const answer = input.answers[i];
-      const answerResult = await client.query<OtisakQuestionBankAnswer>(
-        `INSERT INTO otisak_question_bank_answers (question_id, text, is_correct, position)
-         VALUES ($1, $2, $3, $4)
-         RETURNING id, question_id, text, is_correct, position`,
-        [question.id, answer.text, answer.is_correct, answer.position ?? i],
-      );
-      answers.push(answerResult.rows[0]);
-    }
-
-    const subjectResult = await client.query<{ name: string; code: string | null }>(
-      'SELECT name, code FROM otisak_subjects WHERE id = $1 LIMIT 1',
-      [question.subject_id],
-    );
-
-    return {
-      id: question.id,
-      subject_id: question.subject_id,
-      subject_name: subjectResult.rows[0]?.name || 'Unknown Subject',
-      subject_code: subjectResult.rows[0]?.code || null,
-      type: question.type,
-      text: question.text,
-      points: Number(question.points) || 0,
-      tags: question.tags || [],
-      code_snippet: question.code_snippet,
-      code_language: question.code_language,
-      image_url: question.image_url,
-      ai_grading_instructions: question.ai_grading_instructions,
-      created_at: question.created_at,
-      updated_at: question.updated_at,
-      answers,
-    };
+    for (const input of prepared) await insertBankQuestion(client, input, actorUserId);
+    return prepared.length;
   });
+}
+
+async function insertBankQuestion(
+  client: PoolClient,
+  input: CreateOtisakQuestionBankQuestionInput,
+  actorUserId: string,
+): Promise<OtisakQuestionBankQuestion> {
+  const tags = normalizeTags(input.tags || []);
+
+  const questionResult = await client.query<{
+    id: string;
+    subject_id: string;
+    type: OtisakQuestionBankType;
+    text: string;
+    points: number;
+    tags: string[] | null;
+    code_snippet: string | null;
+    code_language: string | null;
+    image_url: string | null;
+    ai_grading_instructions: string | null;
+    content: string | null;
+    multi_answer: boolean | null;
+    explanation: string | null;
+    created_at: Date;
+    updated_at: Date;
+  }>(
+    `INSERT INTO otisak_question_bank (
+      subject_id,
+      type,
+      text,
+      points,
+      tags,
+      code_snippet,
+      code_language,
+      image_url,
+      ai_grading_instructions,
+      content,
+      multi_answer,
+      explanation,
+      created_by,
+      updated_by
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $13)
+    RETURNING *`,
+    [
+      input.subject_id,
+      input.type,
+      input.text,
+      input.points,
+      tags,
+      input.code_snippet || null,
+      input.code_language || null,
+      input.image_url || null,
+      input.ai_grading_instructions || null,
+      input.content || null,
+      typeof input.multi_answer === 'boolean' ? input.multi_answer : null,
+      input.explanation || null,
+      actorUserId,
+    ],
+  );
+
+  const question = questionResult.rows[0];
+
+  const answers: OtisakQuestionBankAnswer[] = [];
+  for (let i = 0; i < input.answers.length; i++) {
+    const answer = input.answers[i];
+    const answerResult = await client.query<OtisakQuestionBankAnswer>(
+      `INSERT INTO otisak_question_bank_answers (question_id, text, is_correct, position)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, question_id, text, is_correct, position`,
+      [question.id, answer.text, answer.is_correct, answer.position ?? i],
+    );
+    answers.push(answerResult.rows[0]);
+  }
+
+  const subjectResult = await client.query<{ name: string; code: string | null }>(
+    'SELECT name, code FROM otisak_subjects WHERE id = $1 LIMIT 1',
+    [question.subject_id],
+  );
+
+  return {
+    id: question.id,
+    subject_id: question.subject_id,
+    subject_name: subjectResult.rows[0]?.name || 'Unknown Subject',
+    subject_code: subjectResult.rows[0]?.code || null,
+    type: question.type,
+    text: question.text,
+    points: Number(question.points) || 0,
+    tags: question.tags || [],
+    code_snippet: question.code_snippet,
+    code_language: question.code_language,
+    image_url: question.image_url,
+    ai_grading_instructions: question.ai_grading_instructions,
+    content: question.content,
+    multi_answer: question.multi_answer,
+    explanation: question.explanation,
+    created_at: question.created_at,
+    updated_at: question.updated_at,
+    answers,
+  };
 }
 
 export async function deleteOtisakQuestionBankQuestion(questionId: string): Promise<boolean> {

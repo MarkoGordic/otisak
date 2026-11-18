@@ -231,7 +231,8 @@ CREATE INDEX idx_otisak_attempt_answers_pending ON otisak_attempt_answers(attemp
 CREATE TABLE otisak_question_bank (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   subject_id UUID NOT NULL REFERENCES otisak_subjects(id) ON DELETE CASCADE,
-  type TEXT NOT NULL DEFAULT 'text' CHECK (type IN ('text', 'code', 'image', 'open_text')),
+  type TEXT NOT NULL DEFAULT 'text' CONSTRAINT otisak_question_bank_type_check
+    CHECK (type IN ('text', 'code', 'image', 'open_text', 'ordering', 'matching', 'fill_blank')),
   text TEXT NOT NULL,
   points NUMERIC NOT NULL DEFAULT 1,
   tags TEXT[] NOT NULL DEFAULT '{}',
@@ -239,6 +240,11 @@ CREATE TABLE otisak_question_bank (
   code_language TEXT,
   image_url TEXT,
   ai_grading_instructions TEXT,
+  -- ordering / matching / fill_blank: the same JSON string an exam question keeps in content.
+  content TEXT,
+  -- NULL: derived from the number of correct answers when drawn into an exam.
+  multi_answer BOOLEAN,
+  explanation TEXT,
   created_by UUID REFERENCES users(id) ON DELETE SET NULL,
   updated_by UUID REFERENCES users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

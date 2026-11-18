@@ -11,6 +11,11 @@ export type BankQuestion = {
   code_snippet: string | null;
   code_language: string | null;
   image_url: string | null;
+  // ordering / matching / fill_blank: the exam-shaped JSON string.
+  content?: string | null;
+  multi_answer?: boolean | null;
+  explanation?: string | null;
+  ai_grading_instructions?: string | null;
   answers: Array<{ id: string; text: string; is_correct: boolean }>;
   created_at: string;
 };
@@ -23,4 +28,7 @@ export const typeLabelKey: Record<string, string> = {
   code: 'questions.code',
   image: 'questions.image',
   open_text: 'questions.openText',
+  ordering: 'results.ordering',
+  matching: 'results.matching',
+  fill_blank: 'results.fillBlanks',
 };
