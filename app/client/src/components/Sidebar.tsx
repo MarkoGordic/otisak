@@ -16,6 +16,7 @@ import {
   Moon,
   Key,
   ScrollText,
+  MonitorSmartphone,
   type LucideIcon,
 } from 'lucide-react';
 import { useTheme } from './ThemeProvider';
@@ -101,6 +102,12 @@ function useNavSections(userRole?: string): NavSection[] {
       title: t('nav.section.admin'),
       items: [
         { id: 'users', label: t('nav.users'), icon: Users, href: '/admin/users' },
+        {
+          id: 'sessions',
+          label: t('nav.sessions'),
+          icon: MonitorSmartphone,
+          href: '/admin/sessions',
+        },
         { id: 'logs', label: t('nav.logs'), icon: ScrollText, href: '/admin/logs' },
         { id: 'settings', label: t('nav.settings'), icon: Settings, href: '/admin/settings' },
       ],

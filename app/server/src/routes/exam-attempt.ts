@@ -21,7 +21,11 @@ import {
   isSubmittableByStudent,
   hasApprovedWithdrawal,
   cancelOwnRequest,
+  consumeApprovedSessionSwitch,
+  getRequestStatus,
+  decideExamRequest,
 } from '../db/exam-requests';
+import { query } from '../db/client';
 import { findUserById, findOrProvisionStudentByIndex } from '../db/users';
 import { broadcastExamEvent } from '../ws/events';
 import { refreshLiveStatsNow } from '../ws/liveStatsAggregator';
@@ -83,10 +87,30 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
     // BUT: late joiners (who have a pending late_join request) must wait for admin approval.
     if (!attempt && user.role === 'student' && exam.status === 'active' && exam.exam_started_at) {
       const pending = await listRequestsForUser(examId, user.id);
-      const hasPendingLateJoin = pending.some(
-        (r) => r.type === 'late_join' && r.status === 'pending',
-      );
-      if (hasPendingLateJoin) {
+      const pendingLateJoin = pending.find((r) => r.type === 'late_join' && r.status === 'pending');
+      // Auto-admit switched on after this student asked: approve on the spot.
+      let lateJoinStillPending = !!pendingLateJoin;
+      if (pendingLateJoin && exam.auto_admit_late) {
+        const decided = await decideExamRequest({
+          requestId: pendingLateJoin.id,
+          examId,
+          decidedBy: user.id,
+          decision: 'approved',
+          note: 'auto-admit',
+        });
+        if ('request' in decided) {
+          lateJoinStillPending = false;
+          broadcastExamEvent(examId, {
+            type: 'request.decided',
+            request_id: decided.request.id,
+            request_type: decided.request.type,
+            user_id: decided.request.user_id,
+            status: decided.request.status,
+          });
+          attempt = await getActiveAttempt(examId, user.id);
+        }
+      }
+      if (lateJoinStillPending) {
         return res.json({
           exam,
           attempt: null,
@@ -95,10 +119,12 @@ router.get('/', requireAuth, async (req: Request, res: Response) => {
           pendingRequest: { type: 'late_join' },
         });
       }
-      attempt = await startExamAttempt(examId, user.id, {
-        ip_address: req.ip || undefined,
-        user_agent: req.headers['user-agent'] || undefined,
-      });
+      if (!attempt) {
+        attempt = await startExamAttempt(examId, user.id, {
+          ip_address: req.ip || undefined,
+          user_agent: req.headers['user-agent'] || undefined,
+        });
+      }
     }
 
     let questions = await getOtisakQuestions(examId);
@@ -362,6 +388,14 @@ router.post('/join', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'User not found' });
     }
 
+    // An approved session_switch (see below) is redeemed once here: it lets
+    // the student past the device lock and stands in for late-join approval.
+    const switchRequestId =
+      typeof req.body?.switch_request_id === 'string' ? req.body.switch_request_id : null;
+    const switchApproved =
+      !!switchRequestId &&
+      (await consumeApprovedSessionSwitch(switchRequestId, examId, fullUser.id));
+
     // No-double-login enforcement. Covers BOTH the lobby/waiting phase (no
     // attempt yet, student is just sitting on the join screen) and the
     // running exam phase (attempt exists). The earlier "lobby is OK to
@@ -370,14 +404,51 @@ router.post('/join', async (req: Request, res: Response) => {
     // the timer started. The session-tracker entry goes stale after
     // STALE_MS of no heartbeat, so an honest device-switch (broken PC,
     // browser crash) is still recoverable after a few minutes.
-    {
+    //
+    // Instead of a hard refusal the student gets a session_switch request
+    // the assistant approves (like a late join). No cookie is issued while it
+    // is pending: a cookie would open the exam running on the other device.
+    // On approval the old device's sessions are revoked and the student calls
+    // /join again with the request id.
+    if (!switchApproved) {
       const incomingCookie = req.cookies?.[SESSION_COOKIE];
       const incomingSession = incomingCookie ? parseSessionCookie(incomingCookie) : null;
       const incomingSessionId = incomingSession?.id ?? null;
       if (isLockedByOtherSession(fullUser.id, incomingSessionId)) {
-        return res.status(409).json({
-          error: 'Index already in use on another device for this exam.',
-          code: 'INDEX_IN_USE',
+        const other = await query<{ title: string }>(
+          `SELECT e.title FROM otisak_attempts a
+             JOIN otisak_exams e ON e.id = a.exam_id
+            WHERE a.user_id = $1 AND a.submitted = FALSE AND e.status = 'active'
+            ORDER BY a.started_at DESC LIMIT 1`,
+          [fullUser.id],
+        );
+        const created = await createExamRequest({
+          examId,
+          userId: fullUser.id,
+          type: 'session_switch',
+          payload: other.rows[0] ? { other_exam_title: other.rows[0].title } : {},
+        });
+        if (!('request' in created)) {
+          return res.status(409).json({
+            error: 'Index already in use on another device for this exam.',
+            code: 'INDEX_IN_USE',
+          });
+        }
+        broadcastExamEvent(examId, {
+          type: 'request.created',
+          request_id: created.request.id,
+          request_type: created.request.type,
+          user_id: created.request.user_id,
+        });
+        return res.status(202).json({
+          code: 'SESSION_SWITCH_PENDING',
+          request_id: created.request.id,
+          user: {
+            id: result.user.id,
+            name: result.user.name,
+            index_number: result.user.index_number,
+          },
+          other_exam_title: other.rows[0]?.title ?? null,
         });
       }
     }
@@ -402,15 +473,23 @@ router.post('/join', async (req: Request, res: Response) => {
     // Mark this user's session active so the next /join from a different
     // browser is blocked while this one is taking the exam.
     const newSession = parseSessionCookie(cookie);
-    if (newSession) markSessionActive(fullUser.id, newSession.id);
+    if (newSession) markSessionActive(fullUser.id, newSession.id, newSession.createdAt);
 
     // Late-join detection: if the admin has already started the exam,
-    // submit a late_join request that the admin must approve.
+    // submit a late_join request that the admin must approve - unless the
+    // exam admits late joiners automatically, or the assistant already let
+    // this student in through a session switch.
     // Read fresh - never from the 1s poll cache - so we never miss a /start
     // that fired in the same second the student joined.
     let pendingRequestId: string | null = null;
     const exam = await getOtisakExamById(examId);
-    if (exam && exam.exam_started_at && exam.status === 'active') {
+    if (
+      exam &&
+      exam.exam_started_at &&
+      exam.status === 'active' &&
+      !exam.auto_admit_late &&
+      !switchApproved
+    ) {
       const created = await createExamRequest({
         examId,
         userId: fullUser.id,
@@ -451,6 +530,50 @@ router.post('/join', async (req: Request, res: Response) => {
   }
 });
 
+// GET /exams/:examId/join-requests/:id - public, status of the caller's
+// session_switch request while the join page waits for the assistant. The
+// request id is an unguessable UUID only the requesting browser holds, and
+// only the status is returned.
+router.get('/join-requests/:id', async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const status = await getRequestStatus(req.params.id, examId);
+    if (!status) return res.status(404).json({ error: 'Request not found' });
+    return res.json({ status });
+  } catch (error) {
+    console.error('Join request status error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// POST /exams/:examId/join-requests/:id/cancel - public, the waiting student
+// gives up on a pending session_switch (back button on the join page).
+router.post('/join-requests/:id/cancel', async (req: Request, res: Response) => {
+  try {
+    const examId = getExamId(req);
+    const cancelled = await query<{ id: string; user_id: string; type: string }>(
+      `UPDATE exam_requests SET status = 'cancelled', decided_at = NOW()
+        WHERE id = $1 AND exam_id = $2 AND type = 'session_switch' AND status = 'pending'
+        RETURNING id, user_id, type`,
+      [req.params.id, examId],
+    );
+    const row = cancelled.rows[0];
+    if (row) {
+      broadcastExamEvent(examId, {
+        type: 'request.decided',
+        request_id: row.id,
+        request_type: row.type,
+        user_id: row.user_id,
+        status: 'cancelled',
+      });
+    }
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Join request cancel error:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // GET /exams/:examId/room-status - public, get exam status for polling
 router.get('/room-status', async (req: Request, res: Response) => {
   try {
@@ -471,7 +594,7 @@ router.get('/room-status', async (req: Request, res: Response) => {
     if (cookieValue) {
       const session = parseSessionCookie(cookieValue);
       if (session?.user?.id && session.id) {
-        markSessionActive(session.user.id, session.id);
+        markSessionActive(session.user.id, session.id, session.createdAt);
       }
     }
 

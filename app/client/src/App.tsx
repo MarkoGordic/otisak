@@ -29,6 +29,7 @@ const QuestionsPage = lazy(() => import('./pages/QuestionsPage'));
 const AdminUsersPage = lazy(() => import('./pages/AdminUsersPage'));
 const AdminSettingsPage = lazy(() => import('./pages/AdminSettingsPage'));
 const AdminErrorsPage = lazy(() => import('./pages/AdminErrorsPage'));
+const AdminSessionsPage = lazy(() => import('./pages/AdminSessionsPage'));
 const DocsPage = lazy(() => import('./pages/DocsPage'));
 const UserProfilePage = lazy(() => import('./pages/UserProfilePage'));
 const ExamStatsPage = lazy(() => import('./pages/ExamStatsPage'));
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/admin/users" element={<AdminUsersPage />} />
           <Route path="/admin/settings" element={<AdminSettingsPage />} />
           <Route path="/admin/logs" element={<AdminErrorsPage />} />
+          <Route path="/admin/sessions" element={<AdminSessionsPage />} />
           <Route path="/users/:userId" element={<UserProfilePage />} />
           <Route path="/exam/:examId" element={<ExamPage />} />
           <Route path="/exam/:examId/results" element={<ResultsPage />} />

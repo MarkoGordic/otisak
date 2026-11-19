@@ -6,7 +6,10 @@ import { query, transaction } from './client';
 import type { PoolClient } from 'pg';
 import { getOtisakExamById, getActiveAttempt } from './otisak';
 
-export type ExamRequestType = 'late_join' | 'withdraw';
+// session_switch: the student is still signed in on another device (usually
+// mid-way through another exam) and wants in from this one. Created by /join
+// only, never by POST /requests.
+export type ExamRequestType = 'late_join' | 'withdraw' | 'session_switch';
 export type ExamRequestStatus = 'pending' | 'approved' | 'denied' | 'cancelled';
 
 export interface ExamRequestRow {
@@ -54,6 +57,12 @@ const REQUEST_GUARDS: Record<
       return { ok: false, error: 'Exam has not started yet - no late-join needed' };
     const existing = await getActiveAttempt(examId, userId);
     if (existing) return { ok: false, error: 'You already have an active attempt' };
+    return { ok: true };
+  },
+  session_switch: async ({ examId }) => {
+    const exam = await getOtisakExamById(examId);
+    if (!exam) return { ok: false, error: 'Exam not found' };
+    if (exam.status !== 'active') return { ok: false, error: 'Exam is not active' };
     return { ok: true };
   },
   // Withdraw: from the waiting room (enrolled, no attempt yet) or from the
@@ -121,6 +130,16 @@ const REQUEST_HANDLERS: Record<ExamRequestType, (ctx: HandlerContext) => Promise
         [request.exam_id, request.user_id, seed],
       );
     }
+  },
+  // Nothing to write here: the route revokes the old device's sessions after
+  // the commit, and the student's next /join (carrying the request id) gets a
+  // fresh cookie that is past the revocation cutoff.
+  session_switch: async ({ client, request }) => {
+    const examRow = await client.query<{ status: string }>(
+      'SELECT status FROM otisak_exams WHERE id = $1 LIMIT 1',
+      [request.exam_id],
+    );
+    if (examRow.rows[0]?.status !== 'active') throw new Error('Exam is no longer active');
   },
   // A running attempt is marked withdrawn here, inside the decision's
   // transaction; the route then finishes it (finishAttempt runs its own
@@ -270,4 +289,61 @@ export async function decideExamRequest(input: {
     );
     return { request: updated.rows[0] };
   });
+}
+
+// An approved session_switch is redeemed exactly once by the student's next
+// /join. Returns true when this call consumed it. The window keeps a stale
+// approval from being replayed hours later.
+const SWITCH_REDEEM_WINDOW_MIN = 30;
+export async function consumeApprovedSessionSwitch(
+  requestId: string,
+  examId: string,
+  userId: string,
+): Promise<boolean> {
+  const result = await query(
+    `UPDATE exam_requests
+        SET payload = payload || jsonb_build_object('consumed_at', NOW())
+      WHERE id = $1 AND exam_id = $2 AND user_id = $3
+        AND type = 'session_switch' AND status = 'approved'
+        AND NOT (payload ? 'consumed_at')
+        AND decided_at > NOW() - ($4 || ' minutes')::interval
+      RETURNING id`,
+    [requestId, examId, userId, String(SWITCH_REDEEM_WINDOW_MIN)],
+  );
+  return !!result.rows[0];
+}
+
+// Status of one request, for the public join-page poll. Only the status leaks.
+export async function getRequestStatus(
+  requestId: string,
+  examId: string,
+): Promise<ExamRequestStatus | null> {
+  const result = await query<{ status: ExamRequestStatus }>(
+    `SELECT status FROM exam_requests WHERE id = $1 AND exam_id = $2 LIMIT 1`,
+    [requestId, examId],
+  );
+  return result.rows[0]?.status ?? null;
+}
+
+// Approve every pending late_join of an exam (auto-admit switched on live).
+export async function approvePendingLateJoins(
+  examId: string,
+  decidedBy: string,
+): Promise<ExamRequestRow[]> {
+  const pending = await query<{ id: string }>(
+    `SELECT id FROM exam_requests WHERE exam_id = $1 AND type = 'late_join' AND status = 'pending'`,
+    [examId],
+  );
+  const approved: ExamRequestRow[] = [];
+  for (const row of pending.rows) {
+    const r = await decideExamRequest({
+      requestId: row.id,
+      examId,
+      decidedBy,
+      decision: 'approved',
+      note: 'auto-admit',
+    });
+    if ('request' in r) approved.push(r.request);
+  }
+  return approved;
 }

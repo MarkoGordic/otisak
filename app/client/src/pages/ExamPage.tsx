@@ -610,6 +610,12 @@ export default function ExamPage() {
             const hadAttempt = (evt as unknown as { had_attempt?: boolean }).had_attempt;
             navigate(hadAttempt ? `/exam/${examId}/results` : '/', { replace: true });
           }
+        } else if (evt.type === 'session.revoked') {
+          // Admin ended this device's session (sent only to my sockets). Every
+          // further request would be refused, so leave the exam now.
+          submittingRef.current = true;
+          toast.warning(t('exam.toast.sessionRevoked'));
+          navigate('/', { replace: true });
         } else if (evt.type === 'student.kicked') {
           // The room broadcasts kicks to everyone; only act if it's me.
           // Read the current user id from a ref to avoid a stale-closure miss

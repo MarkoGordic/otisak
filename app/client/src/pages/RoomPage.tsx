@@ -59,6 +59,7 @@ type ExamData = {
   subject_name: string | null;
   question_count: number;
   negative_points_enabled: boolean;
+  auto_admit_late?: boolean;
 };
 
 type UserInfo = { id?: string; name?: string; role?: string; avatar_url?: string };
@@ -123,10 +124,12 @@ export default function ExamRoomPage() {
       user_name: string | null;
       user_email: string;
       user_index_number: string | null;
-      payload?: { reason?: string } | null;
+      payload?: { reason?: string; other_exam_title?: string } | null;
     }>
   >([]);
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [autoAdmit, setAutoAdmit] = useState(false);
+  const [savingAutoAdmit, setSavingAutoAdmit] = useState(false);
   const [extraSeconds, setExtraSeconds] = useState(0);
   const [pausedSeconds, setPausedSeconds] = useState(0);
   const [adjusting, setAdjusting] = useState(false);
@@ -189,6 +192,7 @@ export default function ExamRoomPage() {
       }
       const data = await res.json();
       setExam(data.exam);
+      setAutoAdmit(!!data.exam?.auto_admit_late);
       setParticipants(data.participants || []);
       if (data.exam?.exam_started_at) setStarted(true);
       // Closed exams render the slim read-only view - skip lockdown / room-status /
@@ -247,6 +251,9 @@ export default function ExamRoomPage() {
         ) {
           // Any of these change the participant list / requests / lockdown / start state.
           loadRoom();
+        } else if (evt.type === 'exam.autoAdmitChanged') {
+          // Another assistant flipped the switch.
+          setAutoAdmit(evt.enabled === true);
         } else if (evt.type === 'timer.adjusted') {
           setExtraSeconds(Number(evt.extra_seconds || 0));
         } else if (evt.type === 'exam.submitted') {
@@ -1217,6 +1224,83 @@ export default function ExamRoomPage() {
             )}
           </AnimatePresence>
 
+          {/* Auto-admit late joiners: set before the start, switchable live */}
+          {exam?.status !== 'completed' && exam?.status !== 'archived' && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.08 }}
+              className="mt-4 rounded-xl border p-5 flex items-center justify-between gap-4 bg-[var(--bg-elevated)] border-[var(--border-default)]"
+            >
+              <div className="flex items-center gap-4 min-w-0">
+                <div
+                  className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${
+                    autoAdmit ? 'bg-accent-light' : 'bg-[var(--bg-tertiary)]'
+                  }`}
+                >
+                  <UserPlus
+                    size={20}
+                    className={autoAdmit ? 'text-accent' : 'text-[var(--text-muted)]'}
+                  />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-[var(--text-primary)]">
+                    {t('room.autoAdmit.title')}
+                  </p>
+                  <p className="text-xs text-[var(--text-muted)]">
+                    {autoAdmit ? t('room.autoAdmit.on') : t('room.autoAdmit.off')}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={autoAdmit}
+                aria-label={t('room.autoAdmit.title')}
+                disabled={savingAutoAdmit}
+                onClick={async () => {
+                  const next = !autoAdmit;
+                  setSavingAutoAdmit(true);
+                  try {
+                    const res = await fetch(`/api/otisak/exams/${examId}/auto-admit`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ enabled: next }),
+                    });
+                    const d = await res.json().catch(() => ({}));
+                    if (!res.ok) {
+                      toast.error(d.error || t('common.error'));
+                      return;
+                    }
+                    setAutoAdmit(next);
+                    if (next && d.approved_count > 0) {
+                      setRequests((rs) => rs.filter((x) => x.type !== 'late_join'));
+                      toast.success(t('room.autoAdmit.approved', { count: d.approved_count }));
+                    } else {
+                      toast.info(t(next ? 'room.autoAdmit.toastOn' : 'room.autoAdmit.toastOff'));
+                    }
+                  } catch {
+                    toast.error(t('common.error'));
+                  } finally {
+                    setSavingAutoAdmit(false);
+                  }
+                }}
+                className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50 ${
+                  autoAdmit
+                    ? 'bg-accent'
+                    : 'bg-[var(--bg-tertiary)] border border-[var(--border-default)]'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                    autoAdmit ? 'translate-x-5' : ''
+                  }`}
+                />
+              </button>
+            </motion.div>
+          )}
+
           {/* Lockdown Controls */}
           {started && (
             <motion.div
@@ -1341,6 +1425,15 @@ export default function ExamRoomPage() {
                           <p className="text-[11px] text-[var(--text-muted)] mt-0.5">
                             {new Date(r.created_at).toLocaleTimeString('sr-RS')}
                           </p>
+                          {r.type === 'session_switch' && (
+                            <p className="text-xs text-[var(--text-secondary)] mt-1 break-words">
+                              {r.payload?.other_exam_title
+                                ? t('room.requests.session_switch.other', {
+                                    exam: r.payload.other_exam_title,
+                                  })
+                                : t('room.requests.session_switch.desc')}
+                            </p>
+                          )}
                           {r.payload?.reason && (
                             <p className="text-xs text-[var(--text-secondary)] mt-1 break-words">
                               {t('room.requests.reason')}: {r.payload.reason}

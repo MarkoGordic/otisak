@@ -7,7 +7,12 @@ import {
   startExamTimer,
 } from '../db/otisak';
 import { createLockdown, endLockdown } from '../db/settings';
-import { listPendingRequestsForExam, decideExamRequest } from '../db/exam-requests';
+import {
+  listPendingRequestsForExam,
+  decideExamRequest,
+  approvePendingLateJoins,
+} from '../db/exam-requests';
+import { terminateStudentSessions } from '../lib/studentSessions';
 import { query } from '../db/client';
 import { broadcastExamEvent, broadcastToExamUser } from '../ws/events';
 import {
@@ -266,6 +271,13 @@ router.post(
         );
       }
 
+      // Approved session switch: sign the student out everywhere else (the
+      // other exam's device included) so the waiting join page can redeem
+      // the approval for a fresh session.
+      if (result.request.type === 'session_switch' && result.request.status === 'approved') {
+        await terminateStudentSessions([result.request.user_id]);
+      }
+
       broadcastExamEvent(examId, {
         type: 'request.decided',
         request_id: result.request.id,
@@ -276,6 +288,60 @@ router.post(
       return res.json({ request: result.request });
     } catch (error) {
       console.error('Decide request error:', error);
+      return res.status(500).json({ error: 'Internal server error' });
+    }
+  },
+);
+
+// POST /exams/:examId/auto-admit - body { enabled: boolean }
+// Live switch for letting late joiners in without approval. Turning it on also
+// approves every late_join already waiting, so nobody is stuck behind the old rule.
+router.post(
+  '/auto-admit',
+  requireAuth,
+  requireRole(['admin', 'assistant', 'professor']),
+  async (req: Request, res: Response) => {
+    try {
+      const examId = getExamId(req);
+      if (!(await assertCanManageExam(req, res, examId))) return;
+      const enabled = req.body?.enabled;
+      if (typeof enabled !== 'boolean') {
+        return res.status(400).json({ error: 'enabled must be a boolean' });
+      }
+
+      const updated = await query<{ auto_admit_late: boolean }>(
+        `UPDATE otisak_exams SET auto_admit_late = $1, updated_at = NOW()
+          WHERE id = $2 AND status NOT IN ('completed', 'archived')
+          RETURNING auto_admit_late`,
+        [enabled, examId],
+      );
+      if (!updated.rows[0]) return res.status(400).json({ error: 'Exam not found or closed' });
+      invalidateExamCache(examId);
+
+      let approved = 0;
+      if (enabled) {
+        const rows = await approvePendingLateJoins(examId, req.user!.id);
+        approved = rows.length;
+        for (const r of rows) {
+          broadcastExamEvent(examId, {
+            type: 'request.decided',
+            request_id: r.id,
+            request_type: r.type,
+            user_id: r.user_id,
+            status: r.status,
+          });
+        }
+        if (approved > 0) {
+          refreshLiveStatsNow(examId).catch((err) =>
+            console.error('auto-admit: refreshLiveStatsNow failed', err),
+          );
+        }
+      }
+
+      broadcastExamEvent(examId, { type: 'exam.autoAdmitChanged', enabled });
+      return res.json({ auto_admit_late: enabled, approved_count: approved });
+    } catch (error) {
+      console.error('Auto-admit error:', error);
       return res.status(500).json({ error: 'Internal server error' });
     }
   },

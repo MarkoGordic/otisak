@@ -7,10 +7,21 @@
 // move to Redis (or similar) - fine for the single-container setup.
 
 const sessions = new Map<string, { sessionId: string; lastSeen: number }>();
+// userId -> cutoff (ms). A session created before the cutoff was revoked by an
+// admin and must not re-take the lock: the public /room-status heartbeat does
+// not hit the DB, so without this a revoked lobby tab would keep the student
+// locked out of every other device.
+const revokedBefore = new Map<string, number>();
 const STALE_MS = 5 * 60 * 1000; // 5 minutes
 
-export function markSessionActive(userId: string, sessionId: string): void {
+export function markSessionActive(
+  userId: string,
+  sessionId: string,
+  sessionCreatedAt?: number,
+): void {
   if (!userId || !sessionId) return;
+  const cutoff = revokedBefore.get(userId);
+  if (cutoff !== undefined && sessionCreatedAt !== undefined && sessionCreatedAt < cutoff) return;
   sessions.set(userId, { sessionId, lastSeen: Date.now() });
 }
 
@@ -27,4 +38,21 @@ export function isLockedByOtherSession(
 
 export function clearSessionForUser(userId: string): void {
   sessions.delete(userId);
+}
+
+// Admin terminated the user's sessions: drop the lock and refuse heartbeats
+// from any session created before `at`.
+export function revokeTrackedSessions(userId: string, at: number): void {
+  sessions.delete(userId);
+  revokedBefore.set(userId, Math.max(revokedBefore.get(userId) ?? 0, at));
+}
+
+// Live (non-stale) entries, for the admin sessions page.
+export function listTrackedSessions(): Array<{ userId: string; lastSeen: number }> {
+  const now = Date.now();
+  const out: Array<{ userId: string; lastSeen: number }> = [];
+  for (const [userId, entry] of sessions) {
+    if (now - entry.lastSeen <= STALE_MS) out.push({ userId, lastSeen: entry.lastSeen });
+  }
+  return out;
 }

@@ -32,7 +32,10 @@ export type ExamWsEvent =
     }
   | { type: 'student.joined'; user_id: string }
   | { type: 'student.kicked'; user_id: string }
-  | { type: 'student.withdrawn'; user_id: string; had_attempt: boolean };
+  | { type: 'student.withdrawn'; user_id: string; had_attempt: boolean }
+  | { type: 'exam.autoAdmitChanged'; enabled: boolean }
+  // Sent only to the affected user's sockets right before an admin closes them.
+  | { type: 'session.revoked'; user_id: string };
 
 export type UseExamSocketResult = {
   connected: boolean;

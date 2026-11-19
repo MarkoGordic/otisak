@@ -38,6 +38,18 @@ U slučaju kada student pokuša da pristupi testu nakon njegovog početka sistem
 
 ![Vođenje testa](../assets/image-18.png)
 
+### Automatsko puštanje studenata koji kasne
+
+Prekidač **Automatski pusti studente koji kasne** postoji u podešavanjima ispita i u sobi ispita, i pre i posle pokretanja. Kada je uključen, student koji se prijavi posle početka ulazi odmah, bez zahteva. Kada ga uključiš dok ispit traje, odobravaju se i svi zahtevi za zakasneli pristup koji već čekaju. Isključivanjem se vraća ručno odobravanje.
+
+### Prijava sa drugog uređaja ili na drugi ispit
+
+Ako je indeks već prijavljen na drugom uređaju (na primer student još radi drugi ispit), prijava se ne odbija, nego se u listi zahteva pojavljuje zahtev **Drugi uređaj**, sa nazivom ispita koji student trenutno radi. Odobravanjem se student odjavljuje sa starog uređaja i ulazi ovde. Ispit na starom uređaju ostaje otvoren dok ga asistent tog ispita ne zatvori. Ako je ispit već počeo, odobrenje važi i kao odobrenje zakasnelog pristupa.
+
+### Prekid sesija (administrator)
+
+Stranica **Administracija → Aktivne sesije** prikazuje studente koji su trenutno prijavljeni ili rade aktivan ispit. Možeš da izabereš jednog ili više studenata i prekineš im sve sesije, posle čega mogu odmah da se prijave na drugi ispit ili sa drugog računara. Opcija **Predaj i otvorene ispite** uz to predaje njihove otvorene ispite sa do tada sačuvanim odgovorima, kao kod izbacivanja.
+
 ## Odustajanje od ispita
 
 Student može da zatraži odustajanje i iz čekaonice i tokom ispita, dugmetom **Odustani**. Razlog nije obavezan. Zahtev se pojavljuje u istoj listi zahteva u sobi, zajedno sa razlogom, i to i pre početka ispita.

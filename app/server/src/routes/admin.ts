@@ -13,6 +13,8 @@ import { requireAuth, requireRole } from '../middleware';
 import { query } from '../db/client';
 import { asyncHandler } from '../lib/asyncHandler';
 import { listRecentErrors, getErrorById } from '../db/error-log';
+import { listActiveStudentSessions, terminateStudentSessions } from '../lib/studentSessions';
+import { ValidationError } from '../lib/errors';
 import { ConflictError, NotFoundError } from '../lib/errors';
 import { ldapEnabled, ldapReadAccountConfigured } from '../lib/ldap';
 import {
@@ -459,6 +461,38 @@ router.post(
       if (err instanceof LdapSyncBusyError) throw new ConflictError('Sync already running');
       throw err;
     }
+  }),
+);
+
+// GET /admin/sessions - students signed in right now or mid-way through an
+// active exam, with the exams they are in.
+router.get(
+  '/sessions',
+  asyncHandler(async (_req: Request, res: Response) => {
+    return res.json({ sessions: await listActiveStudentSessions() });
+  }),
+);
+
+// POST /admin/sessions/terminate - body { user_ids: string[], finish_attempts?: boolean }.
+// Ends every session of the listed students so they can sign in to another exam
+// (or from another device) without the device lock. finish_attempts also submits
+// their open attempts with whatever was saved.
+router.post(
+  '/sessions/terminate',
+  asyncHandler(async (req: Request, res: Response) => {
+    const ids = req.body?.user_ids;
+    if (!Array.isArray(ids) || ids.length === 0 || ids.some((x) => typeof x !== 'string')) {
+      throw new ValidationError('user_ids must be a non-empty array');
+    }
+    if (ids.length > 1000) throw new ValidationError('Too many users');
+    const result = await terminateStudentSessions(ids, {
+      finishAttempts: req.body?.finish_attempts === true,
+    });
+    req.log.info(
+      { admin: req.user!.id, users: ids.length, ...result },
+      'admin: terminated student sessions',
+    );
+    return res.json(result);
   }),
 );
 

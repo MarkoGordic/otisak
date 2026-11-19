@@ -16,7 +16,9 @@ import { useTheme } from '../components/ThemeProvider';
 import { useExamSocket } from '../lib/useExamSocket';
 import { ToggleCluster } from '../components/ToggleCluster';
 
-type Phase = 'index-entry' | 'confirm' | 'waiting' | 'starting' | 'error';
+// awaitingSwitch: the index is signed in on another device (often mid-way
+// through another exam); the assistant has to approve moving it here.
+type Phase = 'index-entry' | 'confirm' | 'waiting' | 'awaitingSwitch' | 'starting' | 'error';
 
 type ExamInfo = {
   title: string;
@@ -66,6 +68,8 @@ export default function JoinExamPage() {
   const [userIndex, setUserIndex] = useState('');
   const [examInfo, setExamInfo] = useState<ExamInfo | null>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [switchRequestId, setSwitchRequestId] = useState<string | null>(null);
+  const [otherExamTitle, setOtherExamTitle] = useState<string | null>(null);
 
   // Check exam exists on mount
   useEffect(() => {
@@ -120,8 +124,9 @@ export default function JoinExamPage() {
     }
   };
 
-  // Step 2: actually join (creates session)
-  const handleConfirm = async () => {
+  // Step 2: actually join (creates session). switchId redeems an approved
+  // session switch so the server lets this device past the lock.
+  const doJoin = async (switchId?: string) => {
     setError('');
     setJoining(true);
 
@@ -130,9 +135,21 @@ export default function JoinExamPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ index_number: indexNumber.trim() }),
+        body: JSON.stringify({
+          index_number: indexNumber.trim(),
+          ...(switchId ? { switch_request_id: switchId } : {}),
+        }),
       });
       const data = await res.json();
+
+      if (res.status === 202 && data.code === 'SESSION_SWITCH_PENDING') {
+        setUserName(data.user?.name || '');
+        setUserIndex(data.user?.index_number || indexNumber);
+        setSwitchRequestId(data.request_id);
+        setOtherExamTitle(data.other_exam_title ?? null);
+        setPhase('awaitingSwitch');
+        return;
+      }
 
       if (!res.ok) {
         if (data.code === 'INDEX_IN_USE') {
@@ -146,6 +163,7 @@ export default function JoinExamPage() {
 
       setUserName(data.user?.name || '');
       setUserIndex(data.user?.index_number || indexNumber);
+      setSwitchRequestId(null);
 
       // Late join: admin already started - navigate into the exam page where
       // the "waiting for approval" state takes over.
@@ -161,6 +179,50 @@ export default function JoinExamPage() {
     } finally {
       setJoining(false);
     }
+  };
+
+  const handleConfirm = () => doJoin();
+  const doJoinRef = useRef(doJoin);
+  doJoinRef.current = doJoin;
+
+  // Waiting for the assistant to approve the session switch.
+  useEffect(() => {
+    if (phase !== 'awaitingSwitch' || !switchRequestId) return;
+    let busy = false;
+    const poll = setInterval(async () => {
+      if (busy) return;
+      busy = true;
+      try {
+        const res = await fetch(`/api/otisak/exams/${examId}/join-requests/${switchRequestId}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.status === 'approved') {
+          clearInterval(poll);
+          await doJoinRef.current(switchRequestId);
+        } else if (data.status === 'denied' || data.status === 'cancelled') {
+          clearInterval(poll);
+          setSwitchRequestId(null);
+          setError(t('join.switch.denied'));
+          setPhase('index-entry');
+        }
+      } catch {
+        /* silent, next tick retries */
+      } finally {
+        busy = false;
+      }
+    }, 2000);
+    return () => clearInterval(poll);
+  }, [phase, switchRequestId, examId, t]);
+
+  const cancelSwitch = async () => {
+    if (switchRequestId) {
+      fetch(`/api/otisak/exams/${examId}/join-requests/${switchRequestId}/cancel`, {
+        method: 'POST',
+      }).catch(() => {});
+    }
+    setSwitchRequestId(null);
+    setError('');
+    setPhase('index-entry');
   };
 
   const handleBackToIndex = () => {
@@ -596,7 +658,9 @@ export default function JoinExamPage() {
             <span
               className={`text-[10px] uppercase tracking-widest animate-pulse ${subtitleClass}`}
             >
-              {t('join.waitingForInstructor')}
+              {phase === 'awaitingSwitch'
+                ? t('join.switch.waiting')
+                : t('join.waitingForInstructor')}
             </span>
           </div>
         </motion.div>
@@ -607,8 +671,22 @@ export default function JoinExamPage() {
           transition={{ duration: 0.6, delay: 0.8 }}
           className={`text-xs sm:text-sm mb-10 sm:mb-16 mt-8 max-w-md leading-relaxed font-light px-2 ${bodyTextStrong}`}
         >
-          {t('join.waitingDesc')}
+          {phase === 'awaitingSwitch'
+            ? otherExamTitle
+              ? t('join.switch.descOther', { exam: otherExamTitle })
+              : t('join.switch.desc')
+            : t('join.waitingDesc')}
         </motion.p>
+
+        {phase === 'awaitingSwitch' && (
+          <button
+            type="button"
+            onClick={cancelSwitch}
+            className={`-mt-6 mb-10 text-sm ${errorBackClass}`}
+          >
+            {t('join.switch.cancel')}
+          </button>
+        )}
 
         {/* Exam info */}
         {examInfo && (

@@ -45,6 +45,7 @@ type Exam = {
   allow_review: boolean;
   allow_notes: boolean;
   allow_calculator: boolean;
+  auto_admit_late: boolean;
   shuffle_questions: boolean;
   shuffle_answers: boolean;
   partial_scoring: boolean;
@@ -179,6 +180,7 @@ export default function ExamEditPage() {
           allow_review: exam.allow_review,
           allow_notes: exam.allow_notes,
           allow_calculator: exam.allow_calculator,
+          auto_admit_late: !!exam.auto_admit_late,
           shuffle_questions: exam.shuffle_questions,
           shuffle_answers: exam.shuffle_answers,
           partial_scoring: exam.partial_scoring,
@@ -551,6 +553,13 @@ export default function ExamEditPage() {
                     value={exam.allow_calculator}
                     onChange={(v) => setExam({ ...exam, allow_calculator: v })}
                   />
+                  {exam.exam_mode !== 'practice' && (
+                    <Toggle
+                      label={t('examEdit.autoAdmitLate')}
+                      value={!!exam.auto_admit_late}
+                      onChange={(v) => setExam({ ...exam, auto_admit_late: v })}
+                    />
+                  )}
                   <Toggle
                     label={t('examEdit.negativePoints')}
                     value={exam.negative_points_enabled}

@@ -30,6 +30,23 @@ export function terminateUserSockets(userId: string): void {
   }
 }
 
+// Admin terminated a user's sessions: tell their open tabs first (so the page
+// can leave the exam with a message) and then close with 4001, which the
+// client treats as "do not reconnect".
+export function revokeUserSockets(userId: string): void {
+  if (!activeWss) return;
+  const message = JSON.stringify({ type: 'session.revoked', user_id: userId });
+  for (const client of activeWss.clients) {
+    if (wsUserMap.get(client)?.userId !== userId) continue;
+    if (client.readyState === WebSocket.OPEN) {
+      client.send(message);
+      client.close(4001, 'Session revoked');
+    } else {
+      client.terminate();
+    }
+  }
+}
+
 // Heartbeat: track liveness of each socket. Sockets that don't respond to a ping within
 // the next interval are terminated. This catches silent connection drops caused by
 // LAN proxies/NATs where neither side gets a clean close.

@@ -48,7 +48,7 @@ export async function requireAuth(req: Request, res: Response, next: NextFunctio
     req.user = user;
     // Keep the per-user session tracker warm so /join can detect another
     // device trying to take over while this user is mid-exam.
-    markSessionActive(user.id, session.id);
+    markSessionActive(user.id, session.id, session.createdAt);
     next();
   } catch (error) {
     // Unexpected failure (e.g. DB down): forward to the centralized error

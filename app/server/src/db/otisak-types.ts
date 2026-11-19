@@ -25,6 +25,8 @@ export interface OtisakExam {
   allow_review: boolean;
   allow_notes: boolean;
   allow_calculator: boolean;
+  // Late joiners are admitted without a late_join request.
+  auto_admit_late: boolean;
   shuffle_questions: boolean;
   shuffle_answers: boolean;
   pass_threshold: number;
@@ -160,6 +162,7 @@ export interface CreateOtisakExamInput {
   allow_review?: boolean;
   allow_notes?: boolean;
   allow_calculator?: boolean;
+  auto_admit_late?: boolean;
   shuffle_questions?: boolean;
   shuffle_answers?: boolean;
   pass_threshold?: number;

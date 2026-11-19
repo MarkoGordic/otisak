@@ -74,6 +74,8 @@ CREATE TABLE otisak_exams (
   allow_review BOOLEAN NOT NULL DEFAULT FALSE,
   allow_notes BOOLEAN NOT NULL DEFAULT TRUE,
   allow_calculator BOOLEAN NOT NULL DEFAULT FALSE,
+  -- Late joiners get in without assistant approval (migration 023).
+  auto_admit_late BOOLEAN NOT NULL DEFAULT FALSE,
   shuffle_questions BOOLEAN NOT NULL DEFAULT FALSE,
   shuffle_answers BOOLEAN NOT NULL DEFAULT FALSE,
   pass_threshold NUMERIC NOT NULL DEFAULT 50,
@@ -429,7 +431,7 @@ CREATE TABLE exam_lockdowns (
 -- EXAM REQUESTS
 -- Generic queue of student-submitted requests an admin must approve.
 -- Each `type` has a server-side handler that runs on approval.
--- Currently supported types: 'late_join'.
+-- Currently supported types: 'late_join', 'withdraw', 'session_switch'.
 -- ========================================
 
 CREATE TABLE exam_requests (

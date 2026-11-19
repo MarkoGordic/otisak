@@ -373,6 +373,18 @@ const steps: readonly Step[] = [
     `);
     },
   ],
+
+  [
+    '023_exam_auto_admit_late',
+    async () => {
+      // Students who join after the start get in without a late_join
+      // request when this is on. Togglable live from the room.
+      await query(`
+      ALTER TABLE otisak_exams
+      ADD COLUMN IF NOT EXISTS auto_admit_late BOOLEAN NOT NULL DEFAULT FALSE
+    `);
+    },
+  ],
 ];
 
 export async function runMigrations(): Promise<void> {

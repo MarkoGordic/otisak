@@ -51,6 +51,18 @@ If a student tries to join after the timer started, they get a button that creat
 
 Requests stay pending until you decide or the exam closes.
 
+### Admitting late students automatically
+
+The **Admit late students automatically** switch is in the exam settings and in the room, before and after the start. While it is on, a student who joins after the start gets in straight away with no request. Turning it on during the exam also approves every late-join request already waiting. Turning it off brings back manual approval.
+
+### Joining from another device or another exam
+
+If the index is already signed in on another device (for example the student is still taking another exam), the join is not refused. An **Other device** request appears in the queue, with the title of the exam the student is currently taking. Approving it signs the student out on the old device and lets them in here. The exam on the old device stays open until that exam's assistant closes it. If this exam has already started, the approval also counts as late-join approval.
+
+### Ending sessions (admin)
+
+**Administration > Active sessions** lists students who are signed in right now or taking an active exam. Select one or more and end all their sessions; they can then sign in to another exam or from another computer straight away. **Also submit their open exams** additionally submits their open exams with the answers saved so far, the same as removing a student.
+
 ## Withdrawal requests
 
 A student can ask to withdraw from the waiting room or during the exam with the **Withdraw** button, optionally with a reason. The request lands in the same queue with the reason shown, also before the exam has started.

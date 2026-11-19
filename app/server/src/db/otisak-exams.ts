@@ -127,8 +127,8 @@ export async function createOtisakExam(
        allow_review, shuffle_questions, shuffle_answers, pass_threshold, has_pass_threshold, created_by,
        exam_mode, self_service, repeat_interval_minutes, auto_activate, uses_question_bank, is_public,
        negative_points_enabled, negative_points_value, negative_points_threshold, partial_scoring, tags,
-       allow_notes, allow_calculator)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24) RETURNING *`,
+       allow_notes, allow_calculator, auto_admit_late)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25) RETURNING *`,
     [
       data.title,
       data.subject_id || null,
@@ -154,6 +154,7 @@ export async function createOtisakExam(
       tags,
       data.allow_notes ?? true,
       data.allow_calculator ?? false,
+      data.auto_admit_late ?? false,
     ],
   );
   return result.rows[0];
@@ -252,6 +253,7 @@ export async function updateOtisakExam(
       | 'allow_review'
       | 'allow_notes'
       | 'allow_calculator'
+      | 'auto_admit_late'
       | 'shuffle_questions'
       | 'shuffle_answers'
       | 'is_public'
@@ -327,6 +329,10 @@ export async function updateOtisakExam(
   if (data.allow_calculator !== undefined) {
     updates.push(`allow_calculator = $${idx++}`);
     values.push(data.allow_calculator);
+  }
+  if (data.auto_admit_late !== undefined) {
+    updates.push(`auto_admit_late = $${idx++}`);
+    values.push(data.auto_admit_late);
   }
   if (data.shuffle_questions !== undefined) {
     updates.push(`shuffle_questions = $${idx++}`);
